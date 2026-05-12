@@ -1,0 +1,36 @@
+# Ignorar arquivos gerados e temporários
+*.log
+*.tmp
+*.temp
+*.bak
+*.swp
+*.DS_Store
+Thumbs.db
+
+# Ignorar arquivos de configuração local
+.env
+.env.local
+.env.*.local
+
+# Ignorar pastas de dependências / build
+node_modules/
+dist/
+build/
+
+# Ignorar arquivos pessoais e de IDE
+.vscode/
+.idea/
+
+# Ignorar arquivos grandes/zip de distribuição
+*.zip
+
+# Ignorar arquivos de sistema do Windows
+Desktop.ini
+$RECYCLE.BIN/
+
+# Ignorar backups do editor
+*~
+
+# Ignorar logs do navegador ou auditoria local (se houver)
+logs/
+audit.log
