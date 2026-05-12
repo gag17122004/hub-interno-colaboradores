@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hub Interno — Gestão & Operações</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="stylesheet" href="app.css" />
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+
+  <!-- Estilos específicos de componentes menores que não justificam arquivo próprio -->
+  <style>
+    /* ── Módulo 1 — Lista de colaboradores ── */
+    .m1-layout { display: grid; grid-template-columns: 220px 1fr; gap: 20px; height: 100%; }
+    .m1-emp-sidebar { display: flex; flex-direction: column; gap: 12px; }
+    .m1-emp-list { display: flex; flex-direction: column; gap: 4px; max-height: 480px; overflow-y: auto; }
+    .m1-emp-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; border-radius: 8px;
+      cursor: pointer; transition: .15s ease;
+      border: 1px solid transparent;
+    }
+    .m1-emp-item:hover { background: var(--surface2); }
+    .m1-emp-item.active { background: var(--accent-bg); border-color: var(--accent-bd); }
+    .m1-emp-avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--accent); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700; flex-shrink: 0;
+    }
+    .m1-emp-info { flex: 1; min-width: 0; }
+    .m1-emp-name { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .m1-emp-bal  { font-size: 11px; font-family: 'DM Mono', monospace; margin-top: 1px; }
+
+    /* ── Módulo 3 — Lista de produtos ── */
+    .m3-layout { display: grid; grid-template-columns: 200px 1fr; gap: 20px; }
+    .m3-prod-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 12px; border-radius: 8px;
+      cursor: pointer; transition: .15s ease;
+      border: 1px solid transparent; margin-bottom: 4px;
+    }
+    .m3-prod-item:hover  { background: var(--surface2); }
+    .m3-prod-item.active { background: var(--accent-bg); border-color: var(--accent-bd); }
+
+    /* ── Separador visual de seção ── */
+    .section-divider {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .07em; color: var(--text-sec); margin: 4px 0;
+    }
+    .section-divider::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+
+    /* ── Fees grid (M3) ── */
+    .fees-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 600px) { .fees-grid { grid-template-columns: 1fr; } }
+
+    /* ── Módulo 4 ── */
+    .m4-inputs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+
+    /* ── Responsive M1/M3 ── */
+    @media (max-width: 640px) {
+      .m1-layout { grid-template-columns: 1fr; }
+      .m3-layout { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  
+<!-- ════════════════════════════════════════════════════════
+     TELA DE LOGIN
+     ════════════════════════════════════════════════════════ -->
+<div id="login-screen" class="login-overlay">
+  <div class="login-card">
+    <div class="login-logo">
+      <i class="fa-solid fa-lock"></i>
+      <h2>Acesso Restrito</h2>
+      <p>Hub Interno — Gestão & Operações</p>
+    </div>
+    
+    <div id="login-step-1">
+      <div class="field">
+        <label>Senha de Acesso</label>
+        <input type="password" id="login-pass" placeholder="••••••••" />
+      </div>
+      <button class="btn btn-primary w-full mt-4" id="btn-login-next">Entrar</button>
+    </div>
+
+    <div id="login-step-2" class="hidden">
+      <div class="field">
+        <label>Selecione seu nome</label>
+        <select id="login-colab-select">
+          <option value="">Carregando colaboradores...</option>
+        </select>
+      </div>
+      <button class="btn btn-primary w-full mt-4" id="btn-login-finish">Acessar Painel</button>
+      <button class="btn btn-ghost w-full mt-2" id="btn-login-back">Voltar</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     ESTRUTURA PRINCIPAL
+     ════════════════════════════════════════════════════════ -->
+<div class="app-layout">
+
+  <!-- ── SIDEBAR ──────────────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon"><i class="fa-solid fa-boxes-stacked"></i></div>
+      <div>
+        <div class="logo-text">Hub Interno</div>
+        <div class="logo-sub">Gestão & Operações</div>
+      </div>
+    </div>
+
+    <nav class="nav-section">
+      <span class="nav-label">Módulos</span>
+
+      <div class="nav-item active" data-route="m1" data-sub="Registros de horas, colaboradores e exportação">
+        <i class="fa-solid fa-clock"></i>
+        <span>Horas Extras</span>
+      </div>
+
+      <div class="nav-item" data-route="m2" data-sub="Preços de matéria-prima e cadastro de produtos">
+        <i class="fa-solid fa-layer-group"></i>
+        <span>Custos & Produtos</span>
+      </div>
+
+      <div class="nav-item" data-route="m3" data-sub="Simulação de lucro por marketplace">
+        <i class="fa-solid fa-chart-line"></i>
+        <span>Precificação</span>
+      </div>
+
+      <div class="nav-item" data-route="m4" data-sub="Peso real vs. peso cúbico">
+        <i class="fa-solid fa-truck-fast"></i>
+        <span>Calc. Frete</span>
+      </div>
+
+      <div class="nav-item" data-route="m5" data-sub="Tarefas e anotações internas">
+        <i class="fa-solid fa-folder-open"></i>
+        <span>Tarefas</span>
+        <span class="nav-badge" id="m5-count">0</span>
+      </div>
+
+      <div class="nav-item master-only" data-route="m6" data-sub="Logs de auditoria do sistema">
+        <i class="fa-solid fa-shield-halved"></i>
+        <span>Auditoria</span>
+      </div>
+
+      <div class="nav-item" data-route="m7" data-sub="Registro de produção diária">
+        <i class="fa-solid fa-industry"></i>
+        <span>Produção</span>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div id="user-info" class="hidden" style="padding: 10px; border-bottom: 1px solid var(--border); margin-bottom: 10px;">
+        <div class="text-xs text-muted">Logado como:</div>
+        <div class="text-sm font-bold" id="user-display-name">---</div>
+        <button class="btn btn-ghost btn-sm mt-2 w-full" id="btn-logout">
+          <i class="fa-solid fa-right-from-bracket"></i> Sair
+        </button>
+      </div>
+      <div class="theme-toggle" id="theme-toggle">
+        <span id="theme-label">Tema Escuro</span>
+        <div class="toggle-pill" id="theme-pill"></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── CONTEÚDO PRINCIPAL ────────────────────────────────── -->
+  <div class="main-content">
+
+    <!-- Top bar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="topbar-title" id="topbar-title">Horas Extras</div>
+        <div class="topbar-sub"  id="topbar-sub">Registros de horas, colaboradores e exportação</div>
+      </div>
+      <div class="topbar-actions">
+        <span class="text-xs text-muted font-mono" id="topbar-date"></span>
+      </div>
+    </header>
+
+    <!-- ══════════════════════════════════════════════════════
+         MÓDULO 1 — HORAS EXTRAS
+         ══════════════════════════════════════════════════════ -->
+    <section id="panel-m1" class="module-panel active">
+
+      <div class="m1-layout">
+
+        <!-- Coluna esquerda: lista de colaboradores -->
+        <div class="m1-emp-sidebar">
+          <div class="card" style="flex:0">
+            <div class="card-title">Equipa</div>
+            <div class="field-group" style="flex-direction:column">
+              <div class="field">
+                <label>Novo Colaborador</label>
+                <input type="text" id="m1-new-employee" placeholder="Nome completo" />
+              </div>
+              <button class="btn btn-primary w-full" id="m1-add-employee-btn">
+                <i class="fa-solid fa-user-plus"></i> Adicionar
+              </button>
+            </div>
+          </div>
+
+          <div class="card" style="flex:1;overflow:hidden">
+            <div class="card-title">Colaboradores</div>
+            <div class="m1-emp-list" id="m1-employee-list">
+              <div class="empty-state"><i class="fa-solid fa-users"></i><p>Nenhum colaborador</p></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Coluna direita: painel de horas -->
+        <div>
+          <!-- Estado vazio -->
+          <div id="m1-empty" class="card">
+            <div class="empty-state">
+              <i class="fa-solid fa-arrow-left"></i>
+              <p>Selecione ou adicione um colaborador para ver os registros.</p>
+            </div>
+          </div>
+
+          <!-- Painel ativo -->
+          <div id="m1-hours-panel" class="hidden" style="display:flex;flex-direction:column;gap:16px">
+
+            <!-- Cabeçalho do colaborador -->
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title-lg" id="m1-panel-name">—</div>
+                  <div class="text-xs text-muted mt-1">Registros de horas extras</div>
+                </div>
+                <div class="flex gap-2">
+                  <input type="month" id="m1-month-filter" style="width:160px" />
+                  <button class="btn btn-secondary btn-sm" id="m1-print-btn">
+                    <i class="fa-solid fa-print"></i> Exportar Mês
+                  </button>
+                </div>
+              </div>
+
+              <!-- Stats -->
+              <div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
+                <div class="stat-card">
+                  <div class="stat-label">Horas Extras</div>
+                  <div class="stat-value font-mono" id="m1-stat-total">0.00h</div>
+                  <div class="stat-sub">no mês filtrado</div>
+                </div>
+                <div class="stat-card danger">
+                  <div class="stat-label">Horas Devedoras</div>
+                  <div class="stat-value font-mono" id="m1-stat-debt">0.00h</div>
+                  <div class="stat-sub">a descontar</div>
+                </div>
+                <div class="stat-card" id="m1-stat-balance-card">
+                  <div class="stat-label">Saldo Líquido</div>
+                  <div class="stat-value font-mono" id="m1-stat-balance">0.00h</div>
+                  <div class="stat-sub">horas a receber</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Horas devedoras -->
+            <div class="card">
+              <div class="section-divider">Horas Devedoras</div>
+              <div class="field-group mt-2">
+                <div class="field" style="max-width:200px">
+                  <label>Total de horas a descontar</label>
+                  <input type="number" id="m1-debt-input" min="0" step="0.5" placeholder="0.0" />
+                </div>
+                <button class="btn btn-secondary" id="m1-save-debt-btn">
+                  <i class="fa-solid fa-floppy-disk"></i> Salvar
+                </button>
+              </div>
+            </div>
+
+            <!-- Tabela de registros -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">Registros do Mês</div>
+                <button class="btn btn-primary btn-sm" id="m1-add-record-btn">
+                  <i class="fa-solid fa-plus"></i> Adicionar Horas
+                </button>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Data</th>
+                      <th>Horas</th>
+                      <th>Tipo</th>
+                      <th>Período</th>
+                      <th>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody id="m1-hours-tbody">
+                    <tr><td colspan="5" class="empty-state"><i class="fa-regular fa-calendar-xmark"></i><p>Nenhum registro.</p></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal: adicionar/editar registro de horas -->
+      <div class="modal-backdrop" id="modal-record">
+        <div class="modal">
+          <div class="modal-title" id="m1-rec-modal-title">Adicionar Horas Extras</div>
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div class="field">
+              <label>Data</label>
+              <input type="date" id="m1-rec-date" />
+            </div>
+            <div class="field">
+              <label>Horas (ex: 1.5)</label>
+              <input type="number" id="m1-rec-hours" min="0.25" step="0.25" placeholder="0.00" />
+            </div>
+            <div class="field" id="m1-period-field">
+              <label>Período (automático)</label>
+              <input type="text" id="m1-rec-period" placeholder="Ex: 16:00 ÀS 17:30" readonly />
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" id="m1-cancel-record-btn">Cancelar</button>
+            <button class="btn btn-primary" id="m1-save-record-btn">Salvar</button>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         MÓDULO 2 — CUSTOS & PRODUTOS
+         ══════════════════════════════════════════════════════ -->
+    <section id="panel-m2" class="module-panel">
+
+      <!-- Preço único por Kg -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Matéria-Prima — Preço por Kg</div>
+            <div class="text-xs text-muted mt-1">COEX (envelopes) e PEBD (sacos) compartilham o mesmo preço</div>
+          </div>
+          <button class="btn btn-primary btn-sm" id="m2-save-price-btn">
+            <i class="fa-solid fa-floppy-disk"></i> Salvar
+          </button>
+        </div>
+        <div class="field-group">
+          <div class="field">
+            <label>Preço único (R$/kg)</label>
+            <input type="number" id="m2-price-kg" min="0" step="0.01" placeholder="0.00" style="max-width:200px" />
+          </div>
+        </div>
+        <p class="text-xs text-muted mt-3">
+          <i class="fa-solid fa-circle-info"></i>
+          Os custos e o lucro líquido no Módulo 3 são recalculados automaticamente ao salvar.
+        </p>
+      </div>
+
+      <!-- Produtos agrupados -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Produtos Cadastrados</div>
+          <div class="flex gap-2">
+            <button class="btn btn-secondary btn-sm" id="m2-xlsx-btn">
+              <i class="fa-solid fa-file-excel"></i> Importar XLSX
+            </button>
+            <input type="file" id="m2-xlsx-input" accept=".xlsx,.xls" class="hidden" />
+            <button class="btn btn-primary btn-sm" id="m2-add-group-btn">
+              <i class="fa-solid fa-plus"></i> Novo Grupo
+            </button>
+          </div>
+        </div>
+        <div id="m2-products-container">
+          <div class="empty-state">
+            <i class="fa-solid fa-box-open"></i>
+            <p>Nenhum produto cadastrado. Clique em "Novo Grupo" para começar.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal: Grupo de Produto -->
+      <div class="modal-backdrop" id="modal-product-group">
+        <div class="modal" style="max-width:400px">
+          <div class="modal-title" id="m2-group-modal-title">Novo Grupo de Produto</div>
+          <div class="field">
+            <label>Nome do Grupo (ex: Saco 50L)</label>
+            <input type="text" id="m2-group-name" placeholder="Ex: Envelope 15x20" />
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" id="m2-cancel-group-btn">Cancelar</button>
+            <button class="btn btn-primary" id="m2-save-group-btn">Salvar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal: Variação -->
+      <div class="modal-backdrop" id="modal-variation">
+        <div class="modal" style="max-width:480px">
+          <div class="modal-title" id="m2-var-modal-title">Nova Variação</div>
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div class="field">
+              <label>Nomenclatura (SKU)</label>
+              <input type="text" id="m2-var-sku" placeholder="Ex: TQ 50 100 ou LCQ 15 20 1000" />
+              <div class="text-xs text-muted mt-1">
+                Sacos: <strong>TQ [litros] [qtd]</strong> &nbsp;|&nbsp; Envelopes: <strong>LCQ [largura] [comprimento] [qtd]</strong>
+              </div>
+            </div>
+            <div class="field-group">
+              <div class="field" style="flex:0;min-width:160px">
+                <label>Qtd extraída da nomenclatura</label>
+                <div class="font-mono text-accent" style="padding:8px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)" id="m2-var-qty-display">—</div>
+              </div>
+              <div class="field">
+                <label>Peso do Lote (kg)</label>
+                <input type="number" id="m2-var-lotweight" min="0.001" step="0.001" placeholder="0.000" />
+              </div>
+            </div>
+            <div class="section-divider">Dimensões e Micragem</div>
+            <div class="field-group">
+              <div class="field">
+                <label>Largura (cm)</label>
+                <input type="number" id="m2-var-width" min="0" step="0.1" placeholder="0" />
+              </div>
+              <div class="field">
+                <label>Altura (cm)</label>
+                <input type="number" id="m2-var-height" min="0" step="0.1" placeholder="0" />
+              </div>
+              <div class="field">
+                <label>Comprimento (cm)</label>
+                <input type="number" id="m2-var-length" min="0" step="0.1" placeholder="0" />
+              </div>
+              <div class="field">
+                <label>Micragem</label>
+                <input type="text" id="m2-var-micron" placeholder="Ex: 0.03" />
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" id="m2-cancel-var-btn">Cancelar</button>
+            <button class="btn btn-primary" id="m2-save-var-btn">Salvar Variação</button>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         MÓDULO 3 — PRECIFICAÇÃO E LUCRO LÍQUIDO
+         ══════════════════════════════════════════════════════ -->
+    <section id="panel-m3" class="module-panel">
+
+      <!-- Configuração de taxas -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Taxas dos Marketplaces</div>
+          <button class="btn btn-primary btn-sm" id="m3-save-fees-btn">
+            <i class="fa-solid fa-floppy-disk"></i> Salvar Taxas
+          </button>
+        </div>
+        <div class="fees-grid">
+          <div>
+            <div class="section-divider" style="margin-bottom:12px">
+              <span style="color:#f97316"><i class="fa-solid fa-store"></i> Shopee</span>
+            </div>
+            <div class="field-group">
+              <div class="field">
+                <label>Comissão (%)</label>
+                <input type="number" id="m3-shopee-commission" min="0" max="100" step="0.1" placeholder="14.0" />
+              </div>
+              <div class="field">
+                <label>Taxa Fixa (R$)</label>
+                <input type="number" id="m3-shopee-fixed" min="0" step="0.01" placeholder="0.00" />
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="section-divider" style="margin-bottom:12px">
+              <span style="color:#ca8a04"><i class="fa-solid fa-tag"></i> Mercado Livre</span>
+            </div>
+            <div class="field-group">
+              <div class="field">
+                <label>Comissão (%)</label>
+                <input type="number" id="m3-ml-commission" min="0" max="100" step="0.1" placeholder="12.0" />
+              </div>
+              <div class="field">
+                <label>Taxa Fixa (R$)</label>
+                <input type="number" id="m3-ml-fixed" min="0" step="0.01" placeholder="5.00" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Layout de precificação por produto -->
+      <div class="m3-layout">
+
+        <!-- Lista de produtos -->
+        <div class="card">
+          <div class="card-title" style="margin-bottom:12px">Produtos</div>
+          <div id="m3-product-list">
+            <div class="empty-state"><i class="fa-solid fa-box-open"></i><p>Cadastre produtos no Módulo 2</p></div>
+          </div>
+        </div>
+
+        <!-- Painel de precificação -->
+        <div>
+          <div id="m3-empty" class="card">
+            <div class="empty-state">
+              <i class="fa-solid fa-arrow-left"></i>
+              <p>Selecione um produto para simular a precificação.</p>
+            </div>
+          </div>
+
+          <div id="m3-pricing-panel" class="hidden" style="display:flex;flex-direction:column;gap:16px">
+
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title-lg" id="m3-prod-title">—</div>
+                <div>
+                  <span class="text-xs text-muted">Custo unitário real:</span>
+                  <span class="text-sm font-mono text-accent" id="m3-unit-cost">R$ 0,00</span>
+                </div>
+              </div>
+
+              <div class="field-group">
+                <div class="field">
+                  <label>Preço de Venda (R$)</label>
+                  <input type="number" id="m3-sell-price" min="0" step="0.01" placeholder="0.00" />
+                </div>
+                <div class="field">
+                  <label>Quantidade por venda</label>
+                  <input type="number" id="m3-sell-qty" min="1" step="1" value="1" style="max-width:100px" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Resultado: Shopee e ML lado a lado -->
+            <div class="profit-grid">
+              <div class="profit-card shopee">
+                <div class="profit-header">
+                  <span class="profit-logo">🛒</span>
+                  <span class="profit-name">Shopee</span>
+                </div>
+                <div class="profit-value" id="m3-shopee-net">R$ 0,00</div>
+                <div class="profit-pct"   id="m3-shopee-pct">0.00% de margem</div>
+                <div class="profit-breakdown" id="m3-shopee-breakdown"></div>
+              </div>
+              <div class="profit-card ml">
+                <div class="profit-header">
+                  <span class="profit-logo">🛍️</span>
+                  <span class="profit-name">Mercado Livre</span>
+                </div>
+                <div class="profit-value" id="m3-ml-net">R$ 0,00</div>
+                <div class="profit-pct"   id="m3-ml-pct">0.00% de margem</div>
+                <div class="profit-breakdown" id="m3-ml-breakdown"></div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         MÓDULO 4 — CALCULADORA DE FRETE
+         ══════════════════════════════════════════════════════ -->
+    <section id="panel-m4" class="module-panel">
+      <div class="card" style="max-width:600px">
+        <div class="card-header">
+          <div class="card-title-lg">Calculadora de Frete E-commerce</div>
+          <button class="btn btn-ghost btn-sm" id="m4-reset-btn">
+            <i class="fa-solid fa-rotate-left"></i> Limpar
+          </button>
+        </div>
+
+        <div class="m4-inputs-grid">
+          <div class="field">
+            <label>Altura (cm)</label>
+            <input type="number" id="m4-height" min="0" step="0.1" placeholder="0" />
+          </div>
+          <div class="field">
+            <label>Largura (cm)</label>
+            <input type="number" id="m4-width" min="0" step="0.1" placeholder="0" />
+          </div>
+          <div class="field">
+            <label>Comprimento (cm)</label>
+            <input type="number" id="m4-length" min="0" step="0.1" placeholder="0" />
+          </div>
+          <div class="field">
+            <label>Peso Real (kg)</label>
+            <input type="number" id="m4-weight" min="0" step="0.001" placeholder="0.000" />
+          </div>
+        </div>
+
+        <p class="text-xs text-muted mt-3">
+          <i class="fa-solid fa-circle-info"></i>
+          Fórmula: <span class="font-mono">(A × L × C) ÷ 6.000</span> — O maior entre peso real e cúbico é o cobrado.
+        </p>
+
+        <!-- Resultado -->
+        <div class="weight-grid">
+          <div class="weight-card" id="m4-real-card">
+            <div class="wlabel">Peso Real</div>
+            <div class="wvalue" id="m4-real-val">—</div>
+            <div class="wtag"   id="m4-real-tag"></div>
+          </div>
+          <div class="weight-card" id="m4-cubic-card">
+            <div class="wlabel">Peso Cúbico</div>
+            <div class="wvalue" id="m4-cubic-val">—</div>
+            <div class="wtag"   id="m4-cubic-tag"></div>
+          </div>
+        </div>
+
+        <div class="mt-3 text-sm font-mono text-accent" id="m4-charged"
+             style="text-align:center;padding:12px;background:var(--accent-bg);border-radius:8px;border:1px solid var(--accent-bd)">
+          Preencha os campos para calcular
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         MÓDULO 5 — TAREFAS E ANOTAÇÕES
+         ══════════════════════════════════════════════════════ -->
+    <section id="panel-m5" class="module-panel">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title-lg">Tarefas & Anotações Gerais</div>
+          <button class="btn btn-primary btn-sm" id="m5-add-btn">
+            <i class="fa-solid fa-plus"></i> Nova Tarefa
+          </button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="white-space:nowrap">Data</th>
+                <th>Item / Tarefa</th>
+                <th>Anotações</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="m5-tasks-tbody">
+              <tr><td colspan="4" class="empty-state"><i class="fa-regular fa-folder-open"></i><p>Nenhuma tarefa.</p></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Modal: tarefa -->
+      <div class="modal-backdrop" id="modal-task">
+        <div class="modal">
+          <div class="modal-title" id="m5-modal-title">Nova Tarefa</div>
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div class="field">
+              <label>Data</label>
+              <input type="date" id="m5-task-date" />
+            </div>
+            <div class="field">
+              <label>Item / Tarefa</label>
+              <input type="text" id="m5-task-item" placeholder="Breve descrição" />
+            </div>
+            <div class="field">
+              <label>Anotações</label>
+              <textarea id="m5-task-notes" placeholder="Detalhes, observações, links..."></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" id="m5-cancel-task-btn">Cancelar</button>
+            <button class="btn btn-primary"   id="m5-save-task-btn">Salvar</button>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         MÓDULO 6 — AUDITORIA (MASTER ONLY)
+         ══════════════════════════════════════════════════════ -->
+    <section id="panel-m6" class="module-panel">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title-lg">Log de Auditoria</div>
+          <button class="btn btn-secondary btn-sm" id="m6-clear-btn">
+            <i class="fa-solid fa-trash-can"></i> Limpar Logs (Master)
+          </button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Data/Hora</th>
+                <th>Colaborador</th>
+                <th>Ação</th>
+              </tr>
+            </thead>
+            <tbody id="m6-logs-tbody">
+              <tr><td colspan="3" class="empty-state">Sem registros de auditoria.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         MÓDULO 7 — CONTROLE DE PRODUÇÃO
+         ══════════════════════════════════════════════════════ -->
+    <section id="panel-m7" class="module-panel">
+      <!-- Visão Master (Estatísticas) -->
+      <div id="m7-master-view" class="master-only hidden">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Produção Total (Bobinas)</div>
+            <div class="stat-value" id="m7-stat-total">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Média Diária</div>
+            <div class="stat-value" id="m7-stat-avg">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Meta de Produção</div>
+            <div class="field mt-2">
+               <input type="number" id="m7-goal-input" placeholder="Definir meta" style="max-width:100px" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt-4">
+        <div class="card-header">
+          <div class="card-title-lg">Registros de Produção</div>
+          <button class="btn btn-primary btn-sm" id="m7-add-btn">
+            <i class="fa-solid fa-plus"></i> Novo Registro
+          </button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Operador</th>
+                <th>Máquina</th>
+                <th>Produto</th>
+                <th>Tamanho</th>
+                <th>Peso</th>
+                <th>Pacotes</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="m7-production-tbody">
+              <tr><td colspan="8" class="empty-state">Nenhum registro de produção.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Modal: Registro de Produção -->
+      <div class="modal-backdrop" id="modal-production-record">
+        <div class="modal" style="max-width: 500px;">
+          <div class="modal-title" id="modal-production-record-title">Novo Registro de Produção</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="field">
+              <label>Data</label>
+              <input type="date" id="m7-date" />
+            </div>
+            <div class="field">
+              <label>Operador</label>
+              <input type="text" id="m7-operator" placeholder="Preenchido automaticamente" />
+            </div>
+            <div class="field">
+              <label>Máquina</label>
+              <select id="m7-machine">
+                <option value="01 (Saco)">01 (Saco)</option>
+                <option value="02 (Envelope)">02 (Envelope)</option>
+                <option value="03 (Saco)">03 (Saco)</option>
+                <option value="other">+ Adicionar Nova</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Produto</label>
+              <select id="m7-prod-type">
+                <option value="Saco de Lixo">Saco de Lixo</option>
+                <option value="Envelope">Envelope</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Micragem</label>
+              <select id="m7-micron">
+                <option value="0.03">0.03</option>
+                <option value="0.035">0.035</option>
+                <option value="0.04">0.04</option>
+                <option value="other">+ Outra</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Cor</label>
+              <select id="m7-color">
+                <option value="Preto">Preto</option>
+                <option value="other">+ Outra</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Peso da Bobina (kg)</label>
+              <input type="number" id="m7-weight" step="0.01" />
+            </div>
+            <div class="field">
+              <label>Tamanho</label>
+              <input type="text" id="m7-size" placeholder="Ex: 50x60" />
+            </div>
+            <div class="field">
+              <label>H. Inicial</label>
+              <input type="time" id="m7-start-time" />
+            </div>
+            <div class="field">
+              <label>H. Final</label>
+              <input type="time" id="m7-end-time" />
+            </div>
+            <div class="field">
+              <label>Pacotes</label>
+              <input type="number" id="m7-packages" />
+            </div>
+            <div class="field">
+              <label>Cortes</label>
+              <input type="number" id="m7-cuts" />
+            </div>
+          </div><!-- /.grid -->
+          <div class="field mt-3">
+            <label>Observações</label>
+            <textarea id="m7-notes" rows="2"></textarea>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" id="m7-cancel-btn">Cancelar</button>
+            <button class="btn btn-primary" id="m7-save-btn">Salvar Registro</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /.main-content -->
+
+</div><!-- /.app-layout -->
+
+<!-- ══════════════════════════════════════════════════════════
+     COMPONENTES GLOBAIS
+     ══════════════════════════════════════════════════════════ -->
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<!-- Modal de confirmação global -->
+<div class="modal-backdrop" id="global-modal">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-title" id="modal-title">Confirmar ação</div>
+    <div id="modal-body" style="font-size:13px;color:var(--text-sec)"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="modal-cancel">Cancelar</button>
+      <button class="btn btn-danger"    id="modal-confirm">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Scripts — ordem importa ──────────────────────────── -->
+<script src="core.js"></script>
+<script src="m1-horas.js"></script>
+<script src="m2-custos.js"></script>
+<script src="m3-precificacao.js"></script>
+<script src="m4-m5.js"></script>
+<script src="m6-auditoria.js"></script>
+<script src="m7-producao.js"></script>
+
+<script>
+  // Mostra a data atual na topbar
+  document.addEventListener('DOMContentLoaded', () => {
+    const el = document.getElementById('topbar-date');
+    if (el) {
+      el.textContent = new Date().toLocaleDateString('pt-BR', {
+        weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
+      });
+    }
+  });
+</script>
+
+</body>
+</html>
