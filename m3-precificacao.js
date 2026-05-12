@@ -1,6 +1,7 @@
 /**
- * m3-precificacao.js — Módulo 3: Precificação e Lucro Líquido (v2)
- * Agora trabalha com variações do M2 (getFlatVariations).
+ * m3-precificacao.js — Módulo 3: Precificação e Lucro Líquido (v3)
+ * Marketplaces: Shein 18%, ML 26%, Shopee 23%, TikTok 12%
+ * Fórmula: Revenue - custo - comissão_plataforma - 5%_operacional - frete
  */
 
 const M3 = (() => {
@@ -10,8 +11,10 @@ const M3 = (() => {
   /* ── Estado ────────────────────────────────────────────── */
   let pricing  = {};
   let mktFees  = {
-    shopee: { commission: 14, fixed: 0 },
-    ml:     { commission: 12, fixed: 5 },
+    shein:  { commission: 18 },
+    ml:     { commission: 26 },
+    shopee: { commission: 23 },
+    tiktok: { commission: 12 },
   };
   let activeVariationId = null;
   let variations = [];
@@ -23,32 +26,48 @@ const M3 = (() => {
   }
 
   function load() {
-    pricing  = Storage.get(Storage.KEYS.PRICING,  {});
-    mktFees  = Storage.get(Storage.KEYS.MKT_FEES, {
-      shopee: { commission: 14, fixed: 0 },
-      ml:     { commission: 12, fixed: 5 },
-    });
+    pricing = Storage.get(Storage.KEYS.PRICING, {});
+    const stored = Storage.get(Storage.KEYS.MKT_FEES, null);
+    if (stored && stored.shein) {
+      mktFees = stored;
+    } else if (stored && stored.shopee && !stored.shein) {
+      // migrar formato antigo (Shopee/ML com fixed) para novo
+      mktFees = {
+        shein:  { commission: 18 },
+        ml:     { commission: stored.ml?.commission ?? 26 },
+        shopee: { commission: stored.shopee?.commission ?? 23 },
+        tiktok: { commission: 12 },
+      };
+    }
   }
 
   /* ── Helpers ───────────────────────────────────────────── */
-  function calcProfit(sellPrice, unitCost, qty, fees) {
-    const totalRevenue = sellPrice * qty;
-    const totalCost    = unitCost  * qty;
-    const commission   = totalRevenue * (Number(fees.commission) / 100);
-    const fixed        = Number(fees.fixed);
-    const net          = totalRevenue - totalCost - commission - fixed;
-    const pct          = totalRevenue > 0 ? (net / totalRevenue) * 100 : 0;
-    return { net, pct, breakdown: { totalRevenue, totalCost, commission, fixed } };
+  /**
+   * @param {number} sellPrice  preço de venda unitário
+   * @param {number} unitCost   custo unitário real
+   * @param {number} qty        quantidade por venda
+   * @param {number} commission comissão da plataforma (%)
+   * @param {number} freight    frete (R$, opcional)
+   */
+  function calcProfit(sellPrice, unitCost, qty, commission, freight) {
+    const totalRevenue  = sellPrice * qty;
+    const totalCost     = unitCost  * qty;
+    const commissionAmt = totalRevenue * (Number(commission) / 100);
+    const operational   = totalRevenue * 0.05;
+    const freightAmt    = Number(freight || 0);
+    const net           = totalRevenue - totalCost - commissionAmt - operational - freightAmt;
+    const pct           = totalRevenue > 0 ? (net / totalRevenue) * 100 : 0;
+    return { net, pct, breakdown: { totalRevenue, totalCost, commissionAmt, operational, freightAmt } };
   }
 
   /* ── Renderização ──────────────────────────────────────── */
 
   function renderFees() {
-    if (!$('m3-shopee-commission')) return;
-    $('m3-shopee-commission').value = mktFees.shopee.commission;
-    $('m3-shopee-fixed').value      = mktFees.shopee.fixed;
+    if (!$('m3-shein-commission')) return;
+    $('m3-shein-commission').value  = mktFees.shein.commission;
     $('m3-ml-commission').value     = mktFees.ml.commission;
-    $('m3-ml-fixed').value          = mktFees.ml.fixed;
+    $('m3-shopee-commission').value = mktFees.shopee.commission;
+    $('m3-tiktok-commission').value = mktFees.tiktok.commission;
   }
 
   function renderProductList() {
@@ -65,7 +84,6 @@ const M3 = (() => {
       return;
     }
 
-    // Agrupar por groupName
     const groups = {};
     variations.forEach(v => {
       if (!groups[v.groupId]) groups[v.groupId] = { name: v.groupName, vars: [] };
@@ -115,9 +133,10 @@ const M3 = (() => {
     $('m3-prod-title').textContent = `${v.groupName} — ${v.sku}`;
     $('m3-unit-cost').textContent  = Utils.brl(v.unitCost);
 
-    const pd = pricing[activeVariationId] || { sell_price: 0, sell_qty: 1 };
+    const pd = pricing[activeVariationId] || { sell_price: 0, sell_qty: 1, freight: 0 };
     $('m3-sell-price').value = pd.sell_price || '';
     $('m3-sell-qty').value   = pd.sell_qty   || 1;
+    if ($('m3-freight')) $('m3-freight').value = pd.freight || '';
 
     calcAndRender();
   }
@@ -130,16 +149,19 @@ const M3 = (() => {
     const unitCost  = M2.getVariationCost(activeVariationId);
     const sellPrice = parseFloat($('m3-sell-price')?.value) || 0;
     const qty       = parseInt($('m3-sell-qty')?.value)     || 1;
+    const freight   = parseFloat($('m3-freight')?.value)    || 0;
 
-    renderProfitCard('shopee', calcProfit(sellPrice, unitCost, qty, mktFees.shopee));
-    renderProfitCard('ml',     calcProfit(sellPrice, unitCost, qty, mktFees.ml));
+    renderProfitCard('shein',  calcProfit(sellPrice, unitCost, qty, mktFees.shein.commission,  freight));
+    renderProfitCard('ml',     calcProfit(sellPrice, unitCost, qty, mktFees.ml.commission,     freight));
+    renderProfitCard('shopee', calcProfit(sellPrice, unitCost, qty, mktFees.shopee.commission, freight));
+    renderProfitCard('tiktok', calcProfit(sellPrice, unitCost, qty, mktFees.tiktok.commission, freight));
   }
 
   function renderProfitCard(marketplace, result) {
     const prefix = `m3-${marketplace}`;
-    const valEl = $(`${prefix}-net`);
-    const pctEl = $(`${prefix}-pct`);
-    const bkEl  = $(`${prefix}-breakdown`);
+    const valEl  = $(`${prefix}-net`);
+    const pctEl  = $(`${prefix}-pct`);
+    const bkEl   = $(`${prefix}-breakdown`);
     if (!valEl) return;
 
     const pos = result.net >= 0;
@@ -151,10 +173,11 @@ const M3 = (() => {
     if (bkEl) {
       const bk = result.breakdown;
       bkEl.innerHTML = `
-        Receita total: <span>${Utils.brl(bk.totalRevenue)}</span><br>
-        Custo total:   <span>- ${Utils.brl(bk.totalCost)}</span><br>
-        Comissão:      <span>- ${Utils.brl(bk.commission)}</span><br>
-        Taxa fixa:     <span>- ${Utils.brl(bk.fixed)}</span>
+        Receita total:    <span>${Utils.brl(bk.totalRevenue)}</span><br>
+        Custo produto:    <span>- ${Utils.brl(bk.totalCost)}</span><br>
+        Comissão:         <span>- ${Utils.brl(bk.commissionAmt)}</span><br>
+        5% Operacional:   <span>- ${Utils.brl(bk.operational)}</span><br>
+        Frete:            <span>- ${Utils.brl(bk.freightAmt)}</span>
       `;
     }
   }
@@ -164,8 +187,10 @@ const M3 = (() => {
   function saveFees() {
     const g = (id) => parseFloat($(id)?.value) || 0;
     mktFees = {
-      shopee: { commission: g('m3-shopee-commission'), fixed: g('m3-shopee-fixed') },
-      ml:     { commission: g('m3-ml-commission'),     fixed: g('m3-ml-fixed') },
+      shein:  { commission: g('m3-shein-commission')  },
+      ml:     { commission: g('m3-ml-commission')     },
+      shopee: { commission: g('m3-shopee-commission') },
+      tiktok: { commission: g('m3-tiktok-commission') },
     };
     save();
     calcAndRender();
@@ -182,7 +207,8 @@ const M3 = (() => {
     if (!activeVariationId) return;
     const sellPrice = parseFloat($('m3-sell-price')?.value) || 0;
     const sellQty   = parseInt($('m3-sell-qty')?.value)     || 1;
-    pricing[activeVariationId] = { sell_price: sellPrice, sell_qty: sellQty };
+    const freight   = parseFloat($('m3-freight')?.value)    || 0;
+    pricing[activeVariationId] = { sell_price: sellPrice, sell_qty: sellQty, freight };
     save();
     calcAndRender();
   }
@@ -194,12 +220,12 @@ const M3 = (() => {
     const saveFeesBtn = $('m3-save-fees-btn');
     if (saveFeesBtn) saveFeesBtn.addEventListener('click', saveFees);
 
-    ['m3-sell-price', 'm3-sell-qty'].forEach(id => {
+    ['m3-sell-price', 'm3-sell-qty', 'm3-freight'].forEach(id => {
       const el = $(id);
       if (el) el.addEventListener('input', savePricingInputs);
     });
 
-    document.addEventListener('m2:prices:updated',   () => {
+    document.addEventListener('m2:prices:updated', () => {
       variations = M2.getFlatVariations();
       calcAndRender();
     });

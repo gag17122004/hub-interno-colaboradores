@@ -26,6 +26,68 @@
  * PEBD = Sacos (SKU inicia com TQ)
  */
 
+/* ── Seed de produtos padrão ─────────────────────────────── */
+const _SEED_KEY = 'hub_products_seeded_v1';
+const _DEFAULT_PRICE = 9.85;
+const _DEFAULT_PRODUCTS = [
+  { name: 'Saco de Lixo', variations: [
+    { sku:'TQ 50 50',    qty:50,   lotWeight:0.405,  width:20, height:26, length:5,   micron:'0.03'  },
+    { sku:'TQ 50 100',   qty:100,  lotWeight:0.990,  width:24, height:31, length:6,   micron:'0.03'  },
+    { sku:'TQ 60 50',    qty:50,   lotWeight:0.600,  width:26, height:31, length:5,   micron:'0.03'  },
+    { sku:'TQ 60 100',   qty:100,  lotWeight:1.216,  width:27, height:32, length:7,   micron:'0.03'  },
+    { sku:'TQ 100 50',   qty:50,   lotWeight:0.916,  width:30, height:31, length:5,   micron:'0.03'  },
+    { sku:'TQ 100 100',  qty:100,  lotWeight:1.800,  width:31, height:39, length:7,   micron:'0.03'  },
+    { sku:'TQ 200 50',   qty:50,   lotWeight:1.380,  width:35, height:31, length:6,   micron:'0.03'  },
+    { sku:'TQ 200 100',  qty:100,  lotWeight:2.682,  width:33, height:36, length:7,   micron:'0.03'  },
+    { sku:'TQ 300 50',   qty:50,   lotWeight:2.366,  width:34, height:36, length:8,   micron:'0.04'  },
+    { sku:'TQ 300 100',  qty:100,  lotWeight:4.756,  width:34, height:36, length:10,  micron:'0.04'  },
+  ]},
+  { name: 'Envelope de Segurança', variations: [
+    { sku:'LCQ 15 20 100',  qty:100,  lotWeight:0.230,  width:14, height:21, length:3,   micron:'0.035' },
+    { sku:'LCQ 15 20 250',  qty:250,  lotWeight:0.575,  width:14, height:21, length:4,   micron:'0.035' },
+    { sku:'LCQ 15 20 500',  qty:500,  lotWeight:1.140,  width:14, height:21, length:9,   micron:'0.035' },
+    { sku:'LCQ 15 20 1000', qty:1000, lotWeight:2.280,  width:28, height:21, length:9,   micron:'0.035' },
+    { sku:'LCQ 25 20 100',  qty:100,  lotWeight:0.374,  width:14, height:32, length:4,   micron:'0.035' },
+    { sku:'LCQ 25 20 250',  qty:250,  lotWeight:0.936,  width:14, height:32, length:5,   micron:'0.035' },
+    { sku:'LCQ 25 20 500',  qty:500,  lotWeight:1.850,  width:14, height:32, length:10,  micron:'0.035' },
+    { sku:'LCQ 25 20 1000', qty:1000, lotWeight:3.700,  width:14, height:32, length:20,  micron:'0.035' },
+    { sku:'LCQ 20 30 100',  qty:100,  lotWeight:0.404,  width:16, height:30, length:4,   micron:'0.035' },
+    { sku:'LCQ 20 30 250',  qty:250,  lotWeight:1.010,  width:16, height:30, length:5,   micron:'0.035' },
+    { sku:'LCQ 20 30 500',  qty:500,  lotWeight:2.056,  width:16, height:30, length:10,  micron:'0.035' },
+    { sku:'LCQ 20 30 1000', qty:1000, lotWeight:4.146,  width:16, height:30, length:20,  micron:'0.035' },
+    { sku:'LCQ 26 36 100',  qty:100,  lotWeight:0.669,  width:24, height:33, length:4,   micron:'0.035' },
+    { sku:'LCQ 26 36 250',  qty:250,  lotWeight:1.674,  width:24, height:33, length:5,   micron:'0.035' },
+    { sku:'LCQ 26 36 500',  qty:500,  lotWeight:2.300,  width:24, height:33, length:10,  micron:'0.035' },
+    { sku:'LCQ 26 36 1000', qty:1000, lotWeight:4.600,  width:24, height:33, length:20,  micron:'0.035' },
+    { sku:'LCQ 30 40 100',  qty:100,  lotWeight:0.784,  width:38, height:25, length:5,   micron:'0.035' },
+    { sku:'LCQ 30 40 250',  qty:250,  lotWeight:2.144,  width:38, height:25, length:8,   micron:'0.035' },
+    { sku:'LCQ 30 40 500',  qty:500,  lotWeight:4.288,  width:38, height:25, length:16,  micron:'0.035' },
+    { sku:'LCQ 30 40 1000', qty:1000, lotWeight:8.576,  width:38, height:25, length:32,  micron:'0.035' },
+    { sku:'LCQ 32 40 100',  qty:100,  lotWeight:0.901,  width:38, height:25, length:5,   micron:'0.035' },
+    { sku:'LCQ 32 40 250',  qty:250,  lotWeight:2.252,  width:38, height:25, length:8,   micron:'0.035' },
+    { sku:'LCQ 32 40 500',  qty:500,  lotWeight:4.504,  width:38, height:25, length:16,  micron:'0.035' },
+    { sku:'LCQ 32 40 1000', qty:1000, lotWeight:9.008,  width:38, height:25, length:32,  micron:'0.035' },
+    { sku:'LCQ 40 40 100',  qty:100,  lotWeight:1.123,  width:45, height:27, length:5,   micron:'0.035' },
+    { sku:'LCQ 40 40 250',  qty:250,  lotWeight:2.808,  width:45, height:27, length:9,   micron:'0.035' },
+    { sku:'LCQ 40 40 500',  qty:500,  lotWeight:5.616,  width:45, height:27, length:18,  micron:'0.035' },
+    { sku:'LCQ 40 40 1000', qty:1000, lotWeight:11.232, width:45, height:27, length:36,  micron:'0.035' },
+    { sku:'LCQ 50 40 100',  qty:100,  lotWeight:1.346,  width:48, height:29, length:5,   micron:'0.035' },
+    { sku:'LCQ 50 40 250',  qty:250,  lotWeight:3.366,  width:48, height:29, length:10,  micron:'0.035' },
+    { sku:'LCQ 50 40 500',  qty:500,  lotWeight:6.838,  width:48, height:29, length:20,  micron:'0.035' },
+    { sku:'LCQ 50 40 1000', qty:1000, lotWeight:13.610, width:48, height:29, length:40,  micron:'0.035' },
+    { sku:'LCQ 60 40 100',  qty:100,  lotWeight:1.700,  width:52, height:32, length:5,   micron:'0.035' },
+    { sku:'LCQ 60 40 250',  qty:250,  lotWeight:4.250,  width:52, height:32, length:10,  micron:'0.035' },
+    { sku:'LCQ 60 40 500',  qty:500,  lotWeight:8.500,  width:52, height:32, length:20,  micron:'0.035' },
+    { sku:'LCQ 60 40 1000', qty:1000, lotWeight:17.000, width:52, height:32, length:40,  micron:'0.035' },
+    { sku:'LCQ 40 60 100',  qty:100,  lotWeight:0,      width:52, height:32, length:5,   micron:'0.035' },
+    { sku:'LCQ 40 60 250',  qty:250,  lotWeight:0,      width:52, height:32, length:10,  micron:'0.035' },
+    { sku:'LCQ 40 60 500',  qty:500,  lotWeight:0,      width:52, height:32, length:20,  micron:'0.035' },
+    { sku:'LCQ 40 60 1000', qty:1000, lotWeight:0,      width:52, height:32, length:40,  micron:'0.035' },
+    { sku:'LCQ 50 60 100',  qty:100,  lotWeight:2.266,  width:53, height:36, length:13,  micron:'0.035' },
+    { sku:'LCQ 50 60 1000', qty:1000, lotWeight:22.660, width:53, height:36, length:130, micron:'0.035' },
+  ]},
+];
+
 const M2 = (() => {
 
   /* ── Estado ──────────────────────────────────────────────── */
@@ -544,6 +606,25 @@ const M2 = (() => {
     return result;
   }
 
+  /* ── Seed de produtos padrão ────────────────────────────── */
+  function seedIfEmpty() {
+    if (Storage.get(_SEED_KEY)) return;
+    if (products.length > 0) { Storage.set(_SEED_KEY, true); return; }
+
+    rawPrice = _DEFAULT_PRICE;
+    products = _DEFAULT_PRODUCTS.map(group => ({
+      id: Utils.uid(),
+      name: group.name,
+      variations: group.variations.map(v => ({ id: Utils.uid(), ...v }))
+    }));
+    save();
+    Storage.set(_SEED_KEY, true);
+    renderPrice();
+    renderProducts();
+    document.dispatchEvent(new CustomEvent('m2:products:updated'));
+    Toast.info('Produtos padrão carregados. Preço/kg: R$ 9,85.');
+  }
+
   /* ── Inicialização ───────────────────────────────────────── */
   function init() {
     load();
@@ -582,6 +663,7 @@ const M2 = (() => {
 
     renderPrice();
     renderProducts();
+    seedIfEmpty();
 
     document.addEventListener('route:change', (e) => {
       if (e.detail.route === 'm2') {

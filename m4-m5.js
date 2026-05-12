@@ -3,6 +3,50 @@
  */
 const M4 = (() => {
 
+  function update3DBox(h, w, l) {
+    const box      = document.getElementById('box3d');
+    const emptyMsg = document.getElementById('box3d-empty');
+    const label    = document.getElementById('box3d-label');
+    if (!box) return;
+
+    if (!h || !w || !l) {
+      box.style.display = 'none';
+      if (emptyMsg) emptyMsg.style.display = 'flex';
+      if (label) label.textContent = '—';
+      return;
+    }
+
+    box.style.display = 'block';
+    if (emptyMsg) emptyMsg.style.display = 'none';
+
+    const maxDim = Math.max(h, w, l);
+    const scale  = 140 / maxDim;
+    const pH = h * scale;
+    const pW = w * scale;
+    const pL = l * scale;
+
+    const applyFace = (cls, fw, fh, transform) => {
+      const el = box.querySelector(cls);
+      if (!el) return;
+      el.style.width      = fw + 'px';
+      el.style.height     = fh + 'px';
+      el.style.left       = '50%';
+      el.style.top        = '50%';
+      el.style.marginLeft = -(fw / 2) + 'px';
+      el.style.marginTop  = -(fh / 2) + 'px';
+      el.style.transform  = transform;
+    };
+
+    applyFace('.box3d-front',  pW, pH, `translateZ(${pL/2}px)`);
+    applyFace('.box3d-back',   pW, pH, `rotateY(180deg) translateZ(${pL/2}px)`);
+    applyFace('.box3d-left',   pL, pH, `rotateY(-90deg) translateZ(${pW/2}px)`);
+    applyFace('.box3d-right',  pL, pH, `rotateY(90deg) translateZ(${pW/2}px)`);
+    applyFace('.box3d-top',    pW, pL, `rotateX(90deg) translateZ(${pH/2}px)`);
+    applyFace('.box3d-bottom', pW, pL, `rotateX(-90deg) translateZ(${pH/2}px)`);
+
+    if (label) label.textContent = `Largura ${w}cm × Altura ${h}cm × Comprimento ${l}cm`;
+  }
+
   function calc() {
     const h = parseFloat(document.getElementById('m4-height')?.value)  || 0;
     const w = parseFloat(document.getElementById('m4-width')?.value)   || 0;
@@ -10,6 +54,7 @@ const M4 = (() => {
     const real = parseFloat(document.getElementById('m4-weight')?.value) || 0;
 
     const cubic = (h * w * l) / 6000;
+    update3DBox(h, w, l);
 
     const realEl  = document.getElementById('m4-real-val');
     const cubicEl = document.getElementById('m4-cubic-val');

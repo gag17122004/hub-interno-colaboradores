@@ -461,40 +461,49 @@
       <!-- Configuração de taxas -->
       <div class="card">
         <div class="card-header">
-          <div class="card-title">Taxas dos Marketplaces</div>
+          <div>
+            <div class="card-title">Taxas dos Marketplaces</div>
+            <div class="text-xs text-muted mt-1">5% operacional aplicado automaticamente em todos os cálculos</div>
+          </div>
           <button class="btn btn-primary btn-sm" id="m3-save-fees-btn">
             <i class="fa-solid fa-floppy-disk"></i> Salvar Taxas
           </button>
         </div>
-        <div class="fees-grid">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
           <div>
             <div class="section-divider" style="margin-bottom:12px">
-              <span style="color:#f97316"><i class="fa-solid fa-store"></i> Shopee</span>
+              <span style="color:#e91e8c"><i class="fa-solid fa-store"></i> Shein</span>
             </div>
-            <div class="field-group">
-              <div class="field">
-                <label>Comissão (%)</label>
-                <input type="number" id="m3-shopee-commission" min="0" max="100" step="0.1" placeholder="14.0" />
-              </div>
-              <div class="field">
-                <label>Taxa Fixa (R$)</label>
-                <input type="number" id="m3-shopee-fixed" min="0" step="0.01" placeholder="0.00" />
-              </div>
+            <div class="field">
+              <label>Comissão (%)</label>
+              <input type="number" id="m3-shein-commission" min="0" max="100" step="0.1" placeholder="18.0" />
             </div>
           </div>
           <div>
             <div class="section-divider" style="margin-bottom:12px">
               <span style="color:#ca8a04"><i class="fa-solid fa-tag"></i> Mercado Livre</span>
             </div>
-            <div class="field-group">
-              <div class="field">
-                <label>Comissão (%)</label>
-                <input type="number" id="m3-ml-commission" min="0" max="100" step="0.1" placeholder="12.0" />
-              </div>
-              <div class="field">
-                <label>Taxa Fixa (R$)</label>
-                <input type="number" id="m3-ml-fixed" min="0" step="0.01" placeholder="5.00" />
-              </div>
+            <div class="field">
+              <label>Comissão (%)</label>
+              <input type="number" id="m3-ml-commission" min="0" max="100" step="0.1" placeholder="26.0" />
+            </div>
+          </div>
+          <div>
+            <div class="section-divider" style="margin-bottom:12px">
+              <span style="color:#f97316"><i class="fa-solid fa-store"></i> Shopee</span>
+            </div>
+            <div class="field">
+              <label>Comissão (%)</label>
+              <input type="number" id="m3-shopee-commission" min="0" max="100" step="0.1" placeholder="23.0" />
+            </div>
+          </div>
+          <div>
+            <div class="section-divider" style="margin-bottom:12px">
+              <span style="color:#010101"><i class="fa-brands fa-tiktok"></i> TikTok Shop</span>
+            </div>
+            <div class="field">
+              <label>Comissão (%)</label>
+              <input type="number" id="m3-tiktok-commission" min="0" max="100" step="0.1" placeholder="12.0" />
             </div>
           </div>
         </div>
@@ -540,19 +549,23 @@
                   <label>Quantidade por venda</label>
                   <input type="number" id="m3-sell-qty" min="1" step="1" value="1" style="max-width:100px" />
                 </div>
+                <div class="field">
+                  <label>Frete (R$, opcional)</label>
+                  <input type="number" id="m3-freight" min="0" step="0.01" placeholder="0.00" style="max-width:120px" />
+                </div>
               </div>
             </div>
 
-            <!-- Resultado: Shopee e ML lado a lado -->
-            <div class="profit-grid">
-              <div class="profit-card shopee">
+            <!-- Resultado: 4 marketplaces -->
+            <div class="profit-grid" style="grid-template-columns:1fr 1fr">
+              <div class="profit-card shein">
                 <div class="profit-header">
-                  <span class="profit-logo">🛒</span>
-                  <span class="profit-name">Shopee</span>
+                  <span class="profit-logo">👗</span>
+                  <span class="profit-name" style="color:#e91e8c">Shein</span>
                 </div>
-                <div class="profit-value" id="m3-shopee-net">R$ 0,00</div>
-                <div class="profit-pct"   id="m3-shopee-pct">0.00% de margem</div>
-                <div class="profit-breakdown" id="m3-shopee-breakdown"></div>
+                <div class="profit-value" id="m3-shein-net">R$ 0,00</div>
+                <div class="profit-pct"   id="m3-shein-pct">0.00% de margem</div>
+                <div class="profit-breakdown" id="m3-shein-breakdown"></div>
               </div>
               <div class="profit-card ml">
                 <div class="profit-header">
@@ -562,6 +575,24 @@
                 <div class="profit-value" id="m3-ml-net">R$ 0,00</div>
                 <div class="profit-pct"   id="m3-ml-pct">0.00% de margem</div>
                 <div class="profit-breakdown" id="m3-ml-breakdown"></div>
+              </div>
+              <div class="profit-card shopee">
+                <div class="profit-header">
+                  <span class="profit-logo">🛒</span>
+                  <span class="profit-name">Shopee</span>
+                </div>
+                <div class="profit-value" id="m3-shopee-net">R$ 0,00</div>
+                <div class="profit-pct"   id="m3-shopee-pct">0.00% de margem</div>
+                <div class="profit-breakdown" id="m3-shopee-breakdown"></div>
+              </div>
+              <div class="profit-card tiktok">
+                <div class="profit-header">
+                  <span class="profit-logo">🎵</span>
+                  <span class="profit-name" style="color:#010101">TikTok Shop</span>
+                </div>
+                <div class="profit-value" id="m3-tiktok-net">R$ 0,00</div>
+                <div class="profit-pct"   id="m3-tiktok-pct">0.00% de margem</div>
+                <div class="profit-breakdown" id="m3-tiktok-breakdown"></div>
               </div>
             </div>
 
@@ -625,6 +656,26 @@
              style="text-align:center;padding:12px;background:var(--accent-bg);border-radius:8px;border:1px solid var(--accent-bd)">
           Preencha os campos para calcular
         </div>
+      </div>
+
+      <!-- Visualização 3D -->
+      <div class="card" style="max-width:600px">
+        <div class="card-title" style="margin-bottom:12px">Visualização 3D do Pacote</div>
+        <div class="box-3d-container" id="box3d-wrap">
+          <div class="box-3d-empty" id="box3d-empty">
+            <i class="fa-solid fa-cube" style="font-size:32px;opacity:.25;display:block;margin-bottom:8px"></i>
+            Preencha as dimensões para visualizar
+          </div>
+          <div class="box3d" id="box3d" style="display:none">
+            <div class="box3d-face box3d-front"></div>
+            <div class="box3d-face box3d-back"></div>
+            <div class="box3d-face box3d-left"></div>
+            <div class="box3d-face box3d-right"></div>
+            <div class="box3d-face box3d-top"></div>
+            <div class="box3d-face box3d-bottom"></div>
+          </div>
+        </div>
+        <div id="box3d-label" class="text-xs text-muted mt-2" style="text-align:center">—</div>
       </div>
     </section>
 
@@ -809,8 +860,8 @@
               </select>
             </div>
             <div class="field">
-              <label>Peso da Bobina (kg)</label>
-              <input type="number" id="m7-weight" step="0.01" />
+              <label>Material consumido (kg)</label>
+              <input type="number" id="m7-weight" step="0.01" placeholder="kg no período" />
             </div>
             <div class="field">
               <label>Tamanho</label>

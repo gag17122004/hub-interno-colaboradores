@@ -390,16 +390,15 @@ const M1 = (() => {
         <tr>
           <td>${Utils.fmtDate(r.date)}</td>
           <td>${Utils.num(r.hours, 2)}h</td>
-          <td>${Utils.dayType(r.date) === 'weekend' ? 'Fim de Semana' : 'Dia Útil'}</td>
           <td>${Utils.esc(r.period)}</td>
         </tr>
       `).join('');
 
       return `
         <div class="emp-block">
-          <h3>${Utils.esc(emp.name)}</h3>
+          <div class="emp-name">${Utils.esc(emp.name)}</div>
           <table>
-            <thead><tr><th>Data</th><th>Horas</th><th>Tipo</th><th>Período</th></tr></thead>
+            <thead><tr><th>DATA</th><th>HORAS</th><th>PERÍODO(S)</th></tr></thead>
             <tbody>${recordRows}</tbody>
           </table>
           <div class="summary">
@@ -416,24 +415,23 @@ const M1 = (() => {
       <meta charset="UTF-8"/>
       <title>Horas Extras — ${Utils.fmtMonth(filterMonth)}</title>
       <style>
-        body { font-family: 'Courier New', Courier, monospace; padding: 40px; color: #000; background: #fff; line-height: 1.2; }
-        h1   { font-size: 18px; text-transform: uppercase; border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 5px; }
-        h2   { font-size: 14px; margin-bottom: 30px; font-weight: bold; }
-        .emp-block { margin-bottom: 40px; border: 1px solid #000; padding: 15px; page-break-inside: avoid; }
-        .emp-name { font-size: 16px; font-weight: bold; margin-bottom: 10px; text-transform: uppercase; }
-        table  { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 15px; }
-        th, td { padding: 5px 8px; text-align: left; border: 1px solid #000; }
-        th     { background: #eee; font-weight: bold; text-transform: uppercase; }
-        .summary { display: flex; justify-content: flex-end; gap: 30px; font-size: 12px; font-weight: bold; border-top: 1px dashed #000; padding-top: 10px; }
-        @media print { body { padding: 0; } .emp-block { border: 1px solid #000; } }
+        body   { font-family: Arial, sans-serif; padding: 32px; color: #000; background: #fff; }
+        h1     { font-size: 15px; text-transform: uppercase; letter-spacing:.05em; border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 4px; }
+        h2     { font-size: 12px; color: #555; margin-bottom: 28px; font-weight: 400; }
+        .emp-block { margin-bottom: 32px; page-break-inside: avoid; }
+        .emp-name  { font-size: 14px; font-weight: bold; font-style: italic; margin-bottom: 8px; }
+        table  { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 10px; }
+        th     { background: #1e293b; color: #fff; font-weight: 700; padding: 7px 10px; text-align: left; border: 1px solid #1e293b; text-transform: uppercase; letter-spacing:.04em; }
+        td     { padding: 6px 10px; border: 1px solid #94a3b8; }
+        tr:nth-child(odd)  td { background: #ffffff; }
+        tr:nth-child(even) td { background: #dbeafe; }
+        .summary { display: flex; justify-content: flex-end; gap: 24px; font-size: 11px; padding-top: 6px; border-top: 1px dashed #94a3b8; }
+        @media print { body { padding: 12px; } }
       </style>
     </head><body>
-      <h1>Folha de Registros - Horas Extras</h1>
+      <h1>Horas Extras</h1>
       <h2>Mês de Referência: ${Utils.fmtMonth(filterMonth)}</h2>
       ${rows}
-      <div style="margin-top: 50px; font-size: 10px; text-align: center; color: #666;">
-        Relatório gerado em ${new Date().toLocaleString('pt-BR')} - Hub Interno
-      </div>
       <script>window.onload = () => { window.print(); }<\/script>
     </body></html>`);
     win.document.close();

@@ -634,3 +634,58 @@ body.is-master table .master-only { display: table-cell !important; }
 @media (max-width: 480px) {
   .grid-cols-2, .grid-cols-3 { grid-template-columns: 1fr; }
 }
+
+/* ── M3: Novos Marketplaces ──────────────────────────────── */
+.profit-card.shein  { background: rgba(233,30,140,.06); border-color: rgba(233,30,140,.3); }
+.profit-card.tiktok { background: rgba(1,1,1,.04); border-color: rgba(1,1,1,.18); }
+[data-theme="dark"] .profit-card.tiktok { background: rgba(255,255,255,.04); border-color: rgba(255,255,255,.15); }
+
+/* ── M4: Box 3D ──────────────────────────────────────────── */
+.box-3d-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 260px;
+  perspective: 700px;
+  overflow: hidden;
+  position: relative;
+}
+
+.box-3d-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-sec);
+  font-size: 12px;
+  text-align: center;
+  height: 100%;
+  gap: 4px;
+}
+
+.box3d {
+  transform-style: preserve-3d;
+  transform: rotateX(-22deg) rotateY(-38deg);
+  position: relative;
+  transition: transform .4s ease;
+}
+
+.box-3d-container:hover .box3d {
+  animation: box3d-spin 8s linear infinite;
+}
+
+@keyframes box3d-spin {
+  from { transform: rotateX(-22deg) rotateY(0deg); }
+  to   { transform: rotateX(-22deg) rotateY(360deg); }
+}
+
+.box3d-face {
+  position: absolute;
+  border: 2px solid rgba(45,212,191,.65);
+  background: rgba(45,212,191,.07);
+  backface-visibility: visible;
+}
+
+.box3d-top    { background: rgba(45,212,191,.14); }
+.box3d-right  { background: rgba(45,212,191,.05); }
+.box3d-back   { background: rgba(45,212,191,.03); }
