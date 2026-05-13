@@ -387,6 +387,34 @@
         </div>
       </div>
 
+      <!-- Tabela de Vendas Físicas (Pratik) — Master Only -->
+      <div class="card master-only" id="m2-sales-card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Tabela de Vendas Físicas</div>
+            <div class="text-xs text-muted mt-1">Fórmula: peso do lote × preço/kg × 2 (Custo Pratik)</div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Nomenclatura (SKU)</th>
+                <th>Grupo</th>
+                <th>Qtd</th>
+                <th>Peso Lote (kg)</th>
+                <th>Pratik Lote</th>
+                <th>Pratik Unit.</th>
+                <th>Custo Unit. Real</th>
+              </tr>
+            </thead>
+            <tbody id="m2-sales-tbody">
+              <tr><td colspan="7" class="empty-state"><i class="fa-solid fa-box-open"></i><p>Nenhum produto cadastrado.</p></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- Modal: Grupo de Produto -->
       <div class="modal-backdrop" id="modal-product-group">
         <div class="modal" style="max-width:400px">
@@ -421,7 +449,7 @@
               </div>
               <div class="field">
                 <label>Peso do Lote (kg)</label>
-                <input type="number" id="m2-var-lotweight" min="0.001" step="0.001" placeholder="0.000" />
+                <input type="number" id="m2-var-lotweight" min="0" step="0.001" placeholder="0.000" />
               </div>
             </div>
             <div class="section-divider">Dimensões e Micragem</div>
@@ -499,7 +527,7 @@
           </div>
           <div>
             <div class="section-divider" style="margin-bottom:12px">
-              <span style="color:#010101"><i class="fa-brands fa-tiktok"></i> TikTok Shop</span>
+              <span style="color:var(--text)"><i class="fa-brands fa-tiktok"></i> TikTok Shop</span>
             </div>
             <div class="field">
               <label>Comissão (%)</label>
@@ -588,7 +616,7 @@
               <div class="profit-card tiktok">
                 <div class="profit-header">
                   <span class="profit-logo">🎵</span>
-                  <span class="profit-name" style="color:#010101">TikTok Shop</span>
+                  <span class="profit-name" style="color:var(--text)">TikTok Shop</span>
                 </div>
                 <div class="profit-value" id="m3-tiktok-net">R$ 0,00</div>
                 <div class="profit-pct"   id="m3-tiktok-pct">0.00% de margem</div>
@@ -770,7 +798,7 @@
       <div id="m7-master-view" class="master-only hidden">
         <div class="stats-grid">
           <div class="stat-card">
-            <div class="stat-label">Produção Total (Bobinas)</div>
+            <div class="stat-label">Total de Pacotes Produzidos</div>
             <div class="stat-value" id="m7-stat-total">0</div>
           </div>
           <div class="stat-card">

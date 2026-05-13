@@ -559,9 +559,11 @@ tbody td { padding: 10px 14px; vertical-align: middle; }
 
 body.is-master .master-only { display: flex !important; }
 body.is-master .master-only.hidden { display: none !important; }
+body.is-master .card.master-only { display: block !important; }
 
 body.is-colab .colab-only { display: flex !important; }
 body.is-colab .colab-only.hidden { display: none !important; }
+body.is-colab .card.colab-only { display: block !important; }
 
 /* Tabelas Master */
 body.is-master table .master-only { display: table-cell !important; }

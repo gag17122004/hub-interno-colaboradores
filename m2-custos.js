@@ -160,10 +160,8 @@ const M2 = (() => {
 
     const unitWeight = lotWeight / qty;            // kg por unidade
     const loteCost   = lotWeight * price;           // custo bruto do lote
-    const unitReal   = type === 'Envelope'
-      ? (lotWeight * price) / 1000              // custo unitário envelopes
-      : (lotWeight * price) / 100;             // custo unitário sacos
-    const pratik     = lotWeight * price * 2;      // custo Pratik (margem ×2)
+    const unitReal   = qty > 0 ? loteCost / qty : 0;
+    const pratik     = lotWeight * price * 2;      // custo Pratik — lote × preço × 2
 
     return { unitReal, pratik, loteCost, qty, unitWeight, type };
   }
@@ -184,9 +182,11 @@ const M2 = (() => {
         <i class="fa-solid fa-box-open"></i>
         <p>Nenhum produto cadastrado. Clique em "Novo Grupo" para começar.</p>
       </div>`;
+      renderSalesTable();
       return;
     }
 
+    renderSalesTable();
     container.innerHTML = products.map(prod => {
       const varRows = (prod.variations || []).map(v => {
         const c = calcVariationCosts(v);
@@ -198,7 +198,7 @@ const M2 = (() => {
             | Lote: <strong>${Utils.brl(c.loteCost)}</strong>
           </span>` : `
           <span class="font-mono text-xs text-muted">
-            ${Utils.num(c.unitWeight * 1000, 1)}g/un | ${Utils.num(c.lotWeight * 1000, 0)}g total
+            ${Utils.num(c.unitWeight * 1000, 1)}g/un | ${Utils.num(Number(v.lotWeight) * 1000, 0)}g total
           </span>`;
 
         return `
@@ -263,6 +263,41 @@ const M2 = (() => {
           </div>
         </div>`;
     }).join('');
+  }
+
+  /* ── Tabela de Vendas Físicas ────────────────────────────── */
+
+  function renderSalesTable() {
+    const tbody = document.getElementById('m2-sales-tbody');
+    if (!tbody) return;
+
+    if (products.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" class="empty-state">
+        <i class="fa-solid fa-box-open"></i><p>Nenhum produto cadastrado.</p>
+      </td></tr>`;
+      return;
+    }
+
+    const rows = [];
+    products.forEach(prod => {
+      (prod.variations || []).forEach(v => {
+        const c = calcVariationCosts(v);
+        const pratikUnit = c.qty > 0 ? c.pratik / c.qty : 0;
+        rows.push(`
+          <tr>
+            <td class="font-mono" style="font-weight:600">${Utils.esc(v.sku)}</td>
+            <td class="text-muted text-xs">${Utils.esc(prod.name)}</td>
+            <td class="font-mono">${v.qty} un</td>
+            <td class="font-mono">${Utils.num(Number(v.lotWeight), 3)} kg</td>
+            <td class="font-mono text-accent font-bold">${Utils.brl(c.pratik)}</td>
+            <td class="font-mono text-xs">${Utils.brl(pratikUnit)}</td>
+            <td class="font-mono text-xs">${Utils.brl(c.unitReal)}</td>
+          </tr>`);
+      });
+    });
+
+    tbody.innerHTML = rows.length ? rows.join('') : `<tr><td colspan="7" class="empty-state">
+      <p>Nenhuma variação cadastrada.</p></td></tr>`;
   }
 
   /* ── Toggle UI ───────────────────────────────────────────── */
@@ -402,8 +437,8 @@ const M2 = (() => {
     const length    = parseFloat(document.getElementById('m2-var-length').value) || 0;
     const micron    = document.getElementById('m2-var-micron').value.trim();
 
-    if (!sku)                       { Toast.error('Informe a nomenclatura (SKU).'); return; }
-    if (isNaN(lotWeight) || lotWeight <= 0) { Toast.error('Informe o peso do lote (kg).'); return; }
+    if (!sku)                  { Toast.error('Informe a nomenclatura (SKU).'); return; }
+    if (isNaN(lotWeight) || lotWeight < 0) { Toast.error('Informe o peso do lote (kg).'); return; }
 
     const qty = qtyFromSku(sku);
     const prod = products.find(p => p.id === _currentGroupId);
@@ -663,6 +698,7 @@ const M2 = (() => {
 
     renderPrice();
     renderProducts();
+    renderSalesTable();
     seedIfEmpty();
 
     document.addEventListener('route:change', (e) => {
@@ -670,6 +706,7 @@ const M2 = (() => {
         load();
         renderPrice();
         renderProducts();
+        renderSalesTable();
       }
     });
   }
