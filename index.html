@@ -9,6 +9,15 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <link rel="stylesheet" href="app.css" />
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#2dd4bf" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Hub Pratik" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+
   <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 
   <!-- Estilos específicos de componentes menores que não justificam arquivo próprio -->
@@ -78,9 +87,15 @@
 <div id="login-screen" class="login-overlay">
   <div class="login-card">
     <div class="login-logo">
-      <i class="fa-solid fa-lock"></i>
-      <h2>Acesso Restrito</h2>
-      <p>Hub Interno — Gestão & Operações</p>
+      <div class="login-logo-icon">
+        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <rect width="100" height="100" rx="18" fill="#1e293b"/>
+          <rect x="3" y="3" width="94" height="94" rx="15" fill="none" stroke="#2dd4bf" stroke-width="2" opacity="0.5"/>
+          <text x="50" y="73" font-family="Arial Black,Arial,sans-serif" font-size="68" font-weight="900" fill="#2dd4bf" text-anchor="middle">P</text>
+        </svg>
+      </div>
+      <h2>Hub Interno Pratik</h2>
+      <p>Gestão & Operações</p>
     </div>
     
     <div id="login-step-1">
@@ -121,24 +136,31 @@
     </div>
 
     <nav class="nav-section">
+      <!-- Seção exclusiva do colaborador -->
+      <span class="nav-label colab-only">Meu Painel</span>
+      <div class="nav-item colab-only" data-route="me" data-sub="Horas, tarefas e produção pessoal">
+        <i class="fa-solid fa-house-user"></i>
+        <span>Meu Espaço</span>
+      </div>
+
       <span class="nav-label">Módulos</span>
 
-      <div class="nav-item active" data-route="m1" data-sub="Registros de horas, colaboradores e exportação">
+      <div class="nav-item" data-route="m1" data-sub="Registros de horas, colaboradores e exportação">
         <i class="fa-solid fa-clock"></i>
         <span>Horas Extras</span>
       </div>
 
-      <div class="nav-item" data-route="m2" data-sub="Preços de matéria-prima e cadastro de produtos">
+      <div class="nav-item" data-route="m2" data-sub="Produtos, dimensões e custos de matéria-prima">
         <i class="fa-solid fa-layer-group"></i>
         <span>Custos & Produtos</span>
       </div>
 
-      <div class="nav-item" data-route="m3" data-sub="Simulação de lucro por marketplace">
+      <div class="nav-item master-only" data-route="m3" data-sub="Simulação de lucro por marketplace">
         <i class="fa-solid fa-chart-line"></i>
         <span>Precificação</span>
       </div>
 
-      <div class="nav-item" data-route="m4" data-sub="Peso real vs. peso cúbico">
+      <div class="nav-item master-only" data-route="m4" data-sub="Peso real vs. peso cúbico">
         <i class="fa-solid fa-truck-fast"></i>
         <span>Calc. Frete</span>
       </div>
@@ -180,14 +202,82 @@
 
     <!-- Top bar -->
     <header class="topbar">
-      <div class="topbar-left">
-        <div class="topbar-title" id="topbar-title">Horas Extras</div>
-        <div class="topbar-sub"  id="topbar-sub">Registros de horas, colaboradores e exportação</div>
+      <div class="topbar-left" style="display:flex;align-items:center;gap:10px">
+        <button id="mob-menu-btn" aria-label="Menu">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+        <div>
+          <div class="topbar-title" id="topbar-title">Horas Extras</div>
+          <div class="topbar-sub"  id="topbar-sub">Registros de horas, colaboradores e exportação</div>
+        </div>
       </div>
       <div class="topbar-actions">
         <span class="text-xs text-muted font-mono" id="topbar-date"></span>
       </div>
     </header>
+
+    <!-- ══════════════════════════════════════════════════════
+         MEU ESPAÇO — Painel consolidado do colaborador
+         ══════════════════════════════════════════════════════ -->
+    <section id="panel-me" class="module-panel">
+
+      <!-- Saudação -->
+      <div class="card" style="background:linear-gradient(135deg,var(--surface) 0%,var(--surface2) 100%)">
+        <div style="display:flex;align-items:center;gap:16px">
+          <div class="m1-emp-avatar" id="me-avatar-initial" style="width:52px;height:52px;font-size:22px;flex-shrink:0">?</div>
+          <div>
+            <div class="card-title-lg">Olá, <span id="me-greeting-name">—</span>!</div>
+            <div class="text-xs text-muted mt-1" id="me-today-date"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats rápidos -->
+      <div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
+        <div class="stat-card">
+          <div class="stat-label">Horas Extras (mês)</div>
+          <div class="stat-value font-mono" id="me-stat-hours">0.0h</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Minhas Tarefas</div>
+          <div class="stat-value" id="me-stat-tasks">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Pacotes (semana)</div>
+          <div class="stat-value font-mono" id="me-stat-prod">0</div>
+        </div>
+      </div>
+
+      <!-- Tarefas recentes -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Minhas Tarefas</div>
+          <button class="btn btn-ghost btn-sm" onclick="Router.navigate('m5')">
+            <i class="fa-solid fa-arrow-right"></i> Ver tudo
+          </button>
+        </div>
+        <div id="me-tasks-list">
+          <div class="empty-state"><i class="fa-solid fa-circle-check"></i><p>Nenhuma tarefa registrada.</p></div>
+        </div>
+      </div>
+
+      <!-- Ponto do mês -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Meu Ponto</div>
+            <div class="text-xs text-muted mt-1" id="me-month-label"></div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="Router.navigate('m1')">
+            <i class="fa-solid fa-arrow-right"></i> Ver tudo
+          </button>
+        </div>
+        <div id="me-hours-list">
+          <div class="empty-state"><i class="fa-solid fa-clock"></i><p>Nenhum registro no mês.</p></div>
+        </div>
+      </div>
+
+    </section>
 
     <!-- ══════════════════════════════════════════════════════
          MÓDULO 1 — HORAS EXTRAS
@@ -928,6 +1018,9 @@
 
 </div><!-- /.app-layout -->
 
+<!-- Overlay mobile para fechar sidebar -->
+<div class="mob-overlay" id="mob-overlay"></div>
+
 <!-- ══════════════════════════════════════════════════════════
      COMPONENTES GLOBAIS
      ══════════════════════════════════════════════════════════ -->
@@ -949,6 +1042,7 @@
 
 <!-- ── Scripts — ordem importa ──────────────────────────── -->
 <script src="core.js"></script>
+<script src="meu-espaco.js"></script>
 <script src="m1-horas.js"></script>
 <script src="m2-custos.js"></script>
 <script src="m3-precificacao.js"></script>
@@ -966,6 +1060,29 @@
       });
     }
   });
+
+  // Hambúrguer mobile
+  document.addEventListener('DOMContentLoaded', () => {
+    const menuBtn  = document.getElementById('mob-menu-btn');
+    const sidebar  = document.querySelector('.sidebar');
+    const overlay  = document.getElementById('mob-overlay');
+    if (!menuBtn || !sidebar || !overlay) return;
+    const open  = () => { sidebar.classList.add('mob-open'); overlay.classList.add('active'); };
+    const close = () => { sidebar.classList.remove('mob-open'); overlay.classList.remove('active'); };
+    menuBtn.addEventListener('click', open);
+    overlay.addEventListener('click', close);
+    // Fecha sidebar ao navegar (mobile)
+    document.addEventListener('route:change', close);
+  });
+
+  // Registro do Service Worker (PWA)
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then(reg => console.info('[SW] Registrado:', reg.scope))
+        .catch(err => console.warn('[SW] Falha:', err));
+    });
+  }
 </script>
 
 </body>

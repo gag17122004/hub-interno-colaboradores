@@ -105,6 +105,9 @@ const Auth = {
     COLAB:  'colab123'
   },
 
+  /* Rotas bloqueadas para colaboradores (adicionar aqui conforme novos módulos) */
+  COLAB_BLOCKED: ['m3', 'm4', 'm6', 'm8', 'm9', 'm11', 'm12', 'm13', 'm14'],
+
   init() {
     const session = this.getSession();
     if (session) {
@@ -201,18 +204,18 @@ const Auth = {
     document.body.classList.remove('is-master', 'is-colab');
     document.body.classList.add(session.profile === 'master' ? 'is-master' : 'is-colab');
 
-    // Restrição de sidebar
+    // Restrição de sidebar: oculta itens conforme perfil
     document.querySelectorAll('[data-route]').forEach(el => {
-      const route = el.dataset.route;
-      const isMasterOnly = el.classList.contains('master-only');
-      
+      const route      = el.dataset.route;
+      const masterOnly = el.classList.contains('master-only');
+      const colabOnly  = el.classList.contains('colab-only');
+
       if (session.profile === 'colab') {
-         // Bloqueio total de alguns módulos para colab
-         if (['m3', 'm4', 'm6'].includes(route) || isMasterOnly) {
-           el.classList.add('hidden');
-         }
+        const blocked = Auth.COLAB_BLOCKED.includes(route) || masterOnly;
+        el.classList.toggle('hidden', blocked);
       } else {
-         el.classList.remove('hidden');
+        // Master: esconde itens exclusivos do colaborador
+        el.classList.toggle('hidden', colabOnly);
       }
     });
 
@@ -443,8 +446,12 @@ const Router = {
     document.querySelectorAll('[data-route]').forEach(item => {
       item.addEventListener('click', () => this.navigate(item.dataset.route));
     });
-    // Rota inicial
-    const initial = window.location.hash.replace('#', '') || 'm1';
+    // Rota inicial: colaborador vai para "Meu Espaço", master para M1
+    const session = Auth.getSession();
+    const defaultRoute = session?.profile === 'colab' ? 'me' : 'm1';
+    const hash = window.location.hash.replace('#', '');
+    const initial = hash && !(session?.profile === 'colab' && Auth.COLAB_BLOCKED.includes(hash))
+      ? hash : defaultRoute;
     this.navigate(initial);
   },
 
@@ -453,7 +460,7 @@ const Router = {
     if (!session) return;
 
     // Verificar permissão
-    if (session.profile === 'colab' && ['m3', 'm4', 'm6'].includes(route)) {
+    if (session.profile === 'colab' && Auth.COLAB_BLOCKED.includes(route)) {
       Toast.error('Você não tem permissão para acessar este módulo.');
       return;
     }
@@ -494,6 +501,7 @@ const App = {
     Auth.init();
 
     // Inicializa cada módulo na ordem
+    MePanel.init();
     M1.init();
     M2.init();
     M3.init();

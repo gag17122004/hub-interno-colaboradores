@@ -1,0 +1,44 @@
+{
+  "name": "Hub Interno Pratik",
+  "short_name": "Hub Pratik",
+  "description": "Sistema interno de gestão e operações — Pratik Distribuidora",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#2dd4bf",
+  "orientation": "any",
+  "lang": "pt-BR",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Meu Espaço",
+      "url": "./#me",
+      "description": "Visão pessoal do colaborador"
+    },
+    {
+      "name": "Horas Extras",
+      "url": "./#m1",
+      "description": "Registro de horas extras"
+    },
+    {
+      "name": "Tarefas",
+      "url": "./#m5",
+      "description": "Tarefas e anotações internas"
+    }
+  ]
+}
