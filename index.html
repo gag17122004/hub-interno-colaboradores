@@ -92,6 +92,25 @@
       .m1-layout { grid-template-columns: 1fr; }
       .m3-layout { grid-template-columns: 1fr; }
     }
+
+    /* ── Módulo 7 — Alertas ── */
+    .m7-alert {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 16px; border-radius: 10px;
+      font-size: 13px; font-weight: 600;
+      border: 1px solid transparent;
+    }
+    .m7-alert.danger  { background: #ef444420; color: #ef4444; border-color: #ef444440; }
+    .m7-alert.success { background: #2dd4bf20; color: #2dd4bf; border-color: #2dd4bf40; }
+
+    /* ── Módulo 7 — Botões de modo histórico ── */
+    .m7-mode-btn {
+      padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border);
+      background: none; cursor: pointer; font-size: 12px; font-weight: 600;
+      color: var(--text-sec); transition: .15s;
+    }
+    .m7-mode-btn:hover  { background: var(--surface2); color: var(--text); }
+    .m7-mode-btn.active { background: var(--accent-bg); color: var(--accent); border-color: var(--accent-bd); }
   </style>
 </head>
 <body>
@@ -1070,57 +1089,135 @@
          MÓDULO 7 — CONTROLE DE PRODUÇÃO
          ══════════════════════════════════════════════════════ -->
     <section id="panel-m7" class="module-panel">
-      <!-- Visão Master (Estatísticas) -->
+
+      <!-- Banner de alerta (desvio da meta) -->
+      <div id="m7-alert-banner" class="m7-alert hidden">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <span id="m7-alert-text"></span>
+      </div>
+
+      <!-- Estatísticas expandidas (master) -->
       <div id="m7-master-view" class="master-only hidden">
-        <div class="stats-grid">
+        <div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
           <div class="stat-card">
-            <div class="stat-label">Total de Pacotes Produzidos</div>
-            <div class="stat-value" id="m7-stat-total">0</div>
+            <div class="stat-label">Total kg Produzidos</div>
+            <div class="stat-value font-mono" id="m7-stat-total-kg">0 kg</div>
           </div>
           <div class="stat-card">
-            <div class="stat-label">Média Diária</div>
-            <div class="stat-value" id="m7-stat-avg">0</div>
+            <div class="stat-label">Total de Pacotes</div>
+            <div class="stat-value font-mono" id="m7-stat-total-pkgs">0</div>
           </div>
           <div class="stat-card">
-            <div class="stat-label">Meta de Produção</div>
-            <div class="field mt-2">
-               <input type="number" id="m7-goal-input" placeholder="Definir meta" style="max-width:100px" />
-            </div>
+            <div class="stat-label">Média kg/dia</div>
+            <div class="stat-value font-mono" id="m7-stat-avg-kg">0 kg/dia</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Hoje (kg)</div>
+            <div class="stat-value font-mono" id="m7-stat-today-kg">0 kg</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Semana (kg)</div>
+            <div class="stat-value font-mono" id="m7-stat-week-kg">0 kg</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Semana (pacotes)</div>
+            <div class="stat-value font-mono" id="m7-stat-week-pkgs">0</div>
+          </div>
+        </div>
+        <!-- Barra de progresso hoje vs meta -->
+        <div class="card" style="padding:14px 16px">
+          <div class="text-xs text-muted font-bold mb-2" id="m7-goal-progress-label">Nenhuma meta definida</div>
+          <div style="background:var(--surface2);border-radius:99px;height:10px;overflow:hidden;border:1px solid var(--border)">
+            <div id="m7-goal-progress-bar" style="height:100%;width:0%;border-radius:99px;transition:width .4s ease,background .4s ease;background:var(--accent)"></div>
           </div>
         </div>
       </div>
 
-      <div class="card mt-4">
-        <div class="card-header">
-          <div class="card-title-lg">Registros de Produção</div>
-          <button class="btn btn-primary btn-sm" id="m7-add-btn">
-            <i class="fa-solid fa-plus"></i> Novo Registro
+      <!-- Abas -->
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="display:flex;border-bottom:1px solid var(--border)">
+          <button class="m1-tab-btn active" id="m7-tab-records">
+            <i class="fa-solid fa-list"></i> Registros
+          </button>
+          <button class="m1-tab-btn master-only" id="m7-tab-history">
+            <i class="fa-solid fa-chart-bar"></i> Histórico
+          </button>
+          <button class="m1-tab-btn master-only" id="m7-tab-goals">
+            <i class="fa-solid fa-bullseye"></i> Metas
           </button>
         </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Data</th>
-                <th>Operador</th>
-                <th>Máquina</th>
-                <th>Produto</th>
-                <th>Tamanho</th>
-                <th>Peso</th>
-                <th>Pacotes</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody id="m7-production-tbody">
-              <tr><td colspan="8" class="empty-state">Nenhum registro de produção.</td></tr>
-            </tbody>
-          </table>
+
+        <!-- Tab: Registros -->
+        <div id="m7-tabpanel-records">
+          <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:flex-end">
+            <button class="btn btn-primary btn-sm" id="m7-add-btn">
+              <i class="fa-solid fa-plus"></i> Novo Registro
+            </button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Operador</th>
+                  <th>Máquina</th>
+                  <th>Produto</th>
+                  <th>Tamanho</th>
+                  <th>Peso (kg)</th>
+                  <th>Pacotes</th>
+                  <th>Horário</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="m7-production-tbody">
+                <tr><td colspan="9" class="empty-state"><i class="fa-solid fa-industry"></i><p>Nenhum registro de produção.</p></td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+
+        <!-- Tab: Histórico (master) -->
+        <div id="m7-tabpanel-history" class="hidden">
+          <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
+            <button class="m7-mode-btn active" id="m7-hist-daily-btn">
+              <i class="fa-solid fa-calendar-day"></i> Diário
+            </button>
+            <button class="m7-mode-btn" id="m7-hist-week-btn">
+              <i class="fa-solid fa-calendar-week"></i> Semanal
+            </button>
+          </div>
+          <div id="m7-history-container"></div>
+        </div>
+
+        <!-- Tab: Metas (master) -->
+        <div id="m7-tabpanel-goals" class="hidden">
+          <div style="padding:12px 16px;border-bottom:1px solid var(--border)">
+            <button class="btn btn-primary btn-sm" id="m7-add-goal-btn">
+              <i class="fa-solid fa-plus"></i> Adicionar Meta
+            </button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Produto</th>
+                  <th>Tamanho</th>
+                  <th>Meta kg/dia</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="m7-goals-tbody">
+                <tr><td colspan="4" class="empty-state"><p>Nenhuma meta. Clique em "Adicionar Meta".</p></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div><!-- /.card abas -->
 
       <!-- Modal: Registro de Produção -->
       <div class="modal-backdrop" id="modal-production-record">
-        <div class="modal" style="max-width: 500px;">
+        <div class="modal" style="max-width:500px">
           <div class="modal-title" id="modal-production-record-title">Novo Registro de Produção</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div class="field">
@@ -1133,12 +1230,7 @@
             </div>
             <div class="field">
               <label>Máquina</label>
-              <select id="m7-machine">
-                <option value="01 (Saco)">01 (Saco)</option>
-                <option value="02 (Envelope)">02 (Envelope)</option>
-                <option value="03 (Saco)">03 (Saco)</option>
-                <option value="other">+ Adicionar Nova</option>
-              </select>
+              <select id="m7-machine"></select>
             </div>
             <div class="field">
               <label>Produto</label>
@@ -1149,23 +1241,15 @@
             </div>
             <div class="field">
               <label>Micragem</label>
-              <select id="m7-micron">
-                <option value="0.03">0.03</option>
-                <option value="0.035">0.035</option>
-                <option value="0.04">0.04</option>
-                <option value="other">+ Outra</option>
-              </select>
+              <select id="m7-micron"></select>
             </div>
             <div class="field">
               <label>Cor</label>
-              <select id="m7-color">
-                <option value="Preto">Preto</option>
-                <option value="other">+ Outra</option>
-              </select>
+              <select id="m7-color"></select>
             </div>
             <div class="field">
               <label>Material consumido (kg)</label>
-              <input type="number" id="m7-weight" step="0.01" placeholder="kg no período" />
+              <input type="number" id="m7-weight" step="0.01" placeholder="0.00" />
             </div>
             <div class="field">
               <label>Tamanho</label>
@@ -1181,23 +1265,52 @@
             </div>
             <div class="field">
               <label>Pacotes</label>
-              <input type="number" id="m7-packages" />
+              <input type="number" id="m7-packages" min="1" />
             </div>
             <div class="field">
               <label>Cortes</label>
-              <input type="number" id="m7-cuts" />
+              <input type="number" id="m7-cuts" min="0" />
             </div>
-          </div><!-- /.grid -->
+          </div>
           <div class="field mt-3">
             <label>Observações</label>
             <textarea id="m7-notes" rows="2"></textarea>
           </div>
           <div class="modal-footer">
             <button class="btn btn-secondary" id="m7-cancel-btn">Cancelar</button>
-            <button class="btn btn-primary" id="m7-save-btn">Salvar Registro</button>
+            <button class="btn btn-primary"   id="m7-save-btn">Salvar Registro</button>
           </div>
         </div>
       </div>
+
+      <!-- Modal: Meta Diária -->
+      <div class="modal-backdrop" id="modal-goal">
+        <div class="modal" style="max-width:380px">
+          <div class="modal-title" id="m7-goal-modal-title">Nova Meta Diária</div>
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div class="field">
+              <label>Tipo de Produto</label>
+              <select id="m7-goal-prodtype">
+                <option value="Saco de Lixo">Saco de Lixo</option>
+                <option value="Envelope">Envelope</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Tamanho (opcional)</label>
+              <input type="text" id="m7-goal-size" placeholder="Ex: 50x60 (vazio = todos)" />
+            </div>
+            <div class="field">
+              <label>Meta kg/dia</label>
+              <input type="number" id="m7-goal-kgday" min="1" step="0.1" placeholder="Ex: 200" />
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" id="m7-cancel-goal-btn">Cancelar</button>
+            <button class="btn btn-primary"   id="m7-save-goal-btn">Salvar Meta</button>
+          </div>
+        </div>
+      </div>
+
     </section>
 
   </div><!-- /.main-content -->

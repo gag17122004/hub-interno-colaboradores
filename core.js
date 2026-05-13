@@ -88,6 +88,12 @@ const Logger = {
     document.dispatchEvent(new CustomEvent('audit:new'));
   },
   getLogs() {
+    // Migrar dados da chave antiga
+    const old = localStorage.getItem('hub_audit_logs');
+    if (old && !localStorage.getItem('hub_audit')) {
+      localStorage.setItem('hub_audit', old);
+      localStorage.removeItem('hub_audit_logs');
+    }
     return Storage.get(Storage.KEYS.LOGS, []);
   },
   clear() {
