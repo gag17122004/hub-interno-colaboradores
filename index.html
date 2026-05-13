@@ -55,9 +55,9 @@
     .m1-tab-btn { flex: 1; padding: 10px 8px; border: none; background: none; cursor: pointer; font-size: 12px; font-weight: 600; color: var(--text-sec); border-bottom: 2px solid transparent; transition: .15s; display: flex; align-items: center; justify-content: center; gap: 6px; }
     .m1-tab-btn:hover { color: var(--text); background: var(--surface2); }
     .m1-tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
-    /* Badges */
-    .badge-success { background: #16a34a20; color: #16a34a; border: 1px solid #16a34a40; }
-    .badge-danger  { background: #dc262620; color: #dc2626; border: 1px solid #dc262640; }
+    /* Badges extras M1 */
+    .badge-success { background: var(--success-bg, #16a34a20); color: var(--success, #16a34a); }
+    .badge-danger  { background: var(--danger-bg,  #dc262620); color: var(--danger,  #dc2626); }
 
     /* ── Módulo 3 — Lista de produtos ── */
     .m3-layout { display: grid; grid-template-columns: 200px 1fr; gap: 20px; }
@@ -607,6 +607,59 @@
             <i class="fa-solid fa-box-open"></i>
             <p>Nenhum produto cadastrado. Clique em "Novo Grupo" para começar.</p>
           </div>
+        </div>
+      </div>
+
+      <!-- Calculadora de Peso Estimado -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Calculadora de Peso Estimado</div>
+            <div class="text-xs text-muted mt-1">Para produtos nunca produzidos — fórmula: L × C × (micragem/10) × 0,92 g/cm³ × 2 camadas</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;margin-bottom:16px">
+          <div class="field">
+            <label>Largura (cm)</label>
+            <input type="number" id="m2-calc-w" min="1" step="0.1" value="20" />
+          </div>
+          <div class="field">
+            <label>Comprimento (cm)</label>
+            <input type="number" id="m2-calc-c" min="1" step="0.1" value="30" />
+          </div>
+          <div class="field">
+            <label>Micragem (mm)</label>
+            <input type="number" id="m2-calc-m" min="0.001" step="0.001" value="0.035" />
+          </div>
+          <div class="field">
+            <label>Tipo</label>
+            <select id="m2-calc-tipo">
+              <option value="Envelope">Envelope</option>
+              <option value="Saco">Saco de Lixo</option>
+            </select>
+          </div>
+        </div>
+        <!-- Resultado -->
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <i class="fa-solid fa-weight-hanging" style="color:var(--accent)"></i>
+            <span class="text-sm text-muted">Peso estimado por unidade:</span>
+            <span class="font-mono font-bold text-accent" id="m2-calc-result-peso">—</span>
+          </div>
+          <div class="m2-calc-cost-row master-only" style="display:flex;align-items:center;gap:10px">
+            <i class="fa-solid fa-tag" style="color:var(--accent)"></i>
+            <span class="text-sm text-muted">Custos estimados:</span>
+            <span class="font-mono text-sm" id="m2-calc-result-custo">—</span>
+          </div>
+        </div>
+        <!-- Canvas 2D interativo -->
+        <div style="margin-top:16px">
+          <div class="text-xs text-muted mb-2">
+            <i class="fa-solid fa-arrows-up-down-left-right"></i>
+            Arraste as alças <span style="color:var(--accent)">● direita</span> e <span style="color:var(--accent)">● baixo</span> para ajustar as dimensões
+          </div>
+          <canvas id="m2-canvas-2d" width="520" height="260"
+                  style="width:100%;max-width:520px;display:block;border-radius:10px;border:1px solid var(--border);background:var(--surface2);cursor:default"></canvas>
         </div>
       </div>
 

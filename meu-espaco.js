@@ -38,16 +38,16 @@ const MePanel = (() => {
 
   /* ── Stats rápidos ───────────────────────────────────────── */
   function renderStats(session) {
-    // Horas do mês atual
-    const allHours  = Storage.get(Storage.KEYS.HOURS, {});
-    const employees = Storage.get(Storage.KEYS.EMPLOYEES, []);
+    // Horas extras aprovadas do mês atual (novo formato)
+    const timeRecords = Storage.get('hub_time_records', {});
+    const employees   = Storage.get(Storage.KEYS.EMPLOYEES, []);
     const emp = employees.find(e => e.name === session.name);
     let monthHours = 0;
     if (emp) {
       const thisMonth = Utils.currentMonth();
-      monthHours = (allHours[emp.id] || [])
-        .filter(h => (h.date || '').startsWith(thisMonth))
-        .reduce((s, h) => s + (Number(h.hours) || 0), 0);
+      monthHours = (timeRecords[emp.id] || [])
+        .filter(r => r.status === 'approved' && (r.date || '').startsWith(thisMonth))
+        .reduce((s, r) => s + (Number(r.overtimeMinutes) || 0), 0) / 60;
     }
     const hoursEl = $('me-stat-hours');
     if (hoursEl) hoursEl.textContent = Utils.num(monthHours, 1) + 'h';
@@ -117,10 +117,10 @@ const MePanel = (() => {
       return;
     }
 
-    const allHours  = Storage.get(Storage.KEYS.HOURS, {});
-    const thisMonth = Utils.currentMonth();
-    const records   = (allHours[emp.id] || [])
-      .filter(h => (h.date || '').startsWith(thisMonth))
+    const timeRecords = Storage.get('hub_time_records', {});
+    const thisMonth   = Utils.currentMonth();
+    const records     = (timeRecords[emp.id] || [])
+      .filter(r => (r.date || '').startsWith(thisMonth))
       .sort((a, b) => b.date.localeCompare(a.date))
       .slice(0, 10);
 
@@ -132,12 +132,21 @@ const MePanel = (() => {
       return;
     }
 
-    list.innerHTML = records.map(h => `
-      <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border)">
-        <span class="font-mono text-xs text-muted" style="min-width:72px">${Utils.fmtDate(h.date)}</span>
-        <span class="font-mono font-bold text-accent">${Utils.num(h.hours, 2)}h</span>
-        <span class="text-xs text-muted">${Utils.esc(h.period || '')}</span>
-      </div>`).join('');
+    const statusColors = { pending: '#f59e0b', approved: '#22c55e', rejected: '#ef4444' };
+    const statusLabels = { pending: 'Pendente', approved: 'Aprovado', rejected: 'Rejeitado' };
+
+    list.innerHTML = records.map(r => {
+      const batidas = [r.punch1, r.punch2, r.punch3, r.punch4].filter(Boolean).join(' → ');
+      const otH = ((r.overtimeMinutes || 0) / 60);
+      const statusColor = statusColors[r.status] || '#94a3b8';
+      return `
+        <div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span class="font-mono text-xs text-muted" style="min-width:72px">${Utils.fmtDate(r.date)}</span>
+          <span class="font-mono text-xs text-muted">${batidas || '—'}</span>
+          ${r.overtimeMinutes > 0 ? `<span class="font-mono font-bold" style="color:var(--accent)">+${Utils.num(otH, 2)}h extra</span>` : '<span class="text-xs text-muted">Sem extra</span>'}
+          <span class="badge" style="font-size:10px;background:${statusColor}20;color:${statusColor};border:1px solid ${statusColor}40;margin-left:auto">${statusLabels[r.status] || ''}</span>
+        </div>`;
+    }).join('');
   }
 
   /* ── Init ────────────────────────────────────────────────── */

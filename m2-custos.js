@@ -1,32 +1,20 @@
 /**
- * m2-custos.js — Módulo 2 (v2): Custos, Matéria-Prima e Produtos
+ * m2-custos.js v2 — Custos, Matéria-Prima e Produtos
  *
- * Estrutura de dados:
- *   products = [
- *     {
- *       id,
- *       name,          // ex: "Saco 50L"
- *       variations: [
- *         {
- *           id,
- *           sku,        // ex: "TQ 50 100"  ou "LCQ 15 20 1000"
- *           qty,        // extraído da nomenclatura (último número)
- *           lotWeight,  // peso total do lote (kg)
- *           width,      // cm (embalagem)
- *           height,     // cm
- *           length,     // cm
- *           micron,     // ex: "0.03"
- *         }
- *       ]
- *     }
- *   ]
+ * products = [{ id, name, variations: [{ id, sku, qty, lotWeight, width, height, length, micron }] }]
+ * rawPrice  = R$/kg único (COEX + PEBD)
  *
- * Preço/kg único compartilhado: rawPrice (R$/kg)
- * COEX = Envelopes (SKU inicia com LCQ)
- * PEBD = Sacos (SKU inicia com TQ)
+ * Fórmulas:
+ *   unitReal sacos:    (lotWeight × price) ÷ 100
+ *   unitReal envelopes:(lotWeight × price) ÷ 1000
+ *   pratik:            lotWeight × price × 2
+ *   loteCost sacos:    unitReal ÷ 100
+ *   loteCost envelopes:unitReal ÷ 1000
+ *
+ * Peso estimado: largura × comprimento × (micragem/10) × 0,92 × 2 camadas (em gramas)
  */
 
-/* ── Seed de produtos padrão ─────────────────────────────── */
+/* ── Seed ── */
 const _SEED_KEY = 'hub_products_seeded_v1';
 const _DEFAULT_PRICE = 9.85;
 const _DEFAULT_PRODUCTS = [
@@ -90,13 +78,14 @@ const _DEFAULT_PRODUCTS = [
 
 const M2 = (() => {
 
-  /* ── Estado ──────────────────────────────────────────────── */
-  let rawPrice = 0;   // R$/kg único
-  let products = [];  // ver estrutura acima
+  /* ── Estado ── */
+  let rawPrice = 0;
+  let products = [];
   let _editingProductId  = null;
   let _editingVariationId = null;
+  let _currentGroupId    = null;
 
-  /* ── Persistência ────────────────────────────────────────── */
+  /* ── Persistência ── */
   function save() {
     Storage.set(Storage.KEYS.RAW_PRICES, { single: rawPrice });
     Storage.set(Storage.KEYS.PRODUCTS, products);
@@ -104,20 +93,14 @@ const M2 = (() => {
 
   function load() {
     const stored = Storage.get(Storage.KEYS.RAW_PRICES, {});
-    // compatibilidade com versão anterior (coex/pebd separados)
     rawPrice = stored.single ?? stored.coex ?? stored.pebd ?? 0;
-    // migrar produtos antigos (sem variações) se necessário
     const rawProds = Storage.get(Storage.KEYS.PRODUCTS, []);
     products = rawProds.map(p => {
-      if (p.variations) return p; // já novo formato
-      // migrar produto antigo para grupo com 1 variação
-      const sku = p.type === 'Envelope' ? `LCQ 0 0 1000` : `TQ 0L 100`;
+      if (p.variations) return p;
       return {
-        id: p.id,
-        name: p.name,
+        id: p.id, name: p.name,
         variations: [{
-          id: Utils.uid(),
-          sku: p.name,
+          id: Utils.uid(), sku: p.name,
           qty: p.type === 'Envelope' ? 1000 : 100,
           lotWeight: Number(p.weight) * (p.type === 'Envelope' ? 1000 : 100),
           width: 0, height: 0, length: 0, micron: ''
@@ -126,48 +109,40 @@ const M2 = (() => {
     });
   }
 
-  /* ── Helpers de Cálculo ──────────────────────────────────── */
-
-  /**
-   * Extrai qty do último número da nomenclatura
-   * "TQ 50 100" → 100,  "LCQ 15 20 1000" → 1000
-   */
+  /* ── Helpers de SKU ── */
   function qtyFromSku(sku = '') {
     const parts = sku.trim().split(/\s+/);
     const last = parseInt(parts[parts.length - 1]);
     return isNaN(last) ? 1 : last;
   }
 
-  /**
-   * Detecta tipo pela nomenclatura
-   * LCQ → Envelope (COEX)
-   * TQ  → Saco (PEBD)
-   */
   function typeFromSku(sku = '') {
     return sku.trim().toUpperCase().startsWith('LCQ') ? 'Envelope' : 'Saco';
   }
 
-  /**
-   * Calcula todos os custos de uma variação.
-   * @param {{ lotWeight, qty, sku }} variation
-   * @returns {{ unitReal, pratik, loteCost, qty, unitWeight }}
-   */
-  function calcVariationCosts(variation) {
-    const lotWeight = Number(variation.lotWeight) || 0;
-    const qty       = Number(variation.qty) || 1;
+  /* ── Cálculos ── */
+  function calcVariationCosts(v) {
+    const lotWeight = Number(v.lotWeight) || 0;
+    const qty       = Number(v.qty) || 1;
     const price     = Number(rawPrice) || 0;
-    const type      = typeFromSku(variation.sku);
+    const type      = typeFromSku(v.sku);
+    const lotCost   = lotWeight * price;
 
-    const unitWeight = lotWeight / qty;            // kg por unidade
-    const loteCost   = lotWeight * price;           // custo bruto do lote
-    const unitReal   = qty > 0 ? loteCost / qty : 0;
-    const pratik     = lotWeight * price * 2;      // custo Pratik — lote × preço × 2
+    // Custo Unitário Real: ÷100 sacos, ÷1000 envelopes
+    const unitReal = type === 'Saco' ? lotCost / 100 : lotCost / 1000;
 
-    return { unitReal, pratik, loteCost, qty, unitWeight, type };
+    // Custo Pratik: lote × preço × 2
+    const pratik = lotWeight * price * 2;
+
+    // Custo Lote referência: unitReal ÷100 sacos, ÷1000 envelopes
+    const loteCostRef = type === 'Saco' ? unitReal / 100 : unitReal / 1000;
+
+    const unitWeight = qty > 0 ? lotWeight / qty : 0;
+
+    return { unitReal, pratik, lotCost, loteCostRef, qty, unitWeight, type };
   }
 
-  /* ── Renderização ────────────────────────────────────────── */
-
+  /* ── Renders de produtos ── */
   function renderPrice() {
     const inp = document.getElementById('m2-price-kg');
     if (inp) inp.value = rawPrice || '';
@@ -176,33 +151,27 @@ const M2 = (() => {
   function renderProducts() {
     const container = document.getElementById('m2-products-container');
     if (!container) return;
-
     if (products.length === 0) {
-      container.innerHTML = `<div class="empty-state">
-        <i class="fa-solid fa-box-open"></i>
-        <p>Nenhum produto cadastrado. Clique em "Novo Grupo" para começar.</p>
-      </div>`;
+      container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-box-open"></i><p>Nenhum produto cadastrado.</p></div>`;
       renderSalesTable();
       return;
     }
-
     renderSalesTable();
     container.innerHTML = products.map(prod => {
       const varRows = (prod.variations || []).map(v => {
         const c = calcVariationCosts(v);
         const isMaster = Auth.isMaster();
-        const pricesHTML = isMaster ? `
-          <span class="font-mono" style="font-size:11px;color:var(--text-sec)">
-            Unit: <strong>${Utils.brl(c.unitReal)}</strong>
-            | Pratik: <strong>${Utils.brl(c.pratik)}</strong>
-            | Lote: <strong>${Utils.brl(c.loteCost)}</strong>
-          </span>` : `
-          <span class="font-mono text-xs text-muted">
-            ${Utils.num(c.unitWeight * 1000, 1)}g/un | ${Utils.num(Number(v.lotWeight) * 1000, 0)}g total
-          </span>`;
-
+        const pricesHTML = isMaster
+          ? `<span class="font-mono" style="font-size:11px;color:var(--text-sec)">
+               Unit: <strong>${Utils.brl(c.unitReal)}</strong>
+               | Pratik: <strong>${Utils.brl(c.pratik)}</strong>
+               | Lote: <strong>${Utils.brl(c.lotCost)}</strong>
+             </span>`
+          : `<span class="font-mono text-xs text-muted">
+               ${Utils.num(c.unitWeight * 1000, 1)}g/un | ${Utils.num(Number(v.lotWeight) * 1000, 0)}g total
+             </span>`;
         return `
-          <div class="m2-var-row" data-var-id="${v.id}" data-prod-id="${prod.id}">
+          <div class="m2-var-row" data-var-id="${v.id}">
             <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border)">
               <i class="fa-solid fa-diagram-successor text-muted" style="font-size:11px;margin-left:8px"></i>
               <div style="flex:1;min-width:0">
@@ -223,12 +192,12 @@ const M2 = (() => {
                 </button>` : ''}
               </div>
             </div>
-            <div class="m2-var-details" id="vd-${v.id}" style="display:none;padding:10px 16px 10px 36px;background:var(--surface2);font-size:12px">
+            <div id="vd-${v.id}" style="display:none;padding:10px 16px 10px 36px;background:var(--surface2);font-size:12px">
               <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px">
                 <div><span class="text-muted">Largura:</span> <strong>${v.width || '—'} cm</strong></div>
                 <div><span class="text-muted">Altura:</span> <strong>${v.height || '—'} cm</strong></div>
                 <div><span class="text-muted">Compr.:</span> <strong>${v.length || '—'} cm</strong></div>
-                <div><span class="text-muted">Micragem:</span> <strong>${v.micron || '—'}</strong></div>
+                <div><span class="text-muted">Micragem:</span> <strong>${v.micron || '—'} mm</strong></div>
                 <div><span class="text-muted">Peso unit.:</span> <strong>${Utils.num(c.unitWeight * 1000, 2)} g</strong></div>
               </div>
             </div>
@@ -259,25 +228,20 @@ const M2 = (() => {
             </div>
           </div>
           <div class="m2-var-list" id="group-${prod.id}" style="display:none">
-            ${varRows || `<div class="text-xs text-muted" style="padding:12px 16px">Nenhuma variação. Adicione uma acima.</div>`}
+            ${varRows || `<div class="text-xs text-muted" style="padding:12px 16px">Nenhuma variação cadastrada.</div>`}
           </div>
         </div>`;
     }).join('');
   }
 
-  /* ── Tabela de Vendas Físicas ────────────────────────────── */
-
+  /* ── Tabela de Vendas Físicas ── */
   function renderSalesTable() {
     const tbody = document.getElementById('m2-sales-tbody');
     if (!tbody) return;
-
     if (products.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7" class="empty-state">
-        <i class="fa-solid fa-box-open"></i><p>Nenhum produto cadastrado.</p>
-      </td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7" class="empty-state"><i class="fa-solid fa-box-open"></i><p>Nenhum produto.</p></td></tr>`;
       return;
     }
-
     const rows = [];
     products.forEach(prod => {
       (prod.variations || []).forEach(v => {
@@ -295,15 +259,12 @@ const M2 = (() => {
           </tr>`);
       });
     });
-
-    tbody.innerHTML = rows.length ? rows.join('') : `<tr><td colspan="7" class="empty-state">
-      <p>Nenhuma variação cadastrada.</p></td></tr>`;
+    tbody.innerHTML = rows.length ? rows.join('') : `<tr><td colspan="7" class="empty-state"><p>Nenhuma variação.</p></td></tr>`;
   }
 
-  /* ── Toggle UI ───────────────────────────────────────────── */
-
+  /* ── Toggle UI ── */
   function toggleGroup(prodId) {
-    const el = document.getElementById(`group-${prodId}`);
+    const el   = document.getElementById(`group-${prodId}`);
     const chev = document.getElementById(`chev-${prodId}`);
     if (!el) return;
     const open = el.style.display === 'none';
@@ -313,12 +274,10 @@ const M2 = (() => {
 
   function toggleVarDetails(varId) {
     const el = document.getElementById(`vd-${varId}`);
-    if (!el) return;
-    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
   }
 
-  /* ── Modal: Grupo ────────────────────────────────────────── */
-
+  /* ── Modal: Grupo ── */
   function openAddGroup() {
     _editingProductId = null;
     document.getElementById('m2-group-modal-title').textContent = 'Novo Grupo de Produto';
@@ -343,16 +302,14 @@ const M2 = (() => {
   function saveGroup() {
     const name = document.getElementById('m2-group-name').value.trim();
     if (!name) { Toast.error('Informe o nome do grupo.'); return; }
-
     if (_editingProductId) {
       const idx = products.findIndex(p => p.id === _editingProductId);
       if (idx !== -1) products[idx].name = name;
-      Logger.log(`Editou grupo de produto: ${name}`);
+      Logger.log(`Editou grupo: ${name}`);
     } else {
       products.push({ id: Utils.uid(), name, variations: [] });
-      Logger.log(`Adicionou grupo de produto: ${name}`);
+      Logger.log(`Criou grupo: ${name}`);
     }
-
     save();
     closeGroupModal();
     renderProducts();
@@ -365,34 +322,25 @@ const M2 = (() => {
     if (!prod) return;
     Modal.confirm({
       title: 'Remover Grupo',
-      body: `<p>Remover <strong>${Utils.esc(prod.name)}</strong> e todas as suas variações?</p>
-             <p class="text-sm text-muted mt-2">Esta ação não pode ser desfeita.</p>`,
-      confirmText: 'Remover',
-      confirmClass: 'btn-danger',
+      body: `<p>Remover <strong>${Utils.esc(prod.name)}</strong> e todas as variações?</p><p class="text-sm text-muted mt-2">Esta ação não pode ser desfeita.</p>`,
+      confirmText: 'Remover', confirmClass: 'btn-danger',
       onConfirm() {
         products = products.filter(p => p.id !== prodId);
-        save();
-        renderProducts();
+        save(); renderProducts();
         document.dispatchEvent(new CustomEvent('m2:products:updated'));
-        Logger.log(`Removeu grupo de produto: ${prod.name}`);
+        Logger.log(`Removeu grupo: ${prod.name}`);
         Toast.success('Grupo removido.');
       }
     });
   }
 
-  /* ── Modal: Variação ─────────────────────────────────────── */
-
-  let _currentGroupId = null;
-
+  /* ── Modal: Variação ── */
   function openAddVariation(prodId) {
     _currentGroupId = prodId;
     _editingVariationId = null;
     document.getElementById('m2-var-modal-title').textContent = 'Nova Variação';
-    ['m2-var-sku','m2-var-lotweight','m2-var-width','m2-var-height',
-     'm2-var-length','m2-var-micron'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.value = '';
-    });
+    ['m2-var-sku','m2-var-lotweight','m2-var-width','m2-var-height','m2-var-length','m2-var-micron']
+      .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     document.getElementById('m2-var-qty-display').textContent = '—';
     document.getElementById('modal-variation').classList.add('open');
   }
@@ -402,7 +350,6 @@ const M2 = (() => {
     if (!prod) return;
     const v = (prod.variations || []).find(v => v.id === varId);
     if (!v) return;
-
     _currentGroupId = prodId;
     _editingVariationId = varId;
     document.getElementById('m2-var-modal-title').textContent = 'Editar Variação';
@@ -424,23 +371,22 @@ const M2 = (() => {
 
   function onSkuInput() {
     const sku = document.getElementById('m2-var-sku')?.value || '';
-    const qty = qtyFromSku(sku);
     const qtyEl = document.getElementById('m2-var-qty-display');
-    if (qtyEl) qtyEl.textContent = qty;
+    if (qtyEl) qtyEl.textContent = qtyFromSku(sku);
   }
 
   function saveVariation() {
     const sku       = document.getElementById('m2-var-sku').value.trim();
     const lotWeight = parseFloat(document.getElementById('m2-var-lotweight').value);
-    const width     = parseFloat(document.getElementById('m2-var-width').value) || 0;
+    const width     = parseFloat(document.getElementById('m2-var-width').value)  || 0;
     const height    = parseFloat(document.getElementById('m2-var-height').value) || 0;
     const length    = parseFloat(document.getElementById('m2-var-length').value) || 0;
     const micron    = document.getElementById('m2-var-micron').value.trim();
 
-    if (!sku)                  { Toast.error('Informe a nomenclatura (SKU).'); return; }
+    if (!sku) { Toast.error('Informe a nomenclatura.'); return; }
     if (isNaN(lotWeight) || lotWeight < 0) { Toast.error('Informe o peso do lote (kg).'); return; }
 
-    const qty = qtyFromSku(sku);
+    const qty  = qtyFromSku(sku);
     const prod = products.find(p => p.id === _currentGroupId);
     if (!prod) return;
 
@@ -449,15 +395,13 @@ const M2 = (() => {
     if (_editingVariationId) {
       const idx = prod.variations.findIndex(v => v.id === _editingVariationId);
       if (idx !== -1) prod.variations[idx] = { ...prod.variations[idx], ...varData };
-      Logger.log(`Editou variação ${sku} em ${prod.name}`);
+      Logger.log(`Editou variação ${sku}`);
     } else {
       prod.variations.push({ id: Utils.uid(), ...varData });
-      Logger.log(`Adicionou variação ${sku} em ${prod.name}`);
+      Logger.log(`Adicionou variação ${sku}`);
     }
 
-    save();
-    closeVariationModal();
-    renderProducts();
+    save(); closeVariationModal(); renderProducts();
     document.dispatchEvent(new CustomEvent('m2:products:updated'));
     Toast.success(_editingVariationId ? 'Variação atualizada.' : 'Variação adicionada.');
   }
@@ -470,34 +414,30 @@ const M2 = (() => {
     Modal.confirm({
       title: 'Remover Variação',
       body: `<p>Remover <strong>${Utils.esc(v.sku)}</strong>?</p>`,
-      confirmText: 'Remover',
-      confirmClass: 'btn-danger',
+      confirmText: 'Remover', confirmClass: 'btn-danger',
       onConfirm() {
         prod.variations = prod.variations.filter(x => x.id !== varId);
-        save();
-        renderProducts();
+        save(); renderProducts();
         document.dispatchEvent(new CustomEvent('m2:products:updated'));
-        Logger.log(`Removeu variação ${v.sku} de ${prod.name}`);
+        Logger.log(`Removeu variação ${v.sku}`);
         Toast.success('Variação removida.');
       }
     });
   }
 
-  /* ── Preço/kg ─────────────────────────────────────────────── */
-
+  /* ── Preço/kg ── */
   function savePrice() {
     const val = parseFloat(document.getElementById('m2-price-kg')?.value);
     if (isNaN(val) || val < 0) { Toast.error('Preço inválido.'); return; }
     rawPrice = val;
-    save();
-    renderProducts();
+    save(); renderProducts();
     document.dispatchEvent(new CustomEvent('m2:prices:updated'));
     Logger.log(`Atualizou preço/kg para R$ ${Utils.num(val, 2)}`);
     Toast.success('Preço atualizado e custos recalculados.');
+    updateWeightCalc(); // recalcular estimativas
   }
 
-  /* ── Importação XLSX ─────────────────────────────────────── */
-
+  /* ── Importação XLSX ── */
   function importXlsx(file) {
     if (!window.XLSX) { Toast.error('Biblioteca XLSX não carregada.'); return; }
     const reader = new FileReader();
@@ -507,46 +447,29 @@ const M2 = (() => {
         const ws = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
 
-        let added = 0, updated = 0, toRemove = [];
+        let added = 0, updated = 0;
         const skusInFile = new Set();
 
         rows.forEach(row => {
-          // Colunas esperadas: Grupo, SKU, PesoLote, Largura, Altura, Comprimento, Micragem
-          const groupName  = String(row['Grupo'] || row['grupo'] || '').trim();
-          const sku        = String(row['SKU']   || row['sku']   || '').trim();
-          const lotWeight  = parseFloat(row['PesoLote'] || row['Peso'] || 0);
-
+          const groupName = String(row['Grupo'] || row['grupo'] || '').trim();
+          const sku       = String(row['SKU']   || row['sku']   || '').trim();
+          const lotWeight = parseFloat(row['PesoLote'] || row['Peso'] || 0);
           if (!groupName || !sku) return;
           skusInFile.add(sku);
-
-          const qty    = qtyFromSku(sku);
           const varData = {
-            sku, qty, lotWeight,
+            sku, qty: qtyFromSku(sku), lotWeight,
             width:  parseFloat(row['Largura']     || 0) || 0,
             height: parseFloat(row['Altura']      || 0) || 0,
             length: parseFloat(row['Comprimento'] || 0) || 0,
             micron: String(row['Micragem'] || '').trim()
           };
-
-          // Encontrar ou criar grupo
           let prod = products.find(p => p.name.toLowerCase() === groupName.toLowerCase());
-          if (!prod) {
-            prod = { id: Utils.uid(), name: groupName, variations: [] };
-            products.push(prod);
-          }
-
-          // Verificar se variação já existe
+          if (!prod) { prod = { id: Utils.uid(), name: groupName, variations: [] }; products.push(prod); }
           const existingIdx = prod.variations.findIndex(v => v.sku === sku);
-          if (existingIdx !== -1) {
-            prod.variations[existingIdx] = { ...prod.variations[existingIdx], ...varData };
-            updated++;
-          } else {
-            prod.variations.push({ id: Utils.uid(), ...varData });
-            added++;
-          }
+          if (existingIdx !== -1) { prod.variations[existingIdx] = { ...prod.variations[existingIdx], ...varData }; updated++; }
+          else { prod.variations.push({ id: Utils.uid(), ...varData }); added++; }
         });
 
-        // Verificar variações que sumiram
         const removedSkus = [];
         products.forEach(prod => {
           prod.variations.forEach(v => {
@@ -555,23 +478,21 @@ const M2 = (() => {
         });
 
         const finalize = () => {
-          save();
-          renderProducts();
+          save(); renderProducts();
           document.dispatchEvent(new CustomEvent('m2:products:updated'));
-          Logger.log(`Importou planilha XLSX: +${added} adicionados, ${updated} atualizados`);
-          Toast.success(`Importação concluída: ${added} adicionados, ${updated} atualizados.`);
+          Logger.log(`Importou XLSX: +${added} adicionados, ${updated} atualizados`);
+          Toast.success(`Importação: ${added} adicionados, ${updated} atualizados.`);
         };
 
         if (removedSkus.length > 0) {
           Modal.confirm({
             title: 'Variações ausentes na planilha',
-            body: `<p>${removedSkus.length} variação(ões) não encontradas na planilha:</p>
+            body: `<p>${removedSkus.length} variação(ões) não encontradas:</p>
                    <ul class="text-sm text-muted mt-2" style="padding-left:16px">
                      ${removedSkus.map(r => `<li>${Utils.esc(r.sku)}</li>`).join('')}
                    </ul>
                    <p class="mt-2">Deseja <strong>remover</strong> estas variações?</p>`,
-            confirmText: 'Remover',
-            confirmClass: 'btn-danger',
+            confirmText: 'Remover', confirmClass: 'btn-danger',
             onConfirm() {
               removedSkus.forEach(({ prodId, varId }) => {
                 const p = products.find(x => x.id === prodId);
@@ -580,12 +501,8 @@ const M2 = (() => {
               finalize();
             }
           });
-          // Executar finalização mesmo que o modal seja cancelado (manter)
-          // mas após o confirm fechar. Para o caso "Cancelar" = manter:
           setTimeout(finalize, 100);
-        } else {
-          finalize();
-        }
+        } else { finalize(); }
       } catch (err) {
         console.error(err);
         Toast.error('Erro ao processar o arquivo XLSX.');
@@ -594,22 +511,225 @@ const M2 = (() => {
     reader.readAsBinaryString(file);
   }
 
-  /* ── API para outros módulos ─────────────────────────────── */
+  /* ══════════════════════════════════════════════════════════
+     CALCULADORA DE PESO ESTIMADO
+     ══════════════════════════════════════════════════════════ */
 
-  /** Retorna todos os produtos no novo formato (grupos + variações). */
-  function getProducts() {
-    return [...products];
+  // Estado da calculadora
+  let _calcW  = 20;   // largura cm
+  let _calcC  = 30;   // comprimento cm
+  let _calcM  = 0.035; // micragem mm
+  let _calcTipo = 'Envelope'; // Envelope | Saco
+
+  // Formula: largura × comprimento × (micragem/10) × 0.92 × 2 camadas → gramas
+  function calcEstimatedWeight(w, c, m) {
+    return w * c * (m / 10) * 0.92 * 2; // gramas
   }
 
-  /** Retorna o preço/kg atual. */
-  function getRawPrice() {
-    return rawPrice;
+  function updateWeightCalc() {
+    const w = parseFloat(document.getElementById('m2-calc-w')?.value) || _calcW;
+    const c = parseFloat(document.getElementById('m2-calc-c')?.value) || _calcC;
+    const m = parseFloat(document.getElementById('m2-calc-m')?.value) || _calcM;
+    _calcW = w; _calcC = c; _calcM = m;
+    _calcTipo = document.getElementById('m2-calc-tipo')?.value || _calcTipo;
+
+    const pesoG  = calcEstimatedWeight(w, c, m);
+    const pesoKg = pesoG / 1000;
+    const custPratik = pesoKg * rawPrice * 2;
+    const custUnit   = rawPrice * pesoKg;
+
+    const elPeso = document.getElementById('m2-calc-result-peso');
+    if (elPeso) elPeso.textContent = `${Utils.num(pesoG, 2)} g (${Utils.num(pesoKg, 4)} kg)`;
+
+    const elCusto = document.getElementById('m2-calc-result-custo');
+    if (elCusto) {
+      if (Auth.isMaster()) {
+        elCusto.textContent = `Custo unit.: ${Utils.brl(custUnit)} | Pratik: ${Utils.brl(custPratik)}`;
+        elCusto.closest('.m2-calc-cost-row')?.classList.remove('hidden');
+      } else {
+        elCusto.closest('.m2-calc-cost-row')?.classList.add('hidden');
+      }
+    }
+
+    draw2D(w, c, m);
   }
 
-  /**
-   * Retorna custo unitário de uma variação específica.
-   * @param {string} varId
-   */
+  /* ══════════════════════════════════════════════════════════
+     VISUALIZAÇÃO 2D INTERATIVA
+     ══════════════════════════════════════════════════════════ */
+
+  let _canvas   = null;
+  let _ctx      = null;
+  let _dragging = null; // 'right' | 'bottom' | null
+  let _dragStartX = 0;
+  let _dragStartY = 0;
+  let _dragStartW = 0;
+  let _dragStartC = 0;
+
+  const PAD = 40; // padding interno do canvas
+
+  function initCanvas() {
+    _canvas = document.getElementById('m2-canvas-2d');
+    if (!_canvas) return;
+    _ctx = _canvas.getContext('2d');
+    _canvas.addEventListener('mousedown',  onCanvasMouseDown);
+    _canvas.addEventListener('mousemove',  onCanvasMouseMove);
+    _canvas.addEventListener('mouseup',    onCanvasMouseUp);
+    _canvas.addEventListener('mouseleave', onCanvasMouseUp);
+    // Touch
+    _canvas.addEventListener('touchstart', e => { e.preventDefault(); onCanvasMouseDown(e.touches[0]); }, { passive: false });
+    _canvas.addEventListener('touchmove',  e => { e.preventDefault(); onCanvasMouseMove(e.touches[0]); }, { passive: false });
+    _canvas.addEventListener('touchend',   onCanvasMouseUp);
+  }
+
+  function getScale(w, c) {
+    const maxW = _canvas.width  - PAD * 2;
+    const maxH = _canvas.height - PAD * 2;
+    return Math.min(maxW / w, maxH / c, 8); // max 8px/cm
+  }
+
+  function getRectBounds(w, c) {
+    const scale = getScale(w, c);
+    const rw = w * scale;
+    const rh = c * scale;
+    const rx = (_canvas.width  - rw) / 2;
+    const ry = (_canvas.height - rh) / 2;
+    return { rx, ry, rw, rh, scale };
+  }
+
+  function draw2D(w, c, m) {
+    if (!_canvas || !_ctx) return;
+    const { rx, ry, rw, rh, scale } = getRectBounds(w, c);
+    const ctx = _ctx;
+    ctx.clearRect(0, 0, _canvas.width, _canvas.height);
+
+    // Fundo grade
+    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--border') || '#334155';
+    ctx.lineWidth = 0.5;
+    for (let x = 0; x < _canvas.width; x += 20) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,_canvas.height); ctx.stroke(); }
+    for (let y = 0; y < _canvas.height; y += 20) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(_canvas.width,y); ctx.stroke(); }
+
+    // Sombra
+    ctx.shadowColor = 'rgba(0,0,0,0.3)';
+    ctx.shadowBlur  = 8;
+    ctx.shadowOffsetX = 3; ctx.shadowOffsetY = 3;
+
+    // Camada 2 (offset)
+    ctx.fillStyle = 'rgba(45,212,191,0.15)';
+    ctx.strokeStyle = 'rgba(45,212,191,0.4)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.rect(rx + 6, ry + 6, rw, rh);
+    ctx.fill(); ctx.stroke();
+
+    // Camada 1 (frente)
+    ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
+    ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+    ctx.fillStyle = 'rgba(45,212,191,0.25)';
+    ctx.strokeStyle = '#2dd4bf';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.rect(rx, ry, rw, rh);
+    ctx.fill(); ctx.stroke();
+
+    // Alças de arrastar
+    const handleSz = 10;
+    ctx.fillStyle = '#2dd4bf';
+    ctx.shadowBlur = 4; ctx.shadowColor = '#2dd4bf';
+    // Direita (largura)
+    ctx.beginPath();
+    ctx.arc(rx + rw, ry + rh / 2, handleSz / 2, 0, Math.PI * 2);
+    ctx.fill();
+    // Baixo (comprimento)
+    ctx.beginPath();
+    ctx.arc(rx + rw / 2, ry + rh, handleSz / 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
+
+    // Labels dimensões
+    const accent = '#2dd4bf';
+    ctx.fillStyle = accent;
+    ctx.font = 'bold 12px DM Mono, monospace';
+    ctx.textAlign = 'center';
+    // Largura
+    ctx.fillText(`${Utils.num(w, 1)} cm`, rx + rw / 2, ry - 8);
+    // Comprimento
+    ctx.save();
+    ctx.translate(rx - 10, ry + rh / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText(`${Utils.num(c, 1)} cm`, 0, 0);
+    ctx.restore();
+
+    // Label central
+    const pesoG = calcEstimatedWeight(w, c, m);
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text') || '#e2e8f0';
+    ctx.font = '11px DM Sans, sans-serif';
+    ctx.fillText(`2 camadas · ${Utils.num(pesoG, 1)}g`, rx + rw / 2, ry + rh / 2);
+    ctx.fillStyle = 'rgba(45,212,191,0.6)';
+    ctx.font = '10px DM Mono, monospace';
+    ctx.fillText(`${Utils.num(m, 3)} mm`, rx + rw / 2, ry + rh / 2 + 16);
+  }
+
+  function getHandleArea(x, y) {
+    const { rx, ry, rw, rh } = getRectBounds(_calcW, _calcC);
+    const d = 12;
+    if (Math.abs(x - (rx + rw)) < d && Math.abs(y - (ry + rh / 2)) < d) return 'right';
+    if (Math.abs(x - (rx + rw / 2)) < d && Math.abs(y - (ry + rh)) < d) return 'bottom';
+    return null;
+  }
+
+  function getCanvasPos(e) {
+    const rect = _canvas.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }
+
+  function onCanvasMouseDown(e) {
+    if (!_canvas) return;
+    const { x, y } = getCanvasPos(e);
+    const area = getHandleArea(x, y);
+    if (area) {
+      _dragging = area;
+      _dragStartX = x; _dragStartY = y;
+      _dragStartW = _calcW; _dragStartC = _calcC;
+      _canvas.style.cursor = area === 'right' ? 'ew-resize' : 'ns-resize';
+    }
+  }
+
+  function onCanvasMouseMove(e) {
+    if (!_canvas) return;
+    const { x, y } = getCanvasPos(e);
+
+    if (!_dragging) {
+      const area = getHandleArea(x, y);
+      _canvas.style.cursor = area === 'right' ? 'ew-resize' : area === 'bottom' ? 'ns-resize' : 'default';
+      return;
+    }
+
+    const scale = getScale(_calcW, _calcC);
+    if (_dragging === 'right') {
+      const delta = (x - _dragStartX) / scale;
+      const newW = Math.max(1, _dragStartW + delta);
+      _calcW = Math.round(newW * 10) / 10;
+      const inp = document.getElementById('m2-calc-w');
+      if (inp) inp.value = _calcW;
+    } else {
+      const delta = (y - _dragStartY) / scale;
+      const newC = Math.max(1, _dragStartC + delta);
+      _calcC = Math.round(newC * 10) / 10;
+      const inp = document.getElementById('m2-calc-c');
+      if (inp) inp.value = _calcC;
+    }
+    updateWeightCalc();
+  }
+
+  function onCanvasMouseUp() {
+    _dragging = null;
+    if (_canvas) _canvas.style.cursor = 'default';
+  }
+
+  /* ── API para outros módulos ── */
+  function getProducts()    { return [...products]; }
+  function getRawPrice()    { return rawPrice; }
   function getVariationCost(varId) {
     for (const prod of products) {
       const v = (prod.variations || []).find(v => v.id === varId);
@@ -617,120 +737,79 @@ const M2 = (() => {
     }
     return 0;
   }
-
-  /** Compatibilidade com M3 legado: retorna lista plana de variações com metadados */
   function getFlatVariations() {
     const result = [];
     products.forEach(prod => {
       (prod.variations || []).forEach(v => {
         const costs = calcVariationCosts(v);
         result.push({
-          id: v.id,
-          sku: v.sku,
-          groupName: prod.name,
-          groupId: prod.id,
-          qty: v.qty,
-          lotWeight: v.lotWeight,
-          type: typeFromSku(v.sku),
-          unitCost: costs.unitReal,
-          pratik: costs.pratik,
-          loteCost: costs.loteCost,
+          id: v.id, sku: v.sku, groupName: prod.name, groupId: prod.id,
+          qty: v.qty, lotWeight: v.lotWeight, type: typeFromSku(v.sku),
+          unitCost: costs.unitReal, pratik: costs.pratik, loteCost: costs.lotCost,
         });
       });
     });
     return result;
   }
 
-  /* ── Seed de produtos padrão ────────────────────────────── */
+  /* ── Seed ── */
   function seedIfEmpty() {
     if (Storage.get(_SEED_KEY)) return;
     if (products.length > 0) { Storage.set(_SEED_KEY, true); return; }
-
     rawPrice = _DEFAULT_PRICE;
     products = _DEFAULT_PRODUCTS.map(group => ({
-      id: Utils.uid(),
-      name: group.name,
+      id: Utils.uid(), name: group.name,
       variations: group.variations.map(v => ({ id: Utils.uid(), ...v }))
     }));
-    save();
-    Storage.set(_SEED_KEY, true);
-    renderPrice();
-    renderProducts();
+    save(); Storage.set(_SEED_KEY, true);
+    renderPrice(); renderProducts();
     document.dispatchEvent(new CustomEvent('m2:products:updated'));
     Toast.info('Produtos padrão carregados. Preço/kg: R$ 9,85.');
   }
 
-  /* ── Inicialização ───────────────────────────────────────── */
+  /* ── Init ── */
   function init() {
     load();
 
-    const savePriceBtn = document.getElementById('m2-save-price-btn');
-    if (savePriceBtn) savePriceBtn.addEventListener('click', savePrice);
+    document.getElementById('m2-save-price-btn')?.addEventListener('click', savePrice);
+    document.getElementById('m2-add-group-btn')?.addEventListener('click', openAddGroup);
+    document.getElementById('m2-save-group-btn')?.addEventListener('click', saveGroup);
+    document.getElementById('m2-cancel-group-btn')?.addEventListener('click', closeGroupModal);
+    document.getElementById('m2-save-var-btn')?.addEventListener('click', saveVariation);
+    document.getElementById('m2-cancel-var-btn')?.addEventListener('click', closeVariationModal);
+    document.getElementById('m2-var-sku')?.addEventListener('input', onSkuInput);
 
-    const addGroupBtn = document.getElementById('m2-add-group-btn');
-    if (addGroupBtn) addGroupBtn.addEventListener('click', openAddGroup);
-
-    const saveGroupBtn = document.getElementById('m2-save-group-btn');
-    if (saveGroupBtn) saveGroupBtn.addEventListener('click', saveGroup);
-
-    const cancelGroupBtn = document.getElementById('m2-cancel-group-btn');
-    if (cancelGroupBtn) cancelGroupBtn.addEventListener('click', closeGroupModal);
-
-    const saveVarBtn = document.getElementById('m2-save-var-btn');
-    if (saveVarBtn) saveVarBtn.addEventListener('click', saveVariation);
-
-    const cancelVarBtn = document.getElementById('m2-cancel-var-btn');
-    if (cancelVarBtn) cancelVarBtn.addEventListener('click', closeVariationModal);
-
-    const skuInput = document.getElementById('m2-var-sku');
-    if (skuInput) skuInput.addEventListener('input', onSkuInput);
-
-    // Importação XLSX
+    // XLSX
     const xlsxInput = document.getElementById('m2-xlsx-input');
-    if (xlsxInput) {
-      xlsxInput.addEventListener('change', (e) => {
-        if (e.target.files[0]) importXlsx(e.target.files[0]);
-        e.target.value = '';
-      });
-    }
-    const xlsxBtn = document.getElementById('m2-xlsx-btn');
-    if (xlsxBtn) xlsxBtn.addEventListener('click', () => xlsxInput?.click());
+    if (xlsxInput) xlsxInput.addEventListener('change', e => { if (e.target.files[0]) importXlsx(e.target.files[0]); e.target.value = ''; });
+    document.getElementById('m2-xlsx-btn')?.addEventListener('click', () => xlsxInput?.click());
 
-    renderPrice();
-    renderProducts();
-    renderSalesTable();
-    seedIfEmpty();
+    // Calculadora de peso
+    ['m2-calc-w', 'm2-calc-c', 'm2-calc-m'].forEach(id => {
+      document.getElementById(id)?.addEventListener('input', updateWeightCalc);
+    });
+    document.getElementById('m2-calc-tipo')?.addEventListener('change', updateWeightCalc);
 
-    document.addEventListener('route:change', (e) => {
-      if (e.detail.route === 'm2') {
-        load();
-        renderPrice();
-        renderProducts();
-        renderSalesTable();
-      }
+    renderPrice(); renderProducts(); renderSalesTable(); seedIfEmpty();
+
+    // Canvas 2D
+    initCanvas();
+    updateWeightCalc();
+
+    document.addEventListener('route:change', e => {
+      if (e.detail.route !== 'm2') return;
+      load(); renderPrice(); renderProducts(); renderSalesTable();
+      updateWeightCalc();
     });
   }
 
   return {
-    init,
-    savePrice,
-    openAddGroup,
-    editGroup,
-    closeGroupModal,
-    saveGroup,
-    removeGroup,
-    openAddVariation,
-    editVariation,
-    closeVariationModal,
-    saveVariation,
-    removeVariation,
-    toggleGroup,
-    toggleVarDetails,
-    onSkuInput,
-    getProducts,
-    getRawPrice,
-    getVariationCost,
-    getFlatVariations,
+    init, savePrice,
+    openAddGroup, editGroup, closeGroupModal, saveGroup, removeGroup,
+    openAddVariation, editVariation, closeVariationModal, saveVariation, removeVariation,
+    toggleGroup, toggleVarDetails, onSkuInput,
+    getProducts, getRawPrice, getVariationCost, getFlatVariations,
+    updateWeightCalc,
   };
 
 })();

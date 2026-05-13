@@ -62,7 +62,7 @@ const Storage = {
     MKT_FEES:     'hub_mkt_fees',    // { shopee: { commission, fixed }, ml: { commission, fixed } }
     PRICING:      'hub_pricing',     // { [productId]: { shopee_price, ml_price, sell_qty } }
     TASKS:        'hub_tasks',       // [{ id, date, item, notes }]
-    LOGS:         'hub_audit_logs',  // [{ timestamp, user, action }]
+    LOGS:         'hub_audit',       // [{ timestamp, user, action }]
     PRODUCTION:   'hub_production',  // [{ id, date, operator, ... }]
     PROD_GOAL:    'hub_prod_goal',   // number
     SESSION:      'hub_session'      // { profile: 'master'|'colab', name: string }
