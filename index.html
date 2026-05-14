@@ -93,6 +93,10 @@
       .m3-layout { grid-template-columns: 1fr; }
     }
 
+    /* ── Módulos 8-12 — Layout ── */
+    .m8-layout { display: grid; grid-template-columns: 230px 1fr; gap: 20px; }
+    @media (max-width: 700px) { .m8-layout { grid-template-columns: 1fr; } }
+
     /* ── Módulo 7 — Alertas ── */
     .m7-alert {
       display: flex; align-items: center; gap: 10px;
@@ -210,9 +214,36 @@
         <span>Auditoria</span>
       </div>
 
-      <div class="nav-item" data-route="m7" data-sub="Registro de produção diária">
+      <div class="nav-item" data-route="m7" data-sub="Registro de produção diária e metas">
         <i class="fa-solid fa-industry"></i>
         <span>Produção</span>
+      </div>
+
+      <div class="nav-item" data-route="m10" data-sub="Ocorrências e histórico por máquina">
+        <i class="fa-solid fa-wrench"></i>
+        <span>Manutenção</span>
+      </div>
+
+      <span class="nav-label master-only">Master</span>
+
+      <div class="nav-item master-only" data-route="m8" data-sub="Clientes, orçamentos e geração de PDF">
+        <i class="fa-solid fa-file-invoice-dollar"></i>
+        <span>Orçamentos</span>
+      </div>
+
+      <div class="nav-item master-only" data-route="m9" data-sub="Relatório de rendimento por colaborador (IA)">
+        <i class="fa-solid fa-chart-simple"></i>
+        <span>Rendimento</span>
+      </div>
+
+      <div class="nav-item master-only" data-route="m11" data-sub="Scripts de defesa para disputas Shopee">
+        <i class="fa-solid fa-shield-cat"></i>
+        <span>Disputas Shopee</span>
+      </div>
+
+      <div class="nav-item master-only" data-route="m12" data-sub="Otimizador e multiplicador de títulos">
+        <i class="fa-solid fa-heading"></i>
+        <span>Gerador Títulos</span>
       </div>
     </nav>
 
@@ -1313,6 +1344,454 @@
 
     </section>
 
+    <!-- ══════════════════════════════════════════════════════
+         MÓDULO 8 — ORÇAMENTOS
+         ══════════════════════════════════════════════════════ -->
+    <section id="panel-m8" class="module-panel">
+      <div class="m8-layout">
+
+        <!-- Coluna esquerda: clientes -->
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="card" style="flex:0">
+            <div class="card-header" style="margin-bottom:10px">
+              <div class="card-title">Clientes</div>
+              <button class="btn btn-primary btn-sm" id="m8-add-client-btn">
+                <i class="fa-solid fa-user-plus"></i> Novo
+              </button>
+            </div>
+            <input type="text" id="m8-client-search" placeholder="Buscar cliente..." style="margin-bottom:10px" />
+            <div id="m8-client-list" class="m1-emp-list" style="max-height:400px"></div>
+          </div>
+        </div>
+
+        <!-- Coluna direita: painel do cliente + builder -->
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div id="m8-no-client" class="card">
+            <div class="empty-state">
+              <i class="fa-solid fa-arrow-left"></i>
+              <p>Selecione um cliente para criar ou ver orçamentos.</p>
+            </div>
+          </div>
+
+          <div id="m8-client-panel" class="hidden" style="display:flex;flex-direction:column;gap:16px">
+
+            <!-- Info do cliente -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title-lg" id="m8-client-name-display">—</div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;font-size:13px">
+                <div><span class="text-muted text-xs">Telefone:</span> <span id="m8-client-phone-display">—</span></div>
+                <div><span class="text-muted text-xs">E-mail:</span> <span id="m8-client-email-display">—</span></div>
+                <div><span class="text-muted text-xs">WhatsApp:</span> <span id="m8-client-whatsapp-display">—</span></div>
+                <div><span class="text-muted text-xs">Obs. internas:</span> <span id="m8-client-notes-display" class="text-muted text-xs">—</span></div>
+              </div>
+            </div>
+
+            <!-- Histórico de orçamentos -->
+            <div class="card">
+              <div class="card-title" style="margin-bottom:12px">Histórico de Orçamentos</div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Data</th><th>Itens</th><th>Total</th><th>Ações</th></tr></thead>
+                  <tbody id="m8-quotes-tbody">
+                    <tr><td colspan="4" class="empty-state"><p>Nenhum orçamento.</p></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Builder de novo orçamento -->
+            <div class="card">
+              <div class="card-title" style="margin-bottom:14px">Novo Orçamento</div>
+              <div style="display:flex;gap:8px;margin-bottom:12px">
+                <select id="m8-prod-picker" style="flex:1"></select>
+                <button class="btn btn-secondary btn-sm" id="m8-add-item-btn">
+                  <i class="fa-solid fa-plus"></i> Adicionar
+                </button>
+              </div>
+              <div id="m8-items-list"></div>
+              <!-- Totais -->
+              <div style="margin-top:12px;padding:12px 14px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">
+                <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+                  <span class="text-muted">Subtotal</span>
+                  <span id="m8-subtotal" class="font-mono">R$ 0,00</span>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+                  <div class="field" style="flex:0;min-width:0">
+                    <label>Desconto (R$)</label>
+                    <input type="number" id="m8-discount" min="0" step="0.01" placeholder="0,00" style="max-width:120px" />
+                  </div>
+                  <div style="text-align:right">
+                    <div class="text-xs text-muted">Total</div>
+                    <div id="m8-grandtotal" class="font-mono font-bold text-accent" style="font-size:20px">R$ 0,00</div>
+                  </div>
+                </div>
+              </div>
+              <div class="field mt-3">
+                <label>Observações (não aparecem no PDF)</label>
+                <textarea id="m8-quote-notes" rows="2" placeholder="Notas internas..."></textarea>
+              </div>
+              <div style="display:flex;justify-content:flex-end;margin-top:12px">
+                <button class="btn btn-primary" id="m8-save-quote-btn">
+                  <i class="fa-solid fa-floppy-disk"></i> Salvar Orçamento
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal: Novo Cliente -->
+      <div class="modal-backdrop" id="modal-m8-client">
+        <div class="modal" style="max-width:420px">
+          <div class="modal-title" id="m8-client-modal-title">Novo Cliente</div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div class="field"><label>Nome *</label><input type="text" id="m8-c-name" placeholder="Nome completo" /></div>
+            <div class="field-group">
+              <div class="field"><label>Telefone</label><input type="text" id="m8-c-phone" placeholder="(00) 00000-0000" /></div>
+              <div class="field"><label>WhatsApp</label><input type="text" id="m8-c-whatsapp" placeholder="(00) 00000-0000" /></div>
+            </div>
+            <div class="field"><label>E-mail</label><input type="text" id="m8-c-email" placeholder="email@exemplo.com" /></div>
+            <div class="field"><label>Observações Internas</label><textarea id="m8-c-notes" rows="2" placeholder="Notas que não aparecem no PDF..."></textarea></div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" id="m8-cancel-client-btn">Cancelar</button>
+            <button class="btn btn-primary"   id="m8-save-client-btn">Salvar</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         MÓDULO 9 — INFORME DE RENDIMENTO (MASTER)
+         ══════════════════════════════════════════════════════ -->
+    <section id="panel-m9" class="module-panel">
+
+      <!-- Config API -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Chave API Claude (Anthropic)</div>
+            <div class="text-xs text-muted mt-1">Usada também pelo M12 — Gerador de Títulos</div>
+          </div>
+          <button class="btn btn-primary btn-sm" id="m9-save-key-btn">
+            <i class="fa-solid fa-floppy-disk"></i> Salvar Chave
+          </button>
+        </div>
+        <div class="field" style="max-width:480px">
+          <label>sk-ant-... (não compartilhe)</label>
+          <input type="password" id="m9-api-key" placeholder="sk-ant-api03-..." />
+        </div>
+      </div>
+
+      <!-- Seleção de período e colaboradores -->
+      <div class="card">
+        <div class="card-title" style="margin-bottom:14px">Parâmetros do Relatório</div>
+        <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start">
+          <div class="field">
+            <label>Período — De</label>
+            <input type="date" id="m9-date-from" />
+          </div>
+          <div class="field">
+            <label>Até</label>
+            <input type="date" id="m9-date-to" />
+          </div>
+          <div class="field" style="flex:1;min-width:200px">
+            <label>Colaboradores</label>
+            <div id="m9-emp-list" style="display:flex;flex-direction:column;gap:2px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;max-height:160px;overflow-y:auto">
+              <p class="text-xs text-muted">Carregando...</p>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:16px">
+          <button class="btn btn-primary" id="m9-generate-btn">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Gerar Relatório
+          </button>
+        </div>
+      </div>
+
+      <!-- Resultado -->
+      <div class="card hidden" id="m9-report-container">
+        <div class="card-title" style="margin-bottom:14px">Relatório Analítico</div>
+        <div id="m9-report-output"
+          style="font-size:13px;line-height:1.7;color:var(--text);padding:4px 0"></div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         MÓDULO 10 — MANUTENÇÃO DE MÁQUINAS
+         ══════════════════════════════════════════════════════ -->
+    <section id="panel-m10" class="module-panel">
+      <div class="m8-layout">
+
+        <!-- Lista de máquinas -->
+        <div class="card" style="height:fit-content">
+          <div class="card-header" style="margin-bottom:10px">
+            <div class="card-title">Máquinas</div>
+            <button class="btn btn-primary btn-sm" id="m10-add-record-btn">
+              <i class="fa-solid fa-plus"></i> Ocorrência
+            </button>
+          </div>
+          <div id="m10-machine-list" class="m1-emp-list"></div>
+        </div>
+
+        <!-- Painel da máquina -->
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div id="m10-no-machine" class="card">
+            <div class="empty-state">
+              <i class="fa-solid fa-arrow-left"></i>
+              <p>Selecione uma máquina para ver o histórico.</p>
+            </div>
+          </div>
+
+          <div id="m10-machine-panel" class="hidden" style="display:flex;flex-direction:column;gap:16px">
+
+            <!-- Alert banner -->
+            <div id="m10-alert-banner" class="m7-alert danger hidden">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              <span id="m10-alert-text"></span>
+            </div>
+
+            <!-- Stats -->
+            <div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
+              <div class="stat-card">
+                <div class="stat-label">Paradas de Operador</div>
+                <div class="stat-value font-mono" id="m10-stat-stops">0</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-label">Visitas Técnicas HECE</div>
+                <div class="stat-value font-mono" id="m10-stat-tech">0</div>
+              </div>
+              <div class="stat-card danger">
+                <div class="stat-label">Tempo de Parada</div>
+                <div class="stat-value font-mono" id="m10-stat-down">0h</div>
+              </div>
+            </div>
+
+            <!-- Histórico -->
+            <div class="card" style="padding:0;overflow:hidden">
+              <div style="padding:12px 16px;border-bottom:1px solid var(--border)">
+                <div class="card-title-lg" id="m10-machine-title">—</div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Tipo</th>
+                      <th>Data/Hora</th>
+                      <th>Descrição</th>
+                      <th>Ação / Técnico</th>
+                      <th>Parada / Visita</th>
+                      <th>Registrado por</th>
+                      <th>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody id="m10-records-tbody">
+                    <tr><td colspan="7" class="empty-state"><i class="fa-solid fa-wrench"></i><p>Nenhuma ocorrência.</p></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal: Ocorrência -->
+      <div class="modal-backdrop" id="modal-m10-record">
+        <div class="modal" style="max-width:460px">
+          <div class="modal-title" id="m10-modal-title">Nova Ocorrência</div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div class="field-group">
+              <div class="field" style="flex:1">
+                <label>Máquina *</label>
+                <select id="m10-rec-machine"></select>
+              </div>
+              <div class="field">
+                <label>Data *</label>
+                <input type="date" id="m10-rec-date" />
+              </div>
+              <div class="field">
+                <label>Hora</label>
+                <input type="time" id="m10-rec-time" />
+              </div>
+            </div>
+            <!-- HECE toggle (master only) -->
+            <div id="m10-hece-row" class="master-only" style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">
+              <input type="checkbox" id="m10-type-hece" style="width:16px;height:16px;accent-color:var(--accent)" />
+              <label for="m10-type-hece" style="font-size:13px;cursor:pointer">Ocorrência de Assistência Técnica HECE</label>
+            </div>
+            <div class="field">
+              <label>Descrição do problema *</label>
+              <textarea id="m10-rec-description" rows="2" placeholder="Descreva o problema observado..."></textarea>
+            </div>
+            <!-- Campos operador -->
+            <div id="m10-operator-fields" style="display:flex;flex-direction:column;gap:12px">
+              <div class="field">
+                <label>Ação tomada</label>
+                <input type="text" id="m10-rec-action" placeholder="Ex: Reiniciou máquina, chamou técnico..." />
+              </div>
+              <div class="field" style="max-width:160px">
+                <label>Tempo de parada (min)</label>
+                <input type="number" id="m10-rec-downtime" min="0" step="5" placeholder="0" />
+              </div>
+            </div>
+            <!-- Campos HECE -->
+            <div id="m10-hece-fields" class="hidden" style="display:flex;flex-direction:column;gap:12px">
+              <div class="field-group">
+                <div class="field">
+                  <label>Técnico responsável</label>
+                  <input type="text" id="m10-rec-technician" placeholder="Nome do técnico HECE" />
+                </div>
+                <div class="field">
+                  <label>Data da visita</label>
+                  <input type="date" id="m10-rec-visit" />
+                </div>
+              </div>
+              <div class="field">
+                <label>O que foi feito</label>
+                <textarea id="m10-rec-whatdone" rows="2" placeholder="Procedimento realizado pelo técnico..."></textarea>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" id="m10-cancel-record-btn">Cancelar</button>
+            <button class="btn btn-primary"   id="m10-save-record-btn">Registrar</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         MÓDULO 11 — DISPUTAS SHOPEE (MASTER)
+         ══════════════════════════════════════════════════════ -->
+    <section id="panel-m11" class="module-panel">
+      <!-- Abas -->
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="display:flex;border-bottom:1px solid var(--border)">
+          <button class="m1-tab-btn active" id="m11-tab-generator">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Gerador de Scripts
+          </button>
+          <button class="m1-tab-btn" id="m11-tab-manage">
+            <i class="fa-solid fa-pen-to-square"></i> Gerenciar Scripts
+          </button>
+        </div>
+
+        <!-- Tab: Gerador -->
+        <div id="m11-panel-generator" style="padding:20px">
+          <div class="text-xs text-muted mb-4" style="margin-bottom:14px">
+            Selecione o motivo informado pelo cliente e a justificativa interna para gerar um script de defesa aleatório.
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+            <div class="field">
+              <label>Motivo do Cliente</label>
+              <select id="m11-reason"></select>
+            </div>
+            <div class="field">
+              <label>Justificativa Interna</label>
+              <select id="m11-just"></select>
+            </div>
+          </div>
+          <button class="btn btn-primary" id="m11-generate-btn">
+            <i class="fa-solid fa-shuffle"></i> Gerar Script
+          </button>
+          <div id="m11-result-area" class="hidden" style="margin-top:16px">
+            <div class="field">
+              <label>Script Gerado — edite antes de usar se necessário</label>
+              <textarea id="m11-output" rows="7" style="font-size:13px;line-height:1.7"></textarea>
+            </div>
+            <div style="display:flex;justify-content:flex-end;margin-top:10px">
+              <button class="btn btn-secondary" id="m11-copy-btn">
+                <i class="fa-solid fa-copy"></i> Copiar Script
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab: Gerenciar (master) -->
+        <div id="m11-panel-manage" class="hidden" style="padding:20px">
+          <div class="text-xs text-muted mb-4" style="margin-bottom:14px">
+            Edite os scripts diretamente. As alterações são salvas automaticamente ao digitar.
+          </div>
+          <div id="m11-scripts-manage"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         MÓDULO 12 — GERADOR DE TÍTULOS (MASTER)
+         ══════════════════════════════════════════════════════ -->
+    <section id="panel-m12" class="module-panel">
+      <!-- Abas -->
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="display:flex;border-bottom:1px solid var(--border)">
+          <button class="m1-tab-btn active" id="m12-tab-ai">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Otimizador IA
+          </button>
+          <button class="m1-tab-btn" id="m12-tab-multiply">
+            <i class="fa-solid fa-copy"></i> Multiplicador
+          </button>
+        </div>
+
+        <!-- Tab: IA -->
+        <div id="m12-panel-ai" style="padding:20px">
+          <div class="text-xs text-muted mb-4" style="margin-bottom:14px">
+            Usa Claude Haiku para gerar 5 títulos otimizados para a plataforma escolhida. Requer chave API configurada em M9.
+          </div>
+          <div style="display:grid;grid-template-columns:1fr auto;gap:12px;margin-bottom:12px;align-items:flex-end">
+            <div class="field" style="margin:0">
+              <label>Título atual</label>
+              <input type="text" id="m12-title-input" placeholder="Ex: Saco de Lixo 50L Preto 100 unidades" />
+            </div>
+            <div class="field" style="margin:0;min-width:160px">
+              <label>Plataforma</label>
+              <select id="m12-platform">
+                <option value="Shopee">Shopee</option>
+                <option value="Shein">Shein</option>
+                <option value="Mercado Livre">Mercado Livre</option>
+                <option value="TikTok">TikTok</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn btn-primary" id="m12-optimize-btn">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Otimizar com IA
+          </button>
+          <div id="m12-ai-result" class="hidden" style="margin-top:16px;border:1px solid var(--border);border-radius:10px;overflow:hidden">
+            <div style="padding:10px 14px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-sec)">
+              Títulos Gerados
+            </div>
+            <div id="m12-ai-output"></div>
+          </div>
+        </div>
+
+        <!-- Tab: Multiplicador -->
+        <div id="m12-panel-multiply" class="hidden" style="padding:20px">
+          <div class="text-xs text-muted mb-4" style="margin-bottom:14px">
+            Gera variações localmente usando substituição de sinônimos e prefixos/sufixos — sem API.
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 120px;gap:12px;margin-bottom:12px;align-items:flex-end">
+            <div class="field" style="margin:0">
+              <label>Título base</label>
+              <input type="text" id="m12-mult-input" placeholder="Ex: Saco de Lixo Resistente 50L" />
+            </div>
+            <div class="field" style="margin:0">
+              <label>Quantidade</label>
+              <input type="number" id="m12-mult-count" min="1" max="30" value="10" />
+            </div>
+          </div>
+          <button class="btn btn-primary" id="m12-multiply-btn">
+            <i class="fa-solid fa-copy"></i> Gerar Variações
+          </button>
+          <div id="m12-mult-result" class="hidden" style="margin-top:16px;border:1px solid var(--border);border-radius:10px;overflow:hidden">
+            <div style="padding:10px 14px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-sec)">
+              Variações Geradas
+            </div>
+            <div id="m12-mult-output"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
   </div><!-- /.main-content -->
 
 </div><!-- /.app-layout -->
@@ -1348,6 +1827,11 @@
 <script src="m4-m5.js"></script>
 <script src="m6-auditoria.js"></script>
 <script src="m7-producao.js"></script>
+<script src="m8-orcamentos.js"></script>
+<script src="m9-rendimento.js"></script>
+<script src="m10-manutencao.js"></script>
+<script src="m11-disputas.js"></script>
+<script src="m12-titulos.js"></script>
 
 <script>
   // Mostra a data atual na topbar

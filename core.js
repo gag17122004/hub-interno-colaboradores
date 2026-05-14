@@ -61,11 +61,15 @@ const Storage = {
     PRODUCTS:     'hub_products',    // [{ id, name, type, weight }]
     MKT_FEES:     'hub_mkt_fees',    // { shopee: { commission, fixed }, ml: { commission, fixed } }
     PRICING:      'hub_pricing',     // { [productId]: { shopee_price, ml_price, sell_qty } }
-    TASKS:        'hub_tasks',       // [{ id, date, item, notes }]
-    LOGS:         'hub_audit',       // [{ timestamp, user, action }]
-    PRODUCTION:   'hub_production',  // [{ id, date, operator, ... }]
-    PROD_GOAL:    'hub_prod_goal',   // number
-    SESSION:      'hub_session'      // { profile: 'master'|'colab', name: string }
+    TASKS:        'hub_tasks',        // [{ id, date, item, notes }]
+    LOGS:         'hub_audit',        // [{ timestamp, user, action }]
+    PRODUCTION:   'hub_production',   // [{ id, date, operator, ... }]
+    PROD_GOAL:    'hub_prod_goal',    // number
+    SESSION:      'hub_session',      // { profile: 'master'|'colab', name: string }
+    CLIENTS:      'hub_clients',      // [{ id, name, phone, email, whatsapp, notes }]
+    QUOTES:       'hub_quotes',       // [{ id, clientId, date, items, grandTotal }]
+    MAINTENANCE:  'hub_maintenance',  // [{ id, type, machine, date, ... }]
+    DISPUTE_SCRIPTS: 'hub_dispute_scripts' // { reasons, justifications, scripts }
   }
 };
 
@@ -111,8 +115,8 @@ const Auth = {
     COLAB:  'colab123'
   },
 
-  /* Rotas bloqueadas para colaboradores (adicionar aqui conforme novos módulos) */
-  COLAB_BLOCKED: ['m3', 'm4', 'm6', 'm8', 'm9', 'm11', 'm12', 'm13', 'm14'],
+  /* Rotas bloqueadas para colaboradores */
+  COLAB_BLOCKED: ['m3', 'm4', 'm6', 'm8', 'm9', 'm11', 'm12'],
 
   init() {
     const session = this.getSession();
@@ -515,6 +519,11 @@ const App = {
     M5.init();
     M6.init();
     M7.init();
+    M8.init();
+    M9.init();
+    M10.init();
+    M11.init();
+    M12.init();
 
     console.info('[Hub Interno] Aplicação iniciada com sucesso.');
   }
