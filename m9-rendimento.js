@@ -1,10 +1,69 @@
 /**
  * m9-rendimento.js — Informe de Rendimento (Master Only)
- * Consolida M1 + M7 + M5 + M10 por colaborador
+ * Consolida M1 + M7 + M5 + M10 + anotações manuais por colaborador
  * Gera relatório analítico via Groq on demand
  */
 const M9 = (() => {
+  const NOTES_KEY = 'hub_m9_notes';
   const $ = id => document.getElementById(id);
+
+  /* ── Anotações manuais ── */
+  function getNotes() {
+    return Storage.get(NOTES_KEY, []);
+  }
+
+  function saveNote() {
+    const empName = $('m9-note-emp')?.value?.trim();
+    const date    = $('m9-note-date')?.value;
+    const text    = $('m9-note-text')?.value?.trim();
+    if (!empName || !date || !text) { Toast.error('Preencha colaborador, data e ocorrência.'); return; }
+
+    const notes = getNotes();
+    notes.push({ id: Date.now(), empName, date, text });
+    Storage.set(NOTES_KEY, notes);
+    if ($('m9-note-text'))  $('m9-note-text').value  = '';
+    Toast.success('Anotação salva.');
+    renderNotes();
+    Logger.log(`Anotação M9: ${empName} — ${text.substring(0, 40)}`);
+  }
+
+  function deleteNote(id) {
+    const notes = getNotes().filter(n => n.id !== id);
+    Storage.set(NOTES_KEY, notes);
+    renderNotes();
+  }
+
+  function renderNotes() {
+    const container = $('m9-notes-list');
+    if (!container) return;
+    const notes = getNotes();
+    if (notes.length === 0) {
+      container.innerHTML = '<p class="text-xs text-muted" style="padding:8px 0">Nenhuma anotação ainda.</p>';
+      return;
+    }
+    const sorted = [...notes].sort((a, b) => b.date.localeCompare(a.date));
+    container.innerHTML = sorted.map(n => `
+      <div style="display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--border)">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:3px">
+            <span style="font-size:12px;font-weight:600;color:var(--accent)">${Utils.esc(n.empName)}</span>
+            <span style="font-size:11px;color:var(--text-sec)">${Utils.fmtDate(n.date)}</span>
+          </div>
+          <div style="font-size:13px;color:var(--text);line-height:1.5">${Utils.esc(n.text)}</div>
+        </div>
+        <button class="btn btn-xs btn-danger" onclick="M9.deleteNote(${n.id})" title="Excluir">
+          <i class="fa-solid fa-times"></i>
+        </button>
+      </div>`).join('');
+  }
+
+  function populateNoteEmpSelect() {
+    const sel = $('m9-note-emp');
+    if (!sel) return;
+    const employees = Storage.get(Storage.KEYS.EMPLOYEES, []);
+    sel.innerHTML = `<option value="">Selecione o colaborador...</option>` +
+      employees.map(e => `<option value="${Utils.esc(e.name)}">${Utils.esc(e.name)}</option>`).join('');
+  }
 
   function getEmployeeData(name, dateFrom, dateTo) {
     // M1 — horas extras e ausências
@@ -37,20 +96,33 @@ const M9 = (() => {
       .filter(m => m.type === 'operator' && m.createdBy === name && m.date >= dateFrom && m.date <= dateTo);
     const totalDowntime = maint.reduce((s, m) => s + (Number(m.downtime) || 0), 0);
 
-    return { name, overtimeH, absencesCount, totalKg, totalPkgs, prodDays, tasks: tasks.length, stops: maint.length, totalDowntime };
+    // Anotações manuais do M9
+    const notes = getNotes()
+      .filter(n => n.empName === name && n.date >= dateFrom && n.date <= dateTo)
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    return { name, overtimeH, absencesCount, totalKg, totalPkgs, prodDays, tasks: tasks.length, stops: maint.length, totalDowntime, notes };
   }
 
   function buildSummary(data, dateFrom, dateTo) {
-    return data.map(d =>
-      `=== ${d.name} ===\n` +
-      `Período: ${Utils.fmtDate(dateFrom)} a ${Utils.fmtDate(dateTo)}\n` +
-      `Horas extras aprovadas: ${Utils.num(d.overtimeH, 2)}h\n` +
-      `Ausências no período: ${d.absencesCount}\n` +
-      `Produção total: ${Utils.num(d.totalKg, 2)} kg / ${d.totalPkgs.toLocaleString('pt-BR')} pacotes em ${d.prodDays} dias\n` +
-      `Média diária: ${d.prodDays > 0 ? Utils.num(d.totalKg / d.prodDays, 2) : '0.00'} kg/dia\n` +
-      `Tarefas registradas: ${d.tasks}\n` +
-      `Paradas de máquina registradas: ${d.stops} (total ${Utils.num(d.totalDowntime, 0)} min)`
-    ).join('\n\n');
+    return data.map(d => {
+      let block =
+        `=== ${d.name} ===\n` +
+        `Período: ${Utils.fmtDate(dateFrom)} a ${Utils.fmtDate(dateTo)}\n` +
+        `Horas extras aprovadas: ${Utils.num(d.overtimeH, 2)}h\n` +
+        `Ausências no período: ${d.absencesCount}\n` +
+        `Produção total: ${Utils.num(d.totalKg, 2)} kg / ${d.totalPkgs.toLocaleString('pt-BR')} pacotes em ${d.prodDays} dias\n` +
+        `Média diária: ${d.prodDays > 0 ? Utils.num(d.totalKg / d.prodDays, 2) : '0.00'} kg/dia\n` +
+        `Tarefas registradas: ${d.tasks}\n` +
+        `Paradas de máquina registradas: ${d.stops} (total ${Utils.num(d.totalDowntime, 0)} min)`;
+
+      if (d.notes.length > 0) {
+        block += `\n\nAnotações e ocorrências registradas (${d.notes.length}):\n` +
+          d.notes.map(n => `  [${Utils.fmtDate(n.date)}] ${n.text}`).join('\n');
+      }
+
+      return block;
+    }).join('\n\n');
   }
 
   function mdToHtml(md) {
@@ -114,19 +186,25 @@ const M9 = (() => {
 
   function init() {
     $('m9-generate-btn')?.addEventListener('click', generateReport);
+    $('m9-save-note-btn')?.addEventListener('click', saveNote);
 
     const today    = new Date().toISOString().split('T')[0];
     const firstDay = Utils.currentMonth() + '-01';
     if ($('m9-date-from')) $('m9-date-from').value = firstDay;
     if ($('m9-date-to'))   $('m9-date-to').value   = today;
+    if ($('m9-note-date')) $('m9-note-date').value  = today;
 
+    populateNoteEmpSelect();
+    renderNotes();
     renderEmployeeCheckboxes();
 
     document.addEventListener('route:change', e => {
       if (e.detail.route !== 'm9') return;
+      populateNoteEmpSelect();
+      renderNotes();
       renderEmployeeCheckboxes();
     });
   }
 
-  return { init };
+  return { init, deleteNote };
 })();
