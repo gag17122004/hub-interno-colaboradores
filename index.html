@@ -1530,22 +1530,7 @@
          ══════════════════════════════════════════════════════ -->
     <section id="panel-m9" class="module-panel">
 
-      <!-- Config API -->
-      <div class="card">
-        <div class="card-header">
-          <div>
-            <div class="card-title">Chave API Claude (Anthropic)</div>
-            <div class="text-xs text-muted mt-1">Usada também pelo M12 — Gerador de Títulos</div>
-          </div>
-          <button class="btn btn-primary btn-sm" id="m9-save-key-btn">
-            <i class="fa-solid fa-floppy-disk"></i> Salvar Chave
-          </button>
-        </div>
-        <div class="field" style="max-width:480px">
-          <label>sk-ant-... (não compartilhe)</label>
-          <input type="password" id="m9-api-key" placeholder="sk-ant-api03-..." />
-        </div>
-      </div>
+      <!-- IA via Groq — chave configurada em groq.js -->
 
       <!-- Seleção de período e colaboradores -->
       <div class="card">
@@ -1754,9 +1739,14 @@
               <select id="m11-just"></select>
             </div>
           </div>
-          <button class="btn btn-primary" id="m11-generate-btn">
-            <i class="fa-solid fa-shuffle"></i> Gerar Script
-          </button>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button class="btn btn-primary" id="m11-generate-btn">
+              <i class="fa-solid fa-shuffle"></i> Gerar Script
+            </button>
+            <button class="btn btn-secondary" id="m11-ai-btn">
+              <i class="fa-solid fa-robot"></i> Gerar com IA
+            </button>
+          </div>
           <div id="m11-result-area" class="hidden" style="margin-top:16px">
             <div class="field">
               <label>Script Gerado — edite antes de usar se necessário</label>
@@ -1881,6 +1871,7 @@
 </div>
 
 <!-- ── Scripts — ordem importa ──────────────────────────── -->
+<script src="groq.js"></script>
 <script src="core.js"></script>
 <script src="meu-espaco.js"></script>
 <script src="m1-horas.js"></script>

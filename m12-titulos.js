@@ -1,22 +1,14 @@
 /**
  * m12-titulos.js — Gerador de Títulos
- * Parte 1: Otimizador com IA (Claude Haiku) — usa chave de M9
+ * Parte 1: Otimizador com IA (Groq)
  * Parte 2: Multiplicador local sem API
  * Plataformas: Shopee, Shein, Mercado Livre, TikTok
  */
 const M12 = (() => {
   const $ = id => document.getElementById(id);
 
-  function getApiKey() {
-    return Storage.get('hub_api_key', '');
-  }
-
   /* ─── Parte 1: IA ─── */
   async function optimizeTitle() {
-    const apiKey = getApiKey();
-    if (!apiKey) {
-      Toast.error('Configure a chave API em M9 — Informe de Rendimento.'); return;
-    }
     const title    = $('m12-title-input')?.value?.trim();
     const platform = $('m12-platform')?.value || 'Shopee';
     if (!title) { Toast.error('Informe o título atual.'); return; }
@@ -33,25 +25,10 @@ const M12 = (() => {
     $('m12-ai-result')?.classList.add('hidden');
 
     try {
-      const resp = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01'
-        },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 600,
-          messages: [{
-            role: 'user',
-            content: `Você é especialista em SEO de e-commerce para produtos de embalagens plásticas (sacos de lixo e envelopes). Gere 5 títulos otimizados para a plataforma ${platform}.\n\nTítulo atual: "${title}"\n\nDiretrizes para ${platform}: ${tips[platform] || 'SEO geral para e-commerce'}\n\nRetorne APENAS uma lista numerada (1. 2. 3. 4. 5.) com os 5 títulos, sem explicações ou cabeçalhos.`
-          }]
-        })
-      });
-      const json = await resp.json();
-      if (json.error) throw new Error(json.error.message);
-      const text = json.content?.[0]?.text || '';
+      const text = await GroqAI.call([{
+        role: 'user',
+        content: `Você é especialista em SEO de e-commerce para produtos de embalagens plásticas (sacos de lixo e envelopes). Gere 5 títulos otimizados para a plataforma ${platform}.\n\nTítulo atual: "${title}"\n\nDiretrizes para ${platform}: ${tips[platform] || 'SEO geral para e-commerce'}\n\nRetorne APENAS uma lista numerada (1. 2. 3. 4. 5.) com os 5 títulos, sem explicações ou cabeçalhos.`
+      }], { max_tokens: 600 });
       renderTitleResults('m12-ai-output', text.split('\n').filter(l => l.trim()));
       $('m12-ai-result')?.classList.remove('hidden');
       Logger.log(`Gerou títulos IA para: ${title.substring(0, 40)}`);

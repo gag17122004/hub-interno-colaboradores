@@ -115,6 +115,38 @@ const M11 = (() => {
       .catch(() => Toast.error('Não foi possível copiar automaticamente.'));
   }
 
+  async function generateScriptAI() {
+    const data     = loadData();
+    const reasonId = $('m11-reason')?.value;
+    const justId   = $('m11-just')?.value;
+    if (!reasonId || !justId) { Toast.error('Selecione o motivo e a justificativa.'); return; }
+
+    const reason = data.reasons.find(r => r.id === reasonId)?.label || reasonId;
+    const just   = data.justifications.find(j => j.id === justId)?.label  || justId;
+
+    const btn = $('m11-ai-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Gerando...'; }
+    $('m11-result-area')?.classList.remove('hidden');
+    const output = $('m11-output');
+    if (output) output.value = '';
+
+    try {
+      const text = await GroqAI.call([{
+        role: 'system',
+        content: 'Você é um especialista em atendimento e mediação de disputas para vendedores em marketplaces brasileiros (Shopee, Mercado Livre). Redija scripts profissionais, formais e convincentes para defesa do vendedor.'
+      }, {
+        role: 'user',
+        content: `Gere um script de defesa para disputa no marketplace.\n\nMotivo alegado pelo cliente: "${reason}"\nJustificativa interna do vendedor: "${just}"\n\nO script deve ser:\n- Formal e profissional\n- Direcionado à equipe de mediação da plataforma\n- Objetivo, com no máximo 3 parágrafos\n- Sem marcadores markdown\n\nRetorne apenas o texto do script, pronto para uso.`
+      }], { model: 'llama-3.1-8b-instant', max_tokens: 400 });
+      if (output) output.value = text.trim();
+      Logger.log(`Gerou script IA: ${reason}`);
+    } catch (err) {
+      Toast.error('Erro ao chamar IA: ' + err.message);
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-robot"></i> Gerar com IA'; }
+    }
+  }
+
   /* ── Gerenciamento de scripts (master) ── */
   function renderScriptsManagement() {
     const container = $('m11-scripts-manage');
@@ -193,6 +225,7 @@ const M11 = (() => {
   function init() {
     populateDropdowns();
     $('m11-generate-btn')?.addEventListener('click', generateScript);
+    $('m11-ai-btn')?.addEventListener('click', generateScriptAI);
     $('m11-copy-btn')?.addEventListener('click', copyScript);
     $('m11-tab-generator')?.addEventListener('click', () => setTab('generator'));
     $('m11-tab-manage')?.addEventListener('click',    () => setTab('manage'));
@@ -203,5 +236,5 @@ const M11 = (() => {
     });
   }
 
-  return { init, setTab, addVariant, removeVariant };
+  return { init, setTab, addVariant, removeVariant, generateScriptAI };
 })();

@@ -1,23 +1,10 @@
 /**
  * m9-rendimento.js — Informe de Rendimento (Master Only)
  * Consolida M1 + M7 + M5 + M10 por colaborador
- * Gera relatório analítico via Claude Haiku on demand
+ * Gera relatório analítico via Groq on demand
  */
 const M9 = (() => {
-  const API_KEY_KEY = 'hub_api_key';
   const $ = id => document.getElementById(id);
-
-  function getApiKey() {
-    return Storage.get(API_KEY_KEY, '');
-  }
-
-  function saveApiKey() {
-    const key = $('m9-api-key')?.value?.trim();
-    if (!key) { Toast.error('Informe a chave API.'); return; }
-    Storage.set(API_KEY_KEY, key);
-    Toast.success('Chave API salva.');
-    Logger.log('Configurou chave API Claude');
-  }
 
   function getEmployeeData(name, dateFrom, dateTo) {
     // M1 — horas extras e ausências
@@ -79,8 +66,6 @@ const M9 = (() => {
   }
 
   async function generateReport() {
-    const apiKey = getApiKey();
-    if (!apiKey) { Toast.error('Configure a chave API primeiro.'); return; }
     const dateFrom = $('m9-date-from')?.value;
     const dateTo   = $('m9-date-to')?.value;
     if (!dateFrom || !dateTo) { Toast.error('Informe o período.'); return; }
@@ -96,25 +81,10 @@ const M9 = (() => {
     $('m9-report-container')?.classList.add('hidden');
 
     try {
-      const resp = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01'
-        },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 2048,
-          messages: [{
-            role: 'user',
-            content: `Você é analista de RH de uma fábrica de embalagens plásticas (sacos de lixo e envelopes). Analise os dados de desempenho abaixo e gere um relatório analítico em português, claro e profissional. Destaque pontos fortes, pontos de atenção e sugira ações concretas para o gestor. Use formatação markdown com seções claras.\n\n${summary}`
-          }]
-        })
-      });
-      const json = await resp.json();
-      if (json.error) throw new Error(json.error.message);
-      const text = json.content?.[0]?.text || '';
+      const text = await GroqAI.call([{
+        role: 'user',
+        content: `Você é analista de RH de uma fábrica de embalagens plásticas (sacos de lixo e envelopes). Analise os dados de desempenho abaixo e gere um relatório analítico em português, claro e profissional. Destaque pontos fortes, pontos de atenção e sugira ações concretas para o gestor. Use formatação markdown com seções claras.\n\n${summary}`
+      }]);
       const output = $('m9-report-output');
       if (output) output.innerHTML = mdToHtml(text);
       $('m9-report-container')?.classList.remove('hidden');
@@ -143,11 +113,7 @@ const M9 = (() => {
   }
 
   function init() {
-    $('m9-save-key-btn')?.addEventListener('click', saveApiKey);
     $('m9-generate-btn')?.addEventListener('click', generateReport);
-
-    const saved = getApiKey();
-    if (saved && $('m9-api-key')) $('m9-api-key').value = saved;
 
     const today    = new Date().toISOString().split('T')[0];
     const firstDay = Utils.currentMonth() + '-01';
@@ -158,8 +124,6 @@ const M9 = (() => {
 
     document.addEventListener('route:change', e => {
       if (e.detail.route !== 'm9') return;
-      const saved = getApiKey();
-      if (saved && $('m9-api-key')) $('m9-api-key').value = saved;
       renderEmployeeCheckboxes();
     });
   }
