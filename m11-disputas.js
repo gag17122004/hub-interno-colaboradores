@@ -27,39 +27,39 @@ const M11 = (() => {
     ],
     scripts: [
       { id: 's1', reasonId: 'r1', justId: 'j1', variants: [
-        'Prezado(a) comprador(a), analisamos sua reclamação com atenção. Nosso produto foi fabricado e comercializado exatamente conforme as especificações do anúncio — dimensões, material e quantidade conferem. As fotos do anúncio representam fielmente o item enviado. Solicitamos que reavalie o produto com base nas medidas descritas.',
-        'Agradecemos o contato. O produto enviado corresponde integralmente ao anúncio publicado. Dimensões, material e quantidade estão dentro do especificado. Se houver dúvida sobre as medidas, nossa equipe está disponível para esclarecimentos.',
-        'Prezado(a) cliente, o produto comercializado segue rigorosamente as especificações do anúncio, com tolerâncias de fabricação padrão do setor de embalagens plásticas. Podemos enviar fotos adicionais que comprovem a conformidade do item caso necessário.'
+        'Olá, equipe de mediação. Analisamos a solicitação, porém o item entregue corresponde exatamente às características técnicas, fotos e descrição presentes no anúncio. Solicitamos a recusa da devolução por este motivo, pois cumprimos rigorosamente com o ofertado.',
+        'Saudações. Gostaríamos de contestar a alegação do comprador. O produto recebido possui as exatas especificações informadas na página da compra. Pedimos a análise criteriosa do anúncio para constatar que não houve divergência no envio.',
+        'Prezados, o item enviado é idêntico ao nosso catálogo. Não há erro logístico ou de cadastro de nossa parte. Solicitamos o encerramento da disputa em favor do vendedor, visto que o produto está em total conformidade com a compra.'
       ]},
       { id: 's2', reasonId: 'r2', justId: 'j3', variants: [
-        'Lamentamos o ocorrido. Todos os nossos produtos passam por controle de qualidade antes do despacho. Pedimos que nos envie fotos do defeito para que possamos analisar e oferecer a melhor solução. Nossa prioridade é sua satisfação.',
-        'Olá! Nossos produtos são verificados individualmente antes do envio. Pode ter ocorrido algum dano durante o transporte. Solicite fotos do produto e da embalagem para que possamos acionar o seguro de transporte e resolver rapidamente.',
-        'Agradecemos o feedback. Nossa linha conta com verificação de qualidade em cada lote. Para prosseguir com sua solicitação, precisamos de fotos evidenciando o defeito relatado. Assim que recebermos, daremos retorno ágil.'
+        'Olá. Todos os nossos produtos passam por um rigoroso controle de qualidade, sendo conferidos antes do empacotamento. O item saiu de nosso centro de distribuição em perfeitas condições de uso. Pedimos análise para descartar mau uso ou danos no transporte.',
+        'Saudações, equipe. Contestamos o defeito de fábrica relatado, pois realizamos inspeção prévia de funcionamento e integridade na nossa linha de expedição. Anexamos as evidências do estado original do produto no momento do envio.',
+        'Prezada mediação, informamos que o produto foi testado pelo nosso setor de qualidade e não apresentava avarias. Solicitamos a verificação detalhada do caso, pois o item foi despachado intacto e devidamente protegido.'
       ]},
       { id: 's3', reasonId: 'r3', justId: 'j2', variants: [
-        'Prezado(a) cliente, de acordo com o rastreamento, seu pedido foi entregue na data e endereço confirmados no sistema. Sugerimos verificar se algum familiar, porteiro ou vizinho recebeu o pacote. Em caso de persistência, entre em contato com a transportadora informando o código de rastreio.',
-        'Verificamos que o rastreamento confirma a entrega do seu pedido. Em muitos casos a encomenda é entregue a um vizinho ou deixada na portaria. Solicitamos que verifique esses locais antes de prosseguirmos com a investigação formal.',
-        'Os registros logísticos indicam que o pedido foi entregue corretamente. Pedimos que confirme o endereço de entrega registrado e verifique com demais moradores. Se o problema persistir, podemos abrir contestação junto à transportadora.'
+        'Olá. Conforme o código de rastreamento oficial da transportadora parceira, o pedido consta como entregue no endereço cadastrado no sistema. Solicitamos que o comprador verifique com vizinhos, familiares ou na portaria do condomínio.',
+        'Saudações. A alegação de não recebimento é improcedente, visto que a atualização logística confirma a entrega no local exato informado no ato da compra. Pedimos a validação do comprovante de entrega (POD) junto à transportadora.',
+        "Prezada equipe, o status logístico do pedido já se encontra finalizado como 'Entregue'. Orientamos o encerramento da solicitação de reembolso ou a exigência de acareação por parte da transportadora responsável pela plataforma."
       ]},
       { id: 's4', reasonId: 'r4', justId: 'j3', variants: [
-        'Prezado(a) comprador(a), nossos produtos são fabricados com matéria-prima de qualidade e seguem normas técnicas do setor de embalagens plásticas. Espessura e resistência estão dentro dos parâmetros descritos no anúncio. Estamos à disposição para detalhar as especificações técnicas do produto.',
-        'Agradecemos o retorno. Nossa fabricação utiliza resina com controle rigoroso de micragem. O produto atende ao padrão de desempenho informado no anúncio. Se desejar, podemos enviar nossa ficha técnica com os laudos de qualidade.',
-        'Entendemos que a qualidade percebida pode variar. Garantimos que nosso produto foi fabricado conforme especificações, com testes de resistência e vedação realizados em cada lote. Teremos prazer em detalhar as características técnicas para melhor avaliação.'
+        'Olá, equipe. O produto enviado atende aos padrões de qualidade descritos no anúncio e foi inspecionado em nossa expedição. A percepção pessoal de qualidade não configura defeito de fabricação. O item cumpre com sua função e categoria de preço.',
+        'Saudações. Reforçamos que o produto corresponde exatamente à descrição técnica ofertada. A nossa equipe de qualidade valida os lotes recebidos e despachados. Trata-se de um produto com excelente custo-benefício, exatamente como anunciado.',
+        'Prezados, nosso controle garante que todos os itens estejam de acordo com as especificações da fábrica. A alegação de "baixa qualidade" não se justifica como erro do vendedor, pois entregamos exatamente o material detalhado na página de vendas.'
       ]},
       { id: 's5', reasonId: 'r5', justId: 'j1', variants: [
-        'Prezado(a) cliente, lamentamos que o produto não tenha atendido às expectativas. O item foi entregue conforme anunciado, dentro das especificações divulgadas. Por tratar-se de produto fabricado sob especificação, não realizamos devoluções por arrependimento após entrega. Agradecemos a compreensão.',
-        'Entendemos sua situação. Nosso produto foi enviado exatamente como descrito no anúncio, e a compra foi realizada de forma consciente. Conforme política da plataforma para produtos desta categoria, não somos obrigados a aceitar devolução por arrependimento após o recebimento.',
-        'O produto entregue está em conformidade total com o anúncio. Para casos de arrependimento após recebimento de produto em perfeito estado e conforme descrito, a política vigente não prevê obrigatoriedade de devolução por parte do vendedor.'
+        'Olá. Estamos cientes do direito de arrependimento do consumidor e o aceitamos. Ressaltamos apenas que o envio ocorreu de forma impecável e conforme o anúncio. Aguardamos o retorno do produto em sua embalagem original, sem sinais de uso, para liberação do reembolso.',
+        'Saudações. O produto foi enviado corretamente e de acordo com o pedido. Em caso de devolução por arrependimento, solicitamos o apoio da plataforma para garantir que o item seja devolvido nas mesmas condições de venda e com todos os acessórios, protegendo nosso estoque.',
+        'Prezada mediação, concordamos com a devolução por arrependimento, desde que as políticas da plataforma sejam cumpridas pelo comprador. O item foi enviado perfeitamente conforme as fotos, e seu retorno deve preservar o estado de novo para revenda.'
       ]},
       { id: 's6', reasonId: 'r6', justId: 'j4', variants: [
-        'Prezado(a) cliente, verificamos nossas fotos de expedição e o produto enviado está correto conforme o pedido. Pode ter ocorrido um equívoco na identificação do item. Solicito que confirme a SKU/código impresso na embalagem com o que consta no seu pedido na plataforma.',
-        'Temos registro fotográfico do produto separado para o seu pedido e os dados conferem com o solicitado. Pedimos que verifique a etiqueta da embalagem e compare com o descritivo do pedido antes de prosseguirmos.',
-        'Nossas operações contam com checagem dupla na expedição. As fotos da embalagem do seu pedido estão arquivadas e confirmam o envio do produto correto. Por favor, verifique o código do produto na embalagem recebida e nos informe se houver divergência.'
+        'Olá. Contestamos o envio incorreto. Nosso sistema conta com bipagem de segurança e arquivamento de imagens da expedição, comprovando que o SKU correto (conforme o pedido) foi inserido na embalagem. Anexamos as provas para a mediação.',
+        'Saudações. A alegação não procede. Possuímos registros visuais do nosso controle logístico no momento exato em que este pedido foi preparado. O item embalado e etiquetado corresponde 100% ao que foi comprado.',
+        'Prezados, solicitamos a recusa desta solicitação. As imagens de nossa expedição atestam o envio do produto exato. Não houve falha na separação, garantindo a lisura do nosso processo de fulfillment.'
       ]},
       { id: 's7', reasonId: 'r7', justId: 'j4', variants: [
-        'Lamentamos pelo dano ocorrido durante o transporte. O produto foi embalado corretamente, conforme atestam nossas fotos de expedição. Recomendamos registrar uma reclamação junto à transportadora com fotos da embalagem danificada. Estamos acompanhando o caso para garantir a melhor solução.',
-        'Agradecemos o contato. Nossos produtos são embalados com proteção adequada para transporte. Danos ocorridos no trajeto são de responsabilidade da transportadora. Por favor, nos envie fotos da embalagem e do produto para que possamos acionar o seguro de frete.',
-        'Nosso procedimento de embalagem garante proteção adequada ao produto. Eventuais danos causados pelo manuseio incorreto durante o transporte devem ser reportados à transportadora com evidências fotográficas. Estamos à disposição para auxiliar nesse processo.'
+        'Olá. O produto foi embalado com proteção adequada e saiu de nossa expedição intacto, conforme provam nossos registros fotográficos anexos. A avaria na embalagem ocorreu por manuseio logístico, sendo de responsabilidade da transportadora parceira.',
+        'Saudações, equipe. Contestamos qualquer responsabilidade pelo dano. Nossas imagens de postagem mostram a caixa perfeitamente lacrada e segura. Pedimos que o ônus seja repassado à transportadora e o saldo do vendedor seja resguardado.',
+        'Prezada mediação, o dano relatado não ocorreu em nossas dependências. Temos provas do padrão de embalagem seguro utilizado neste envio. Trata-se de uma falha exclusiva de transporte e logística da plataforma.'
       ]}
     ]
   };
