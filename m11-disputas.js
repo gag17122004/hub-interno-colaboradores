@@ -95,13 +95,14 @@ const M11 = (() => {
 
     const match = data.scripts.find(s => s.reasonId === reasonId && s.justId === justId);
     const output = $('m11-output');
+    $('m11-result-area')?.classList.remove('hidden');
     if (!match || !match.variants?.length) {
       if (output) output.value = 'Nenhum script cadastrado para esta combinação. Acesse a aba "Gerenciar Scripts" para adicionar.';
+      Toast.info('Combinação sem script cadastrado.');
       return;
     }
     const idx = Math.floor(Math.random() * match.variants.length);
     if (output) output.value = match.variants[idx];
-    $('m11-result-area')?.classList.remove('hidden');
     const reason = data.reasons.find(r => r.id === reasonId)?.label || reasonId;
     Toast.success(`Variante ${idx + 1} de ${match.variants.length} — ${reason}`);
   }
