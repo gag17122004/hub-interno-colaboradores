@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Hub Interno — Test Suite</title>
+  <style>
+    body { font-family: 'Courier New', monospace; background: #0d1117; color: #e6edf3; padding: 32px; line-height: 1.6; }
+    h1   { color: #2dd4bf; margin-bottom: 4px; }
+    .sub { color: #8b949e; font-size: 13px; margin-bottom: 32px; }
+    #output { white-space: pre-wrap; font-size: 13px; }
+    .pass { color: #22c55e; } .fail { color: #ef4444; }
+    .suite { color: #818cf8; font-weight: bold; margin-top: 16px; }
+    .result-bar { margin-top: 24px; padding: 16px; border-radius: 8px; font-size: 15px; font-weight: bold; }
+    .result-ok   { background: rgba(34,197,94,.15); border: 1px solid rgba(34,197,94,.3); color: #22c55e; }
+    .result-fail { background: rgba(239,68,68,.15);  border: 1px solid rgba(239,68,68,.3);  color: #ef4444; }
+  </style>
+</head>
+<body>
+  <h1>🧪 Hub Interno — Test Suite</h1>
+  <div class="sub">shared.js · Calc · Arr · Validators · Store · Auth</div>
+  <div id="output"></div>
+  <div id="result-bar" class="result-bar"></div>
+
+<script>
+// Patch console.log/group para output no DOM
+const out = document.getElementById('output');
+const _origLog   = console.log.bind(console);
+const _origError = console.error.bind(console);
+const _origGroup = console.group?.bind(console) ?? (()=>{});
+const _origEnd   = console.groupEnd?.bind(console) ?? (()=>{});
+let _indent = 0;
+
+console.group = (s) => {
+  _origGroup(s);
+  out.insertAdjacentHTML('beforeend', `<span class="suite">${'  '.repeat(_indent)}${s}</span>\n`);
+  _indent++;
+};
+console.groupEnd = () => { _origEnd(); _indent = Math.max(0, _indent - 1); };
+console.log = (...args) => {
+  _origLog(...args);
+  const line = args.join(' ');
+  const cls  = line.includes('✅') ? 'pass' : line.includes('❌') ? 'fail' : '';
+  out.insertAdjacentHTML('beforeend',
+    `<span class="${cls}">${'  '.repeat(_indent)}${line}</span>\n`);
+};
+console.error = (...args) => {
+  _origError(...args);
+  out.insertAdjacentHTML('beforeend',
+    `<span class="fail">${'  '.repeat(_indent)}${args.join(' ')}</span>\n`);
+};
+</script>
+
+<!-- Executa os testes -->
+<script src="hub.test.js"></script>
+
+<script>
+// Exibe barra de resultado
+const bar = document.getElementById('result-bar');
+const ok  = _results.failed === 0;
+bar.className = 'result-bar ' + (ok ? 'result-ok' : 'result-fail');
+bar.textContent = ok
+  ? `✅  Todos os ${_results.passed} testes passaram.`
+  : `❌  ${_results.failed} falha(s)  /  ${_results.passed} passou`;
+</script>
+</body>
+</html>
