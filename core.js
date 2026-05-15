@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore.js";
+import { doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
 import { db } from "./firebase-config.js";
 
 const USAR_FIREBASE = true;
@@ -191,7 +191,7 @@ const Storage = {
    ============================================================ */
 const Logger = {
   async log(action) {
-    const session = Auth.async getSession();
+    const session = await Auth.getSession();
     if (!session) return;
     const logs = await Storage.get(Storage.KEYS.LOGS, []);
     logs.unshift({
@@ -232,7 +232,7 @@ const Auth = {
   COLAB_BLOCKED: ['m3', 'm4', 'm6', 'm8', 'm9', 'm11', 'm12'],
 
   async init() {
-    const session = this.async getSession();
+    const session = await this.getSession();
     if (session) {
       this._applySession(session);
     } else {
@@ -243,7 +243,7 @@ const Auth = {
     document.getElementById('btn-login-next').addEventListener('click', () => this.handleNext());
     document.getElementById('btn-login-finish').addEventListener('click', () => this.handleFinish());
     document.getElementById('btn-login-back').addEventListener('click', () => this.showStep(1));
-    document.getElementById('btn-logout').addEventListener('click', () => this.async logout());
+    document.getElementById('btn-logout').addEventListener('click', () => this.logout());
 
     // Enter na senha
     document.getElementById('login-pass').addEventListener('keypress', (e) => {
@@ -251,13 +251,13 @@ const Auth = {
     });
   },
 
-  handleNext() {
+  async handleNext() {
     const pass = document.getElementById('login-pass').value;
     if (pass === this.PASSWORDS.MASTER) {
       this.login('master', 'Administrador');
     } else if (pass === this.PASSWORDS.COLAB) {
       this.showStep(2);
-      this.async loadColabSelect();
+      await this.loadColabSelect();
     } else {
       Toast.error('Senha incorreta.');
     }
@@ -281,7 +281,7 @@ const Auth = {
     Modal.confirm({
       title: 'Sair do Sistema',
       body: 'Deseja realmente encerrar sua sessão?',
-      onConfirm: () => {
+      onConfirm: async () => {
         Logger.log('Fez logout do sistema');
         await Storage.remove(Storage.KEYS.SESSION);
         window.location.reload();
@@ -294,7 +294,7 @@ const Auth = {
   },
 
   async isMaster() {
-    const s = this.async getSession();
+    const s = await this.getSession();
     return s && s.profile === 'master';
   },
 
@@ -342,7 +342,7 @@ const Auth = {
       }
     });
 
-    Router.async init();
+    await Router.init();
   }
 };
 
@@ -451,14 +451,14 @@ const Utils = {
 const Toast = {
   _container: null,
 
-  _async init() {
+  _init() {
     if (!this._container) {
       this._container = document.getElementById('toast-container');
     }
   },
 
   _show(message, type = 'info', duration = 3200) {
-    this._async init();
+    this._init();
     const icons = { success: 'fa-circle-check', error: 'fa-circle-xmark', info: 'fa-circle-info' };
     const el = document.createElement('div');
     el.className = `toast ${type}`;
@@ -488,7 +488,7 @@ const Modal = {
   _cancelBtn:  null,
   _onConfirm: null,
 
-  _async init() {
+  _init() {
     if (this._el) return;
     this._el         = document.getElementById('global-modal');
     this._title      = document.getElementById('modal-title');
@@ -516,7 +516,7 @@ const Modal = {
    * @param {Function} [opts.onConfirm]
    */
   confirm({ title, body, confirmText = 'Confirmar', confirmClass = 'btn-danger', onConfirm }) {
-    this._async init();
+    this._init();
     this._title.textContent       = title;
     this._body.innerHTML          = body;
     this._confirmBtn.textContent  = confirmText;
@@ -526,7 +526,7 @@ const Modal = {
   },
 
   close() {
-    this._async init();
+    this._init();
     this._el.classList.remove('open');
     this._onConfirm = null;
   }
@@ -541,7 +541,7 @@ const Theme = {
   async init() {
     this._current = await Storage.get(Storage.KEYS.THEME, 'dark');
     this._apply();
-    document.getElementById('theme-toggle').addEventListener('click', () => this.async toggle());
+    document.getElementById('theme-toggle').addEventListener('click', () => this.toggle());
   },
 
   async toggle() {
@@ -570,7 +570,7 @@ const Router = {
       item.addEventListener('click', () => this.navigate(item.dataset.route));
     });
     // Rota inicial: colaborador vai para "Meu Espaço", master para M1
-    const session = Auth.async getSession();
+    const session = await Auth.getSession();
     const defaultRoute = session?.profile === 'colab' ? 'me' : 'm1';
     const hash = window.location.hash.replace('#', '');
     const initial = hash && !(session?.profile === 'colab' && Auth.COLAB_BLOCKED.includes(hash))
@@ -578,8 +578,8 @@ const Router = {
     this.navigate(initial);
   },
 
-  navigate(route) {
-    const session = Auth.async getSession();
+  async navigate(route) {
+    const session = await Auth.getSession();
     if (!session) return;
 
     // Verificar permissão
@@ -620,27 +620,27 @@ const Router = {
    ============================================================ */
 const App = {
   async init() {
-    Theme.async init();
-    Auth.async init();
+    await Theme.init();
+    await Auth.init();
 
     // Inicializa cada módulo na ordem
-    MePanel.async init();
-    M1.async init();
-    M2.async init();
-    M3.async init();
-    M4.async init();
-    M5.async init();
-    M6.async init();
-    M7.async init();
-    M8.async init();
-    M9.async init();
-    M10.async init();
-    M11.async init();
-    M12.async init();
+    await MePanel.init();
+    await M1.init();
+    await M2.init();
+    await M3.init();
+    await M4.init();
+    await M5.init();
+    await M6.init();
+    await M7.init();
+    await M8.init();
+    await M9.init();
+    await M10.init();
+    await M11.init();
+    await M12.init();
 
     console.info('[Hub Interno] Aplicação iniciada com sucesso.');
   }
 };
 
 // Aguarda o DOM estar pronto
-document.addEventListener('DOMContentLoaded', () => App.async init());
+document.addEventListener('DOMContentLoaded', () => App.init());

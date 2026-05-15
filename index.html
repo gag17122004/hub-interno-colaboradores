@@ -2954,7 +2954,7 @@ const GroqAI = {
 };
 
 </script>
-<script>
+<script type="module">
 /**
  * core.js — Hub Interno
  * Responsabilidades:
@@ -3584,6 +3584,11 @@ const App = {
 
 // Aguarda o DOM estar pronto
 document.addEventListener('DOMContentLoaded', () => App.init());
+window.Storage = Storage;
+window.Auth = Auth;
+window.Logger = Logger;
+window.Theme = Theme;
+window.App = App;
 
 </script>
 <script>
