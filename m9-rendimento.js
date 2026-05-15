@@ -199,8 +199,13 @@ const M9 = (() => {
     renderNotes();
     renderEmployeeCheckboxes();
 
-    document.addEventListener('route:change', async (e) => {
+    document.addEventListener('route:change', e => {
       if (e.detail.route !== 'm9') return;
+      // Recarrega datas padrão ao abrir o módulo
+      const today2    = new Date().toISOString().split('T')[0];
+      const firstDay2 = Utils.currentMonth() + '-01';
+      if ($('m9-date-from') && !$('m9-date-from').value) $('m9-date-from').value = firstDay2;
+      if ($('m9-date-to')   && !$('m9-date-to').value)   $('m9-date-to').value   = today2;
       populateNoteEmpSelect();
       renderNotes();
       renderEmployeeCheckboxes();

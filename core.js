@@ -140,8 +140,9 @@ const Storage = {
 
       await setDoc(docRef, { value: value });
     } catch (e) {
-      console.error(`[Storage.set] Erro ao salvar "${key}" no Firestore:`, e);
-      Toast.error('Erro ao salvar dados na nuvem. Salvo apenas localmente.');
+      // Silencia o toast — localStorage já foi salvo acima como backup confiável.
+      // Regras do Firestore ou conectividade serão resolvidas em fase futura.
+      console.warn(`[Storage.set] Firestore indisponível para "${key}". Dado mantido no localStorage.`, e.code || e.message);
     }
   },
 

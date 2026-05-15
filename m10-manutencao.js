@@ -134,8 +134,8 @@ const M10 = (() => {
 
   /* ── Modal ── */
   function openAddRecord() {
-    $('m10-modal-title').textContent = 'Nova Ocorrência';
-    // populate machine select
+    const titleEl = $('m10-modal-title');
+    if (titleEl) titleEl.textContent = 'Nova Ocorrência';
     const sel = $('m10-rec-machine');
     if (sel) {
       sel.innerHTML = getMachines().map(m => `<option value="${Utils.esc(m)}">${Utils.esc(m)}</option>`).join('');
@@ -149,7 +149,7 @@ const M10 = (() => {
     });
     if ($('m10-type-hece')) $('m10-type-hece').checked = false;
     updateTypeVisibility();
-    $('modal-m10-record').classList.add('open');
+    $('modal-m10-record')?.classList.add('open');
   }
 
   function updateTypeVisibility() {
@@ -162,7 +162,7 @@ const M10 = (() => {
     $('m10-hece-fields')?.classList.toggle('hidden', !isHece);
   }
 
-  async function saveRecord() {
+  function saveRecord() {
     const machine     = $('m10-rec-machine')?.value?.trim();
     const date        = $('m10-rec-date')?.value;
     const time        = $('m10-rec-time')?.value || '';
@@ -190,7 +190,7 @@ const M10 = (() => {
 
     records.push(rec);
     save();
-    $('modal-m10-record').classList.remove('open');
+    $('modal-m10-record')?.classList.remove('open');
     if (!selectedMachine) selectedMachine = machine;
     renderMachineList();
     renderMachinePanel();
@@ -198,12 +198,12 @@ const M10 = (() => {
     Toast.success('Ocorrência registrada.');
   }
 
-  async function removeRecord(id) {
+  function removeRecord(id) {
     Modal.confirm({
       title: 'Remover Ocorrência',
       body: '<p>Remover esta ocorrência do histórico?</p>',
       confirmText: 'Remover', confirmClass: 'btn-danger',
-      async onConfirm() {
+      onConfirm() {
         records = records.filter(r => r.id !== id);
         save(); renderMachineList();
         if (selectedMachine) renderMachinePanel();
@@ -212,16 +212,16 @@ const M10 = (() => {
     });
   }
 
-  async function init() {
+  function init() {
     load();
     $('m10-add-record-btn')?.addEventListener('click', openAddRecord);
     $('m10-save-record-btn')?.addEventListener('click', saveRecord);
-    $('m10-cancel-record-btn')?.addEventListener('click', () => $('modal-m10-record').classList.remove('open'));
+    $('m10-cancel-record-btn')?.addEventListener('click', () => $('modal-m10-record')?.classList.remove('open'));
     $('m10-type-hece')?.addEventListener('change', updateTypeVisibility);
 
     renderMachineList();
 
-    document.addEventListener('route:change', async (e) => {
+    document.addEventListener('route:change', e => {
       if (e.detail.route !== 'm10') return;
       load(); renderMachineList();
       if (selectedMachine) renderMachinePanel();
