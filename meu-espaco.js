@@ -7,7 +7,7 @@ const MePanel = (() => {
   const $ = id => document.getElementById(id);
 
   /* ── Render principal ────────────────────────────────────── */
-  function render() {
+  async function render() {
     const session = Auth.getSession();
     if (!session) return;
 
@@ -37,10 +37,10 @@ const MePanel = (() => {
   }
 
   /* ── Stats rápidos ───────────────────────────────────────── */
-  function renderStats(session) {
+  async function renderStats(session) {
     // Horas extras aprovadas do mês atual (novo formato)
-    const timeRecords = await await Storage.get('hub_time_records', {});
-    const employees   = await await Storage.get(Storage.KEYS.EMPLOYEES, []);
+    const timeRecords = await Storage.get('hub_time_records', {});
+    const employees   = await Storage.get(Storage.KEYS.EMPLOYEES, []);
     const emp = employees.find(e => e.name === session.name);
     let monthHours = 0;
     if (emp) {
@@ -53,13 +53,13 @@ const MePanel = (() => {
     if (hoursEl) hoursEl.textContent = Utils.num(monthHours, 1) + 'h';
 
     // Tarefas próprias
-    const tasks = await await Storage.get(Storage.KEYS.TASKS, []);
+    const tasks = await Storage.get(Storage.KEYS.TASKS, []);
     const myTasks = tasks.filter(t => !t.owner || t.owner === session.name);
     const tasksEl = $('me-stat-tasks');
     if (tasksEl) tasksEl.textContent = myTasks.length;
 
     // Produção da semana (pacotes)
-    const records = await await Storage.get(Storage.KEYS.PRODUCTION, []);
+    const records = await Storage.get(Storage.KEYS.PRODUCTION, []);
     const today = new Date();
     const dow = today.getDay();
     const weekStart = new Date(today);
@@ -73,11 +73,11 @@ const MePanel = (() => {
   }
 
   /* ── Tarefas ─────────────────────────────────────────────── */
-  function renderTasks(session) {
+  async function renderTasks(session) {
     const list = $('me-tasks-list');
     if (!list) return;
 
-    const tasks = await await Storage.get(Storage.KEYS.TASKS, [])
+    const tasks = await Storage.get(Storage.KEYS.TASKS, [])
       .filter(t => !t.owner || t.owner === session.name)
       .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
       .slice(0, 6);
@@ -102,11 +102,11 @@ const MePanel = (() => {
   }
 
   /* ── Ponto do mês ────────────────────────────────────────── */
-  function renderHours(session) {
+  async function renderHours(session) {
     const list = $('me-hours-list');
     if (!list) return;
 
-    const employees = await await Storage.get(Storage.KEYS.EMPLOYEES, []);
+    const employees = await Storage.get(Storage.KEYS.EMPLOYEES, []);
     const emp = employees.find(e => e.name === session.name);
 
     if (!emp) {
@@ -117,7 +117,7 @@ const MePanel = (() => {
       return;
     }
 
-    const timeRecords = await await Storage.get('hub_time_records', {});
+    const timeRecords = await Storage.get('hub_time_records', {});
     const thisMonth   = Utils.currentMonth();
     const records     = (timeRecords[emp.id] || [])
       .filter(r => (r.date || '').startsWith(thisMonth))
@@ -150,8 +150,8 @@ const MePanel = (() => {
   }
 
   /* ── Init ────────────────────────────────────────────────── */
-  async async function init() {
-    document.addEventListener('route:change', e => {
+  async function init() {
+    document.addEventListener('route:change', async (e) => {
       if (e.detail.route === 'me') render();
     });
   }

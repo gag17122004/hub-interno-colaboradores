@@ -64,7 +64,7 @@ const M11 = (() => {
     ]
   };
 
-  function loadData() {
+  async function loadData() {
     let data = await Storage.get(KEY, null);
     if (!data) {
       data = SEED;
@@ -73,8 +73,8 @@ const M11 = (() => {
     return data;
   }
 
-  function populateDropdowns() {
-    const data = loadData();
+  async function populateDropdowns() {
+    const data = await loadData();
     const reasonSel = $('m11-reason');
     const justSel   = $('m11-just');
     if (reasonSel) {
@@ -148,10 +148,10 @@ const M11 = (() => {
   }
 
   /* ── Gerenciamento de scripts (master) ── */
-  function renderScriptsManagement() {
+  async function renderScriptsManagement() {
     const container = $('m11-scripts-manage');
     if (!container) return;
-    const data = loadData();
+    const data = await loadData();
 
     container.innerHTML = data.scripts.map((s, si) => {
       const reason = data.reasons.find(r => r.id === s.reasonId)?.label || s.reasonId;
@@ -183,7 +183,7 @@ const M11 = (() => {
     }).join('');
 
     container.querySelectorAll('.m11-script-ta').forEach(ta => {
-      ta.addEventListener('input', () => {
+      ta.addEventListener('input', async () => {
         const d  = loadData();
         const si = parseInt(ta.dataset.si);
         const vi = parseInt(ta.dataset.vi);
@@ -196,16 +196,16 @@ const M11 = (() => {
     });
   }
 
-  function addVariant(si) {
-    const data = loadData();
+  async function addVariant(si) {
+    const data = await loadData();
     data.scripts[si].variants.push('Novo script — edite aqui.');
     await Storage.set(KEY, data);
     renderScriptsManagement();
     Toast.success('Variante adicionada.');
   }
 
-  function removeVariant(si, vi) {
-    const data = loadData();
+  async function removeVariant(si, vi) {
+    const data = await loadData();
     if (data.scripts[si].variants.length <= 1) {
       Toast.error('Mantenha ao menos uma variante.'); return;
     }
@@ -230,7 +230,7 @@ const M11 = (() => {
     $('m11-tab-generator')?.addEventListener('click', () => setTab('generator'));
     $('m11-tab-manage')?.addEventListener('click',    () => setTab('manage'));
 
-    document.addEventListener('route:change', e => {
+    document.addEventListener('route:change', async (e) => {
       if (e.detail.route !== 'm11') return;
       populateDropdowns();
     });

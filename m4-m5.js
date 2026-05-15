@@ -94,7 +94,7 @@ const M4 = (() => {
     const resetBtn = document.getElementById('m4-reset-btn');
     if (resetBtn) resetBtn.addEventListener('click', reset);
 
-    document.addEventListener('route:change', (e) => {
+    document.addEventListener('route:change', async (e) => {
       if (e.detail.route === 'm4') calc();
     });
   }
@@ -198,7 +198,7 @@ const M5 = (() => {
     _editId = null;
   }
 
-  function saveTask() {
+  async function saveTask() {
     const date  = document.getElementById('m5-task-date').value;
     const item  = document.getElementById('m5-task-item').value.trim();
     const notes = document.getElementById('m5-task-notes').value.trim();
@@ -224,7 +224,7 @@ const M5 = (() => {
     Toast.success(_editId ? 'Tarefa atualizada.' : 'Tarefa adicionada.');
   }
 
-  function removeTask(id) {
+  async function removeTask(id) {
     const task = tasks.find(t => t.id === id);
     if (!task) return;
     Modal.confirm({
@@ -232,7 +232,7 @@ const M5 = (() => {
       body: `<p>Remover <strong>"${Utils.esc(task.item)}"</strong>?</p>`,
       confirmText: 'Remover',
       confirmClass: 'btn-danger',
-      onConfirm() {
+      async onConfirm() {
         tasks = tasks.filter(t => t.id !== id);
         await save();
         Logger.log(`Removeu tarefa: ${task.item}`);
@@ -259,7 +259,7 @@ const M5 = (() => {
     render();
     updateCount();
 
-    document.addEventListener('route:change', (e) => {
+    document.addEventListener('route:change', async (e) => {
       if (e.detail.route === 'm5') {
         await load();
         render();

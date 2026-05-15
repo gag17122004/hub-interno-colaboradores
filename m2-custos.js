@@ -299,7 +299,7 @@ const M2 = (() => {
     _editingProductId = null;
   }
 
-  function saveGroup() {
+  async function saveGroup() {
     const name = document.getElementById('m2-group-name').value.trim();
     if (!name) { Toast.error('Informe o nome do grupo.'); return; }
     if (_editingProductId) {
@@ -317,14 +317,14 @@ const M2 = (() => {
     Toast.success(_editingProductId ? 'Grupo atualizado.' : 'Grupo criado.');
   }
 
-  function removeGroup(prodId) {
+  async function removeGroup(prodId) {
     const prod = products.find(p => p.id === prodId);
     if (!prod) return;
     Modal.confirm({
       title: 'Remover Grupo',
       body: `<p>Remover <strong>${Utils.esc(prod.name)}</strong> e todas as variações?</p><p class="text-sm text-muted mt-2">Esta ação não pode ser desfeita.</p>`,
       confirmText: 'Remover', confirmClass: 'btn-danger',
-      onConfirm() {
+      async onConfirm() {
         products = products.filter(p => p.id !== prodId);
         await save(); renderProducts();
         document.dispatchEvent(new CustomEvent('m2:products:updated'));
@@ -375,7 +375,7 @@ const M2 = (() => {
     if (qtyEl) qtyEl.textContent = qtyFromSku(sku);
   }
 
-  function saveVariation() {
+  async function saveVariation() {
     const sku       = document.getElementById('m2-var-sku').value.trim();
     const lotWeight = parseFloat(document.getElementById('m2-var-lotweight').value);
     const width     = parseFloat(document.getElementById('m2-var-width').value)  || 0;
@@ -406,7 +406,7 @@ const M2 = (() => {
     Toast.success(_editingVariationId ? 'Variação atualizada.' : 'Variação adicionada.');
   }
 
-  function removeVariation(prodId, varId) {
+  async function removeVariation(prodId, varId) {
     const prod = products.find(p => p.id === prodId);
     if (!prod) return;
     const v = (prod.variations || []).find(v => v.id === varId);
@@ -415,7 +415,7 @@ const M2 = (() => {
       title: 'Remover Variação',
       body: `<p>Remover <strong>${Utils.esc(v.sku)}</strong>?</p>`,
       confirmText: 'Remover', confirmClass: 'btn-danger',
-      onConfirm() {
+      async onConfirm() {
         prod.variations = prod.variations.filter(x => x.id !== varId);
         await save(); renderProducts();
         document.dispatchEvent(new CustomEvent('m2:products:updated'));
@@ -426,7 +426,7 @@ const M2 = (() => {
   }
 
   /* ── Preço/kg ── */
-  function savePrice() {
+  async function savePrice() {
     const val = parseFloat(document.getElementById('m2-price-kg')?.value);
     if (isNaN(val) || val < 0) { Toast.error('Preço inválido.'); return; }
     rawPrice = val;
@@ -438,7 +438,7 @@ const M2 = (() => {
   }
 
   /* ── Importação XLSX ── */
-  function importXlsx(file) {
+  async function importXlsx(file) {
     if (!window.XLSX) { Toast.error('Biblioteca XLSX não carregada.'); return; }
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -477,7 +477,7 @@ const M2 = (() => {
           });
         });
 
-        const finalize = () => {
+        const finalize = async () => {
           await save(); renderProducts();
           document.dispatchEvent(new CustomEvent('m2:products:updated'));
           Logger.log(`Importou XLSX: +${added} adicionados, ${updated} atualizados`);
@@ -493,7 +493,7 @@ const M2 = (() => {
                    </ul>
                    <p class="mt-2">Deseja <strong>remover</strong> estas variações?</p>`,
             confirmText: 'Remover', confirmClass: 'btn-danger',
-            onConfirm() {
+            async onConfirm() {
               removedSkus.forEach(({ prodId, varId }) => {
                 const p = products.find(x => x.id === prodId);
                 if (p) p.variations = p.variations.filter(v => v.id !== varId);
@@ -654,7 +654,6 @@ const M2 = (() => {
     // Largura
     ctx.fillText(`${Utils.num(w, 1)} cm`, rx + rw / 2, ry - 8);
     // Comprimento
-    ctx.await save();
     ctx.translate(rx - 10, ry + rh / 2);
     ctx.rotate(-Math.PI / 2);
     ctx.fillText(`${Utils.num(c, 1)} cm`, 0, 0);
@@ -753,7 +752,7 @@ const M2 = (() => {
   }
 
   /* ── Seed ── */
-  function seedIfEmpty() {
+  async function seedIfEmpty() {
     if (await Storage.get(_SEED_KEY)) return;
     if (products.length > 0) { await Storage.set(_SEED_KEY, true); return; }
     rawPrice = _DEFAULT_PRICE;
@@ -796,7 +795,7 @@ const M2 = (() => {
     initCanvas();
     updateWeightCalc();
 
-    document.addEventListener('route:change', e => {
+    document.addEventListener('route:change', async (e) => {
       if (e.detail.route !== 'm2') return;
       await load(); renderPrice(); renderProducts(); renderSalesTable();
       updateWeightCalc();

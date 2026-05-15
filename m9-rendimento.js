@@ -8,11 +8,11 @@ const M9 = (() => {
   const $ = id => document.getElementById(id);
 
   /* ── Anotações manuais ── */
-  function getNotes() {
+  async function getNotes() {
     return await Storage.get(NOTES_KEY, []);
   }
 
-  function saveNote() {
+  async function saveNote() {
     const empName = $('m9-note-emp')?.value?.trim();
     const date    = $('m9-note-date')?.value;
     const text    = $('m9-note-text')?.value?.trim();
@@ -27,7 +27,7 @@ const M9 = (() => {
     Logger.log(`Anotação M9: ${empName} — ${text.substring(0, 40)}`);
   }
 
-  function deleteNote(id) {
+  async function deleteNote(id) {
     const notes = getNotes().filter(n => n.id !== id);
     await Storage.set(NOTES_KEY, notes);
     renderNotes();
@@ -57,7 +57,7 @@ const M9 = (() => {
       </div>`).join('');
   }
 
-  function populateNoteEmpSelect() {
+  async function populateNoteEmpSelect() {
     const sel = $('m9-note-emp');
     if (!sel) return;
     const employees = await Storage.get(Storage.KEYS.EMPLOYEES, []);
@@ -65,7 +65,7 @@ const M9 = (() => {
       employees.map(e => `<option value="${Utils.esc(e.name)}">${Utils.esc(e.name)}</option>`).join('');
   }
 
-  function getEmployeeData(name, dateFrom, dateTo) {
+  async function getEmployeeData(name, dateFrom, dateTo) {
     // M1 — horas extras e ausências
     const timeRecords = await Storage.get('hub_time_records', {});
     const employees   = await Storage.get(Storage.KEYS.EMPLOYEES, []);
@@ -168,7 +168,7 @@ const M9 = (() => {
     }
   }
 
-  function renderEmployeeCheckboxes() {
+  async function renderEmployeeCheckboxes() {
     const container = $('m9-emp-list');
     if (!container) return;
     const employees = await Storage.get(Storage.KEYS.EMPLOYEES, []);
@@ -198,7 +198,7 @@ const M9 = (() => {
     renderNotes();
     renderEmployeeCheckboxes();
 
-    document.addEventListener('route:change', e => {
+    document.addEventListener('route:change', async (e) => {
       if (e.detail.route !== 'm9') return;
       populateNoteEmpSelect();
       renderNotes();

@@ -106,8 +106,8 @@ const M1 = (() => {
   }
 
   /* ── Ponto ── */
-  function punch(punchNum) {
-    const session = Auth.getSession();
+  async function punch(punchNum) {
+    const session = await Auth.getSession();
     if (!session) return;
 
     let empId = activeEmployee;
@@ -121,7 +121,7 @@ const M1 = (() => {
     const today = new Date().toISOString().split('T')[0];
     const now   = new Date().toTimeString().slice(0, 5);
 
-    getGeo(geo => {
+    getGeo(async (geo) => {
       if (!timeRecords[empId]) timeRecords[empId] = [];
       let rec = timeRecords[empId].find(r => r.date === today && r.status !== 'rejected');
 
@@ -162,10 +162,10 @@ const M1 = (() => {
   }
 
   /* ── Renders ── */
-  function renderEmployeeList() {
+  async function renderEmployeeList() {
     const list = $('m1-employee-list');
     if (!list) return;
-    const session = Auth.getSession();
+    const session = await Auth.getSession();
     let displayEmps = employees;
     if (session?.profile === 'colab') {
       displayEmps = employees.filter(e => e.name === session.name);
@@ -191,7 +191,7 @@ const M1 = (() => {
     }).join('');
   }
 
-  function renderPanel() {
+  async function renderPanel() {
     const panel = $('m1-hours-panel');
     const empty = $('m1-empty');
     if (!panel || !empty) return;
@@ -224,7 +224,7 @@ const M1 = (() => {
     if (badge) badge.textContent = pendCt > 0 ? pendCt : '';
 
     // Mostrar ponto hoje se for o próprio colaborador ou master
-    const session = Auth.getSession();
+    const session = await Auth.getSession();
     const punchCard = $('m1-punch-card');
     if (punchCard) {
       const isOwnRecord = session?.profile === 'master' || (session?.name && emp.name === session.name);
@@ -380,7 +380,7 @@ const M1 = (() => {
   }
 
   /* ── Aprovação ── */
-  function approveRecord(recId) {
+  async function approveRecord(recId) {
     if (!activeEmployee) return;
     const rec = (timeRecords[activeEmployee] || []).find(r => r.id === recId);
     if (!rec) return;
@@ -394,7 +394,7 @@ const M1 = (() => {
     Toast.success('Registro aprovado.');
   }
 
-  function rejectRecord(recId) {
+  async function rejectRecord(recId) {
     if (!activeEmployee) return;
     const rec = (timeRecords[activeEmployee] || []).find(r => r.id === recId);
     if (!rec) return;
@@ -427,7 +427,7 @@ const M1 = (() => {
     _editingRecId = null;
   }
 
-  function saveEditRecord() {
+  async function saveEditRecord() {
     const rec = (timeRecords[activeEmployee] || []).find(r => r.id === _editingRecId);
     if (!rec) return;
     rec.date       = $('m1-edit-date').value || rec.date;
@@ -446,13 +446,13 @@ const M1 = (() => {
     Toast.success('Registro editado e aprovado.');
   }
 
-  function removeRecord(recId) {
+  async function removeRecord(recId) {
     if (!activeEmployee) return;
     Modal.confirm({
       title: 'Remover Registro',
       body: '<p>Remover este registro de ponto?</p>',
       confirmText: 'Remover',
-      onConfirm() {
+      async onConfirm() {
         timeRecords[activeEmployee] = (timeRecords[activeEmployee] || []).filter(r => r.id !== recId);
         await save();
         renderPanel();
@@ -490,7 +490,7 @@ const M1 = (() => {
     e.target.value = '';
   }
 
-  function saveAbsence() {
+  async function saveAbsence() {
     const date   = $('m1-abs-date').value;
     const reason = $('m1-abs-reason').value;
     const obs    = $('m1-abs-obs').value.trim();
@@ -509,12 +509,12 @@ const M1 = (() => {
     Toast.success('Ausência registrada.');
   }
 
-  function removeAbsence(absId) {
+  async function removeAbsence(absId) {
     Modal.confirm({
       title: 'Remover Ausência',
       body: '<p>Remover esta ausência?</p>',
       confirmText: 'Remover',
-      onConfirm() {
+      async onConfirm() {
         absences[activeEmployee] = (absences[activeEmployee] || []).filter(a => a.id !== absId);
         await save();
         renderAbsencesTable();
@@ -533,7 +533,7 @@ const M1 = (() => {
   }
 
   /* ── Colaboradores ── */
-  function addEmployee() {
+  async function addEmployee() {
     const input = $('m1-new-employee');
     const name  = input?.value.trim();
     if (!name) { Toast.error('Digite o nome do colaborador.'); return; }
@@ -552,7 +552,7 @@ const M1 = (() => {
     Toast.success(`"${name}" adicionado(a).`);
   }
 
-  function removeEmployee(id) {
+  async function removeEmployee(id) {
     const emp = employees.find(e => e.id === id);
     if (!emp) return;
     Modal.confirm({
@@ -560,7 +560,7 @@ const M1 = (() => {
       body: `<p>Remover <strong>${Utils.esc(emp.name)}</strong> e todos os registros?</p><p class="text-sm text-muted mt-2">Esta ação não pode ser desfeita.</p>`,
       confirmText: 'Remover',
       confirmClass: 'btn-danger',
-      onConfirm() {
+      async onConfirm() {
         employees = employees.filter(e => e.id !== id);
         delete timeRecords[id];
         delete absences[id];
@@ -580,7 +580,7 @@ const M1 = (() => {
     renderPanel();
   }
 
-  function saveDebt() {
+  async function saveDebt() {
     if (!activeEmployee) return;
     const val = parseFloat($('m1-debt-input').value) || 0;
     debts[activeEmployee] = val;
@@ -666,7 +666,7 @@ const M1 = (() => {
   async function init() {
     await load();
 
-    const session = Auth.getSession();
+    const session = await Auth.getSession();
     if (session?.profile === 'colab') {
       const myEmp = employees.find(e => e.name === session.name);
       if (myEmp) activeEmployee = myEmp.id;
@@ -694,7 +694,7 @@ const M1 = (() => {
     renderPanel();
     if (activeEmployee) renderPunchPanel(activeEmployee);
 
-    document.addEventListener('route:change', e => {
+    document.addEventListener('route:change', async (e) => {
       if (e.detail.route !== 'm1') return;
       const s = Auth.getSession();
       if (s?.profile === 'colab') {

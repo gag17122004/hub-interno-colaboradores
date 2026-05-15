@@ -413,7 +413,7 @@ const M7 = (() => {
     _editingId = null;
   }
 
-  function saveRecord() {
+  async function saveRecord() {
     const date      = $('m7-date')?.value;
     const operator  = $('m7-operator')?.value?.trim();
     const machine   = $('m7-machine')?.value;
@@ -448,14 +448,14 @@ const M7 = (() => {
     Toast.success(_editingId ? 'Registro atualizado.' : 'Produção registrada.');
   }
 
-  function removeRecord(id) {
+  async function removeRecord(id) {
     const r = records.find(x => x.id === id);
     if (!r) return;
     Modal.confirm({
       title: 'Remover Registro',
       body: `<p>Remover registro de <strong>${r.packages} pacotes</strong> em ${Utils.fmtDate(r.date)}?</p>`,
       confirmText: 'Remover', confirmClass: 'btn-danger',
-      onConfirm() {
+      async onConfirm() {
         records = records.filter(x => x.id !== id);
         await save(); renderStats(); renderTable();
         if (activeTab === 'history') renderHistory();
@@ -491,7 +491,7 @@ const M7 = (() => {
     _editingGoalId = null;
   }
 
-  function saveGoal() {
+  async function saveGoal() {
     const prodType = $('m7-goal-prodtype').value;
     const size     = $('m7-goal-size').value.trim();
     const kgPerDay = parseFloat($('m7-goal-kgday').value);
@@ -511,12 +511,12 @@ const M7 = (() => {
     Toast.success('Meta salva.');
   }
 
-  function removeGoal(id) {
+  async function removeGoal(id) {
     Modal.confirm({
       title: 'Remover Meta',
       body: '<p>Remover esta meta?</p>',
       confirmText: 'Remover', confirmClass: 'btn-danger',
-      onConfirm() {
+      async onConfirm() {
         prodGoals = prodGoals.filter(g => g.id !== id);
         await save(); renderGoalsTable(); renderStats();
         Toast.success('Meta removida.');
@@ -550,7 +550,7 @@ const M7 = (() => {
 
     renderStats(); renderTable();
 
-    document.addEventListener('route:change', e => {
+    document.addEventListener('route:change', async (e) => {
       if (e.detail.route !== 'm7') return;
       await load(); renderStats(); renderTable();
       if (activeTab === 'history') renderHistory();

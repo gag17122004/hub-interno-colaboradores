@@ -184,7 +184,7 @@ const M3 = (() => {
 
   /* ── Ações ─────────────────────────────────────────────── */
 
-  function saveFees() {
+  async function saveFees() {
     const g = (id) => parseFloat($(id)?.value) || 0;
     mktFees = {
       shein:  { commission: g('m3-shein-commission')  },
@@ -203,7 +203,7 @@ const M3 = (() => {
     renderPricingPanel();
   }
 
-  function savePricingInputs() {
+  async function savePricingInputs() {
     if (!activeVariationId) return;
     const sellPrice = parseFloat($('m3-sell-price')?.value) || 0;
     const sellQty   = parseInt($('m3-sell-qty')?.value)     || 1;
@@ -237,7 +237,7 @@ const M3 = (() => {
       }
       renderPricingPanel();
     });
-    document.addEventListener('route:change', (e) => {
+    document.addEventListener('route:change', async (e) => {
       if (e.detail.route === 'm3') {
         await load();
         variations = M2.getFlatVariations();

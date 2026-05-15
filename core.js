@@ -342,7 +342,7 @@ const Auth = {
       }
     });
 
-    await Router.init();
+    Router.init();
   }
 };
 
@@ -620,23 +620,23 @@ const Router = {
    ============================================================ */
 const App = {
   async init() {
-    await Theme.init();
-    await Auth.init();
+    Theme.init();
+    Auth.init();
 
     // Inicializa cada módulo na ordem
-    await MePanel.init();
-    await M1.init();
-    await M2.init();
-    await M3.init();
-    await M4.init();
-    await M5.init();
-    await M6.init();
-    await M7.init();
-    await M8.init();
-    await M9.init();
-    await M10.init();
-    await M11.init();
-    await M12.init();
+    MePanel.init();
+    M1.init();
+    M2.init();
+    M3.init();
+    M4.init();
+    M5.init();
+    M6.init();
+    M7.init();
+    M8.init();
+    M9.init();
+    M10.init();
+    M11.init();
+    M12.init();
 
     console.info('[Hub Interno] Aplicação iniciada com sucesso.');
   }

@@ -22,11 +22,11 @@ const M8 = (() => {
     quotes  = await Storage.get(QUOTES_KEY,  []);
   }
 
-  function getPriceKg() {
+  async function getPriceKg() {
     return await Storage.get('hub_raw_prices', {}).kg || 0;
   }
 
-  function getAllVariations() {
+  async function getAllVariations() {
     const products = await Storage.get(Storage.KEYS.PRODUCTS, []);
     const vars = [];
     products.forEach(g => {
@@ -228,7 +228,7 @@ const M8 = (() => {
     if ($('m8-grandtotal')) $('m8-grandtotal').textContent = Utils.brl(grand);
   }
 
-  function saveQuote() {
+  async function saveQuote() {
     if (!selectedClient)         { Toast.error('Selecione um cliente.'); return; }
     if (quoteItems.length === 0) { Toast.error('Adicione pelo menos um item.'); return; }
     const subtotal = quoteItems.reduce((s, it) => s + it.total, 0);
@@ -316,12 +316,12 @@ const M8 = (() => {
     win.document.close();
   }
 
-  function removeQuote(id) {
+  async function removeQuote(id) {
     Modal.confirm({
       title: 'Remover Orçamento',
       body: '<p>Remover este orçamento do histórico?</p>',
       confirmText: 'Remover', confirmClass: 'btn-danger',
-      onConfirm() {
+      async onConfirm() {
         quotes = quotes.filter(q => q.id !== id);
         await save(); renderQuoteHistory();
         Toast.success('Orçamento removido.');
@@ -338,7 +338,7 @@ const M8 = (() => {
     $('modal-m8-client').classList.add('open');
   }
 
-  function saveClient() {
+  async function saveClient() {
     const name = $('m8-c-name')?.value?.trim();
     if (!name) { Toast.error('Informe o nome do cliente.'); return; }
     clients.push({
@@ -372,7 +372,7 @@ const M8 = (() => {
     $('m8-discount')?.addEventListener('input', recalcTotals);
     renderClients();
 
-    document.addEventListener('route:change', e => {
+    document.addEventListener('route:change', async (e) => {
       if (e.detail.route !== 'm8') return;
       await load(); renderClients(); renderProductPicker();
       if (selectedClient) {

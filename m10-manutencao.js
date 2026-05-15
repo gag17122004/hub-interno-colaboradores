@@ -162,7 +162,7 @@ const M10 = (() => {
     $('m10-hece-fields')?.classList.toggle('hidden', !isHece);
   }
 
-  function saveRecord() {
+  async function saveRecord() {
     const machine     = $('m10-rec-machine')?.value?.trim();
     const date        = $('m10-rec-date')?.value;
     const time        = $('m10-rec-time')?.value || '';
@@ -198,12 +198,12 @@ const M10 = (() => {
     Toast.success('Ocorrência registrada.');
   }
 
-  function removeRecord(id) {
+  async function removeRecord(id) {
     Modal.confirm({
       title: 'Remover Ocorrência',
       body: '<p>Remover esta ocorrência do histórico?</p>',
       confirmText: 'Remover', confirmClass: 'btn-danger',
-      onConfirm() {
+      async onConfirm() {
         records = records.filter(r => r.id !== id);
         await save(); renderMachineList();
         if (selectedMachine) renderMachinePanel();
@@ -221,7 +221,7 @@ const M10 = (() => {
 
     renderMachineList();
 
-    document.addEventListener('route:change', e => {
+    document.addEventListener('route:change', async (e) => {
       if (e.detail.route !== 'm10') return;
       await load(); renderMachineList();
       if (selectedMachine) renderMachinePanel();
