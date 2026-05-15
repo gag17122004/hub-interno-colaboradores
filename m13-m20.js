@@ -2,7 +2,7 @@
   const $ = id => document.getElementById(id);
   // Wrappers sincrono (localStorage) para dados pessoais de M13-M20
   const getSync = (key, fb) => Storage._getLocal(key, fb ?? null);
-  const setSync = (key, v)  => { Storage._setLocal(key, v); setSync(key, v).catch(() => {}); };
+  const setSync = (key, v)  => { Storage._setLocal(key, v); Storage.set(key, v).catch(() => {}); };
   const KEYS = {
     manualsPlatform: 'hub_m13_platform_manuals', manualsResolution: 'hub_m14_resolution_manuals',
     todos: 'hub_m15_periodic_todos', events: 'hub_m16_calendar_events', notices: 'hub_m17_announcements', machines: 'hub_m18_machines',

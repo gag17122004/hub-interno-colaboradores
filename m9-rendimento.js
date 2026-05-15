@@ -8,11 +8,12 @@ const M9 = (() => {
   const $ = id => document.getElementById(id);
 
   /* ── Anotações manuais ── */
-  async function getNotes() {
-    return Storage.getSync(NOTES_KEY, []);
+  function getNotes() {
+    const data = Storage.getSync(NOTES_KEY, []);
+    return Array.isArray(data) ? data : [];
   }
 
-  async function saveNote() {
+  function saveNote() {
     const empName = $('m9-note-emp')?.value?.trim();
     const date    = $('m9-note-date')?.value;
     const text    = $('m9-note-text')?.value?.trim();
@@ -27,7 +28,7 @@ const M9 = (() => {
     Logger.log(`Anotação M9: ${empName} — ${text.substring(0, 40)}`);
   }
 
-  async function deleteNote(id) {
+  function deleteNote(id) {
     const notes = getNotes().filter(n => n.id !== id);
     Storage.setSync(NOTES_KEY, notes);
     renderNotes();
@@ -57,7 +58,7 @@ const M9 = (() => {
       </div>`).join('');
   }
 
-  async function populateNoteEmpSelect() {
+  function populateNoteEmpSelect() {
     const sel = $('m9-note-emp');
     if (!sel) return;
     const employees = Storage.getSync(Storage.KEYS.EMPLOYEES, []);
@@ -65,7 +66,7 @@ const M9 = (() => {
       employees.map(e => `<option value="${Utils.esc(e.name)}">${Utils.esc(e.name)}</option>`).join('');
   }
 
-  async function getEmployeeData(name, dateFrom, dateTo) {
+  function getEmployeeData(name, dateFrom, dateTo) {
     // M1 — horas extras e ausências
     const timeRecords = Storage.getSync('hub_time_records', {});
     const employees   = Storage.getSync(Storage.KEYS.EMPLOYEES, []);
@@ -168,7 +169,7 @@ const M9 = (() => {
     }
   }
 
-  async function renderEmployeeCheckboxes() {
+  function renderEmployeeCheckboxes() {
     const container = $('m9-emp-list');
     if (!container) return;
     const employees = Storage.getSync(Storage.KEYS.EMPLOYEES, []);

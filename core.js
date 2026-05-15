@@ -46,16 +46,18 @@ const Storage = {
       'hub_mkt_fees', 'hub_debts', 'hub_audit', 'hub_dispute_scripts',
       'hub_prod_goal', 'hub_products_seeded_v1'
     ];
-    
+
+    // hub_session é especial — sempre localStorage
+    if (key === 'hub_session') return null;
+
     if (sharedKeys.includes(key)) {
-      return doc(db, 'compartilhado', key);
+      // Caminho válido: compartilhado/{key}/dados/value  (4 segmentos)
+      return doc(db, 'compartilhado', key, 'dados', 'value');
     } else {
-      // hub_session é especial, sempre lê do localStorage para manter o login
-      if (key === 'hub_session') return null;
-      
       const session = this._getLocal('hub_session');
       const userName = session ? session.name : 'anonymous';
-      return doc(db, `usuarios/${userName}`, key);
+      // Caminho válido: usuarios/{userName}/dados/{key}  (4 segmentos)
+      return doc(db, 'usuarios', userName, 'dados', key);
     }
   },
 
