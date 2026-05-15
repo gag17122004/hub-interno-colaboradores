@@ -86,15 +86,15 @@ const M2 = (() => {
   let _currentGroupId    = null;
 
   /* ── Persistência ── */
-  function save() {
-    Storage.set(Storage.KEYS.RAW_PRICES, { single: rawPrice });
-    Storage.set(Storage.KEYS.PRODUCTS, products);
+  async function save() {
+    await Storage.set(Storage.KEYS.RAW_PRICES, { single: rawPrice });
+    await Storage.set(Storage.KEYS.PRODUCTS, products);
   }
 
-  function load() {
-    const stored = Storage.get(Storage.KEYS.RAW_PRICES, {});
+  async function load() {
+    const stored = await Storage.get(Storage.KEYS.RAW_PRICES, {});
     rawPrice = stored.single ?? stored.coex ?? stored.pebd ?? 0;
-    const rawProds = Storage.get(Storage.KEYS.PRODUCTS, []);
+    const rawProds = await Storage.get(Storage.KEYS.PRODUCTS, []);
     products = rawProds.map(p => {
       if (p.variations) return p;
       return {
@@ -310,7 +310,7 @@ const M2 = (() => {
       products.push({ id: Utils.uid(), name, variations: [] });
       Logger.log(`Criou grupo: ${name}`);
     }
-    save();
+    await save();
     closeGroupModal();
     renderProducts();
     document.dispatchEvent(new CustomEvent('m2:products:updated'));
@@ -326,7 +326,7 @@ const M2 = (() => {
       confirmText: 'Remover', confirmClass: 'btn-danger',
       onConfirm() {
         products = products.filter(p => p.id !== prodId);
-        save(); renderProducts();
+        await save(); renderProducts();
         document.dispatchEvent(new CustomEvent('m2:products:updated'));
         Logger.log(`Removeu grupo: ${prod.name}`);
         Toast.success('Grupo removido.');
@@ -401,7 +401,7 @@ const M2 = (() => {
       Logger.log(`Adicionou variação ${sku}`);
     }
 
-    save(); closeVariationModal(); renderProducts();
+    await save(); closeVariationModal(); renderProducts();
     document.dispatchEvent(new CustomEvent('m2:products:updated'));
     Toast.success(_editingVariationId ? 'Variação atualizada.' : 'Variação adicionada.');
   }
@@ -417,7 +417,7 @@ const M2 = (() => {
       confirmText: 'Remover', confirmClass: 'btn-danger',
       onConfirm() {
         prod.variations = prod.variations.filter(x => x.id !== varId);
-        save(); renderProducts();
+        await save(); renderProducts();
         document.dispatchEvent(new CustomEvent('m2:products:updated'));
         Logger.log(`Removeu variação ${v.sku}`);
         Toast.success('Variação removida.');
@@ -430,7 +430,7 @@ const M2 = (() => {
     const val = parseFloat(document.getElementById('m2-price-kg')?.value);
     if (isNaN(val) || val < 0) { Toast.error('Preço inválido.'); return; }
     rawPrice = val;
-    save(); renderProducts();
+    await save(); renderProducts();
     document.dispatchEvent(new CustomEvent('m2:prices:updated'));
     Logger.log(`Atualizou preço/kg para R$ ${Utils.num(val, 2)}`);
     Toast.success('Preço atualizado e custos recalculados.');
@@ -478,7 +478,7 @@ const M2 = (() => {
         });
 
         const finalize = () => {
-          save(); renderProducts();
+          await save(); renderProducts();
           document.dispatchEvent(new CustomEvent('m2:products:updated'));
           Logger.log(`Importou XLSX: +${added} adicionados, ${updated} atualizados`);
           Toast.success(`Importação: ${added} adicionados, ${updated} atualizados.`);
@@ -654,7 +654,7 @@ const M2 = (() => {
     // Largura
     ctx.fillText(`${Utils.num(w, 1)} cm`, rx + rw / 2, ry - 8);
     // Comprimento
-    ctx.save();
+    ctx.await save();
     ctx.translate(rx - 10, ry + rh / 2);
     ctx.rotate(-Math.PI / 2);
     ctx.fillText(`${Utils.num(c, 1)} cm`, 0, 0);
@@ -754,22 +754,22 @@ const M2 = (() => {
 
   /* ── Seed ── */
   function seedIfEmpty() {
-    if (Storage.get(_SEED_KEY)) return;
-    if (products.length > 0) { Storage.set(_SEED_KEY, true); return; }
+    if (await Storage.get(_SEED_KEY)) return;
+    if (products.length > 0) { await Storage.set(_SEED_KEY, true); return; }
     rawPrice = _DEFAULT_PRICE;
     products = _DEFAULT_PRODUCTS.map(group => ({
       id: Utils.uid(), name: group.name,
       variations: group.variations.map(v => ({ id: Utils.uid(), ...v }))
     }));
-    save(); Storage.set(_SEED_KEY, true);
+    await save(); await Storage.set(_SEED_KEY, true);
     renderPrice(); renderProducts();
     document.dispatchEvent(new CustomEvent('m2:products:updated'));
     Toast.info('Produtos padrão carregados. Preço/kg: R$ 9,85.');
   }
 
   /* ── Init ── */
-  function init() {
-    load();
+  async function init() {
+    await load();
 
     document.getElementById('m2-save-price-btn')?.addEventListener('click', savePrice);
     document.getElementById('m2-add-group-btn')?.addEventListener('click', openAddGroup);
@@ -798,7 +798,7 @@ const M2 = (() => {
 
     document.addEventListener('route:change', e => {
       if (e.detail.route !== 'm2') return;
-      load(); renderPrice(); renderProducts(); renderSalesTable();
+      await load(); renderPrice(); renderProducts(); renderSalesTable();
       updateWeightCalc();
     });
   }

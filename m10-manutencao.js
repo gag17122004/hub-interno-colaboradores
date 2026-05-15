@@ -13,8 +13,8 @@ const M10 = (() => {
 
   const DEFAULT_MACHINES = ['01 (Saco)', '02 (Envelope)', '03 (Saco)'];
 
-  function save() { Storage.set(KEY, records); }
-  function load() { records = Storage.get(KEY, []); }
+  async function save() { await Storage.set(KEY, records); }
+  async function load() { records = await Storage.get(KEY, []); }
 
   function getMachines() {
     const all = new Set(DEFAULT_MACHINES);
@@ -189,7 +189,7 @@ const M10 = (() => {
     };
 
     records.push(rec);
-    save();
+    await save();
     $('modal-m10-record').classList.remove('open');
     if (!selectedMachine) selectedMachine = machine;
     renderMachineList();
@@ -205,15 +205,15 @@ const M10 = (() => {
       confirmText: 'Remover', confirmClass: 'btn-danger',
       onConfirm() {
         records = records.filter(r => r.id !== id);
-        save(); renderMachineList();
+        await save(); renderMachineList();
         if (selectedMachine) renderMachinePanel();
         Toast.success('Ocorrência removida.');
       }
     });
   }
 
-  function init() {
-    load();
+  async function init() {
+    await load();
     $('m10-add-record-btn')?.addEventListener('click', openAddRecord);
     $('m10-save-record-btn')?.addEventListener('click', saveRecord);
     $('m10-cancel-record-btn')?.addEventListener('click', () => $('modal-m10-record').classList.remove('open'));
@@ -223,7 +223,7 @@ const M10 = (() => {
 
     document.addEventListener('route:change', e => {
       if (e.detail.route !== 'm10') return;
-      load(); renderMachineList();
+      await load(); renderMachineList();
       if (selectedMachine) renderMachinePanel();
     });
   }

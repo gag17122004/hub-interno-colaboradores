@@ -39,8 +39,8 @@ const MePanel = (() => {
   /* ── Stats rápidos ───────────────────────────────────────── */
   function renderStats(session) {
     // Horas extras aprovadas do mês atual (novo formato)
-    const timeRecords = Storage.get('hub_time_records', {});
-    const employees   = Storage.get(Storage.KEYS.EMPLOYEES, []);
+    const timeRecords = await await Storage.get('hub_time_records', {});
+    const employees   = await await Storage.get(Storage.KEYS.EMPLOYEES, []);
     const emp = employees.find(e => e.name === session.name);
     let monthHours = 0;
     if (emp) {
@@ -53,13 +53,13 @@ const MePanel = (() => {
     if (hoursEl) hoursEl.textContent = Utils.num(monthHours, 1) + 'h';
 
     // Tarefas próprias
-    const tasks = Storage.get(Storage.KEYS.TASKS, []);
+    const tasks = await await Storage.get(Storage.KEYS.TASKS, []);
     const myTasks = tasks.filter(t => !t.owner || t.owner === session.name);
     const tasksEl = $('me-stat-tasks');
     if (tasksEl) tasksEl.textContent = myTasks.length;
 
     // Produção da semana (pacotes)
-    const records = Storage.get(Storage.KEYS.PRODUCTION, []);
+    const records = await await Storage.get(Storage.KEYS.PRODUCTION, []);
     const today = new Date();
     const dow = today.getDay();
     const weekStart = new Date(today);
@@ -77,7 +77,7 @@ const MePanel = (() => {
     const list = $('me-tasks-list');
     if (!list) return;
 
-    const tasks = Storage.get(Storage.KEYS.TASKS, [])
+    const tasks = await await Storage.get(Storage.KEYS.TASKS, [])
       .filter(t => !t.owner || t.owner === session.name)
       .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
       .slice(0, 6);
@@ -106,7 +106,7 @@ const MePanel = (() => {
     const list = $('me-hours-list');
     if (!list) return;
 
-    const employees = Storage.get(Storage.KEYS.EMPLOYEES, []);
+    const employees = await await Storage.get(Storage.KEYS.EMPLOYEES, []);
     const emp = employees.find(e => e.name === session.name);
 
     if (!emp) {
@@ -117,7 +117,7 @@ const MePanel = (() => {
       return;
     }
 
-    const timeRecords = Storage.get('hub_time_records', {});
+    const timeRecords = await await Storage.get('hub_time_records', {});
     const thisMonth   = Utils.currentMonth();
     const records     = (timeRecords[emp.id] || [])
       .filter(r => (r.date || '').startsWith(thisMonth))
@@ -150,7 +150,7 @@ const MePanel = (() => {
   }
 
   /* ── Init ────────────────────────────────────────────────── */
-  function init() {
+  async async function init() {
     document.addEventListener('route:change', e => {
       if (e.detail.route === 'me') render();
     });

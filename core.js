@@ -1,3 +1,8 @@
+import { doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore.js";
+import { db } from "./firebase-config.js";
+
+const USAR_FIREBASE = true;
+
 /**
  * core.js — Hub Interno
  * Responsabilidades:
@@ -11,21 +16,106 @@
  */
 
 /* ============================================================
-   1. STORAGE — Abstração do LocalStorage
+   1. STORAGE — Abstração do LocalStorage / Firestore
    ============================================================ */
 const Storage = {
+  _showLoading() {
+    let loader = document.getElementById('global-loader');
+    if (!loader) {
+      loader = document.createElement('div');
+      loader.id = 'global-loader';
+      loader.innerHTML = '<div class="spinner"></div><div class="text">Carregando dados...</div>';
+      loader.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;color:white;font-family:sans-serif;';
+      const style = document.createElement('style');
+      style.innerHTML = '.spinner { border: 4px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 4px solid white; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 10px; } @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }';
+      document.head.appendChild(style);
+      document.body.appendChild(loader);
+    }
+    loader.style.display = 'flex';
+  },
+
+  _hideLoading() {
+    const loader = document.getElementById('global-loader');
+    if (loader) loader.style.display = 'none';
+  },
+
+  _getDocRef(key) {
+    const sharedKeys = [
+      'hub_employees', 'hub_hours', 'hub_products', 'hub_clients', 'hub_quotes',
+      'hub_maintenance', 'hub_production', 'hub_pricing', 'hub_raw_prices',
+      'hub_mkt_fees', 'hub_debts', 'hub_audit', 'hub_dispute_scripts',
+      'hub_prod_goal', 'hub_products_seeded_v1'
+    ];
+    
+    if (sharedKeys.includes(key)) {
+      return doc(db, 'compartilhado', key);
+    } else {
+      // hub_session é especial, sempre lê do localStorage para manter o login
+      if (key === 'hub_session') return null;
+      
+      const session = this._getLocal('hub_session');
+      const userName = session ? session.name : 'anonymous';
+      return doc(db, `usuarios/${userName}`, key);
+    }
+  },
+
+  _getLocal(key, fallback = null) {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw !== null ? JSON.parse(raw) : fallback;
+    } catch (e) {
+      console.warn(`[Storage._getLocal] Erro ao ler "${key}":`, e);
+      return fallback;
+    }
+  },
+
+  _setLocal(key, value) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch (e) {
+      console.error(`[Storage._setLocal] Erro ao salvar "${key}":`, e);
+      Toast.error('Erro ao salvar dados. LocalStorage pode estar cheio.');
+    }
+  },
+
+  _removeLocal(key) {
+    localStorage.removeItem(key);
+  },
+
   /**
    * Lê e desserializa um item.
    * @param {string} key
    * @param {*} fallback — valor padrão se a chave não existir
    */
-  get(key, fallback = null) {
+  async get(key, fallback = null) {
+    if (!USAR_FIREBASE || key === 'hub_session') {
+      return this._getLocal(key, fallback);
+    }
+
     try {
-      const raw = localStorage.getItem(key);
-      return raw !== null ? JSON.parse(raw) : fallback;
+      this._showLoading();
+      const docRef = this._getDocRef(key);
+      if (!docRef) return this._getLocal(key, fallback);
+
+      const docSnap = await getDoc(docRef);
+      this._hideLoading();
+      
+      if (docSnap.exists()) {
+        return docSnap.data().value;
+      } else {
+        // Se não existe no Firebase, tenta pegar do localStorage (migração)
+        const localData = this._getLocal(key);
+        if (localData !== null) {
+          // Salva no Firebase para a próxima vez
+          await this.set(key, localData);
+          return localData;
+        }
+        return fallback;
+      }
     } catch (e) {
-      console.warn(`[Storage.get] Erro ao ler "${key}":`, e);
-      return fallback;
+      this._hideLoading();
+      console.warn(`[Storage.get] Erro ao ler "${key}" do Firestore:`, e);
+      return this._getLocal(key, fallback); // Fallback para localStorage em caso de erro
     }
   },
 
@@ -34,12 +124,22 @@ const Storage = {
    * @param {string} key
    * @param {*} value
    */
-  set(key, value) {
+  async set(key, value) {
+    // Sempre salva no localStorage também como backup/fallback
+    this._setLocal(key, value);
+
+    if (!USAR_FIREBASE || key === 'hub_session') {
+      return;
+    }
+
     try {
-      localStorage.setItem(key, JSON.stringify(value));
+      const docRef = this._getDocRef(key);
+      if (!docRef) return;
+
+      await setDoc(docRef, { value: value });
     } catch (e) {
-      console.error(`[Storage.set] Erro ao salvar "${key}":`, e);
-      Toast.error('Erro ao salvar dados. LocalStorage pode estar cheio.');
+      console.error(`[Storage.set] Erro ao salvar "${key}" no Firestore:`, e);
+      Toast.error('Erro ao salvar dados na nuvem. Salvo apenas localmente.');
     }
   },
 
@@ -47,8 +147,21 @@ const Storage = {
    * Remove um item.
    * @param {string} key
    */
-  remove(key) {
-    localStorage.removeItem(key);
+  async remove(key) {
+    this._removeLocal(key);
+
+    if (!USAR_FIREBASE || key === 'hub_session') {
+      return;
+    }
+
+    try {
+      const docRef = this._getDocRef(key);
+      if (!docRef) return;
+
+      await deleteDoc(docRef);
+    } catch (e) {
+      console.error(`[Storage.remove] Erro ao remover "${key}" do Firestore:`, e);
+    }
   },
 
   // Chaves centralizadas — evita typos espalhados pelo código
@@ -77,31 +190,31 @@ const Storage = {
    1.1 LOGGER — Registro de Auditoria (M6)
    ============================================================ */
 const Logger = {
-  log(action) {
-    const session = Auth.getSession();
+  async log(action) {
+    const session = Auth.async getSession();
     if (!session) return;
-    const logs = Storage.get(Storage.KEYS.LOGS, []);
+    const logs = await Storage.get(Storage.KEYS.LOGS, []);
     logs.unshift({
       timestamp: new Date().toISOString(),
       user: session.name,
       action: action
     });
     // Limite de 1000 logs para não estourar o Storage
-    Storage.set(Storage.KEYS.LOGS, logs.slice(0, 1000));
+    await Storage.set(Storage.KEYS.LOGS, logs.slice(0, 1000));
     // Dispara evento para atualizar M6 se estiver aberto
     document.dispatchEvent(new CustomEvent('audit:new'));
   },
-  getLogs() {
+  async getLogs() {
     // Migrar dados da chave antiga
     const old = localStorage.getItem('hub_audit_logs');
     if (old && !localStorage.getItem('hub_audit')) {
       localStorage.setItem('hub_audit', old);
       localStorage.removeItem('hub_audit_logs');
     }
-    return Storage.get(Storage.KEYS.LOGS, []);
+    return await Storage.get(Storage.KEYS.LOGS, []);
   },
-  clear() {
-    Storage.remove(Storage.KEYS.LOGS);
+  async clear() {
+    await Storage.remove(Storage.KEYS.LOGS);
     document.dispatchEvent(new CustomEvent('audit:new'));
   }
 };
@@ -118,8 +231,8 @@ const Auth = {
   /* Rotas bloqueadas para colaboradores */
   COLAB_BLOCKED: ['m3', 'm4', 'm6', 'm8', 'm9', 'm11', 'm12'],
 
-  init() {
-    const session = this.getSession();
+  async init() {
+    const session = this.async getSession();
     if (session) {
       this._applySession(session);
     } else {
@@ -130,7 +243,7 @@ const Auth = {
     document.getElementById('btn-login-next').addEventListener('click', () => this.handleNext());
     document.getElementById('btn-login-finish').addEventListener('click', () => this.handleFinish());
     document.getElementById('btn-login-back').addEventListener('click', () => this.showStep(1));
-    document.getElementById('btn-logout').addEventListener('click', () => this.logout());
+    document.getElementById('btn-logout').addEventListener('click', () => this.async logout());
 
     // Enter na senha
     document.getElementById('login-pass').addEventListener('keypress', (e) => {
@@ -144,7 +257,7 @@ const Auth = {
       this.login('master', 'Administrador');
     } else if (pass === this.PASSWORDS.COLAB) {
       this.showStep(2);
-      this.loadColabSelect();
+      this.async loadColabSelect();
     } else {
       Toast.error('Senha incorreta.');
     }
@@ -156,32 +269,32 @@ const Auth = {
     this.login('colab', name);
   },
 
-  login(profile, name) {
+  async login(profile, name) {
     const session = { profile, name };
-    Storage.set(Storage.KEYS.SESSION, session);
+    await Storage.set(Storage.KEYS.SESSION, session);
     this._applySession(session);
     Logger.log('Fez login no sistema');
     Toast.success(`Bem-vindo, ${name}!`);
   },
 
-  logout() {
+  async logout() {
     Modal.confirm({
       title: 'Sair do Sistema',
       body: 'Deseja realmente encerrar sua sessão?',
       onConfirm: () => {
         Logger.log('Fez logout do sistema');
-        Storage.remove(Storage.KEYS.SESSION);
+        await Storage.remove(Storage.KEYS.SESSION);
         window.location.reload();
       }
     });
   },
 
-  getSession() {
-    return Storage.get(Storage.KEYS.SESSION);
+  async getSession() {
+    return await Storage.get(Storage.KEYS.SESSION);
   },
 
-  isMaster() {
-    const s = this.getSession();
+  async isMaster() {
+    const s = this.async getSession();
     return s && s.profile === 'master';
   },
 
@@ -195,9 +308,9 @@ const Auth = {
     document.getElementById('login-step-2').classList.toggle('hidden', n !== 2);
   },
 
-  loadColabSelect() {
+  async loadColabSelect() {
     const select = document.getElementById('login-colab-select');
-    const employees = Storage.get(Storage.KEYS.EMPLOYEES, []);
+    const employees = await Storage.get(Storage.KEYS.EMPLOYEES, []);
     if (employees.length === 0) {
       select.innerHTML = '<option value="">Nenhum colaborador cadastrado</option>';
       return;
@@ -229,7 +342,7 @@ const Auth = {
       }
     });
 
-    Router.init();
+    Router.async init();
   }
 };
 
@@ -338,14 +451,14 @@ const Utils = {
 const Toast = {
   _container: null,
 
-  _init() {
+  _async init() {
     if (!this._container) {
       this._container = document.getElementById('toast-container');
     }
   },
 
   _show(message, type = 'info', duration = 3200) {
-    this._init();
+    this._async init();
     const icons = { success: 'fa-circle-check', error: 'fa-circle-xmark', info: 'fa-circle-info' };
     const el = document.createElement('div');
     el.className = `toast ${type}`;
@@ -375,7 +488,7 @@ const Modal = {
   _cancelBtn:  null,
   _onConfirm: null,
 
-  _init() {
+  _async init() {
     if (this._el) return;
     this._el         = document.getElementById('global-modal');
     this._title      = document.getElementById('modal-title');
@@ -403,7 +516,7 @@ const Modal = {
    * @param {Function} [opts.onConfirm]
    */
   confirm({ title, body, confirmText = 'Confirmar', confirmClass = 'btn-danger', onConfirm }) {
-    this._init();
+    this._async init();
     this._title.textContent       = title;
     this._body.innerHTML          = body;
     this._confirmBtn.textContent  = confirmText;
@@ -413,7 +526,7 @@ const Modal = {
   },
 
   close() {
-    this._init();
+    this._async init();
     this._el.classList.remove('open');
     this._onConfirm = null;
   }
@@ -425,15 +538,15 @@ const Modal = {
 const Theme = {
   _current: 'dark',
 
-  init() {
-    this._current = Storage.get(Storage.KEYS.THEME, 'dark');
+  async init() {
+    this._current = await Storage.get(Storage.KEYS.THEME, 'dark');
     this._apply();
-    document.getElementById('theme-toggle').addEventListener('click', () => this.toggle());
+    document.getElementById('theme-toggle').addEventListener('click', () => this.async toggle());
   },
 
-  toggle() {
+  async toggle() {
     this._current = this._current === 'dark' ? 'light' : 'dark';
-    Storage.set(Storage.KEYS.THEME, this._current);
+    await Storage.set(Storage.KEYS.THEME, this._current);
     this._apply();
   },
 
@@ -452,12 +565,12 @@ const Theme = {
 const Router = {
   _current: null,
 
-  init() {
+  async init() {
     document.querySelectorAll('[data-route]').forEach(item => {
       item.addEventListener('click', () => this.navigate(item.dataset.route));
     });
     // Rota inicial: colaborador vai para "Meu Espaço", master para M1
-    const session = Auth.getSession();
+    const session = Auth.async getSession();
     const defaultRoute = session?.profile === 'colab' ? 'me' : 'm1';
     const hash = window.location.hash.replace('#', '');
     const initial = hash && !(session?.profile === 'colab' && Auth.COLAB_BLOCKED.includes(hash))
@@ -466,7 +579,7 @@ const Router = {
   },
 
   navigate(route) {
-    const session = Auth.getSession();
+    const session = Auth.async getSession();
     if (!session) return;
 
     // Verificar permissão
@@ -506,28 +619,28 @@ const Router = {
    7. APP — Inicialização global
    ============================================================ */
 const App = {
-  init() {
-    Theme.init();
-    Auth.init();
+  async init() {
+    Theme.async init();
+    Auth.async init();
 
     // Inicializa cada módulo na ordem
-    MePanel.init();
-    M1.init();
-    M2.init();
-    M3.init();
-    M4.init();
-    M5.init();
-    M6.init();
-    M7.init();
-    M8.init();
-    M9.init();
-    M10.init();
-    M11.init();
-    M12.init();
+    MePanel.async init();
+    M1.async init();
+    M2.async init();
+    M3.async init();
+    M4.async init();
+    M5.async init();
+    M6.async init();
+    M7.async init();
+    M8.async init();
+    M9.async init();
+    M10.async init();
+    M11.async init();
+    M12.async init();
 
     console.info('[Hub Interno] Aplicação iniciada com sucesso.');
   }
 };
 
 // Aguarda o DOM estar pronto
-document.addEventListener('DOMContentLoaded', () => App.init());
+document.addEventListener('DOMContentLoaded', () => App.async init());

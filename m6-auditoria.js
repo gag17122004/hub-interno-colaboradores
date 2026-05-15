@@ -52,7 +52,7 @@ const M6 = (() => {
     });
   }
 
-  function init() {
+  async function init() {
     const clearBtn = $('m6-clear-btn');
     if (clearBtn) clearBtn.addEventListener('click', clearLogs);
 

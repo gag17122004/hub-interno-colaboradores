@@ -86,7 +86,7 @@ const M4 = (() => {
     calc();
   }
 
-  function init() {
+  async function init() {
     ['m4-height','m4-width','m4-length','m4-weight'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.addEventListener('input', calc);
@@ -109,8 +109,8 @@ const M5 = (() => {
 
   let tasks = [];
 
-  function save() { Storage.set(Storage.KEYS.TASKS, tasks); }
-  function load() { tasks = Storage.get(Storage.KEYS.TASKS, []); }
+  async function save() { await Storage.set(Storage.KEYS.TASKS, tasks); }
+  async function load() { tasks = await Storage.get(Storage.KEYS.TASKS, []); }
 
   /* ── Renderização ──────────────────────────────────────── */
   function render() {
@@ -216,7 +216,7 @@ const M5 = (() => {
       tasks.push({ id: Utils.uid(), date, item, notes, owner });
     }
 
-    save();
+    await save();
     Logger.log(`${_editId ? 'Editou' : 'Adicionou'} tarefa: ${item}`);
     closeModal();
     render();
@@ -234,7 +234,7 @@ const M5 = (() => {
       confirmClass: 'btn-danger',
       onConfirm() {
         tasks = tasks.filter(t => t.id !== id);
-        save();
+        await save();
         Logger.log(`Removeu tarefa: ${task.item}`);
         render();
         updateCount();
@@ -244,8 +244,8 @@ const M5 = (() => {
   }
 
   /* ── Init ──────────────────────────────────────────────── */
-  function init() {
-    load();
+  async function init() {
+    await load();
 
     const addBtn = document.getElementById('m5-add-btn');
     if (addBtn) addBtn.addEventListener('click', openAdd);
@@ -261,7 +261,7 @@ const M5 = (() => {
 
     document.addEventListener('route:change', (e) => {
       if (e.detail.route === 'm5') {
-        load();
+        await load();
         render();
         updateCount();
       }

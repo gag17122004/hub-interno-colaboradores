@@ -13,21 +13,21 @@ const M8 = (() => {
   let quoteItems = [];
   let editingQuoteId = null;
 
-  function save() {
-    Storage.set(CLIENTS_KEY, clients);
-    Storage.set(QUOTES_KEY,  quotes);
+  async function save() {
+    await Storage.set(CLIENTS_KEY, clients);
+    await Storage.set(QUOTES_KEY,  quotes);
   }
-  function load() {
-    clients = Storage.get(CLIENTS_KEY, []);
-    quotes  = Storage.get(QUOTES_KEY,  []);
+  async function load() {
+    clients = await Storage.get(CLIENTS_KEY, []);
+    quotes  = await Storage.get(QUOTES_KEY,  []);
   }
 
   function getPriceKg() {
-    return Storage.get('hub_raw_prices', {}).kg || 0;
+    return await Storage.get('hub_raw_prices', {}).kg || 0;
   }
 
   function getAllVariations() {
-    const products = Storage.get(Storage.KEYS.PRODUCTS, []);
+    const products = await Storage.get(Storage.KEYS.PRODUCTS, []);
     const vars = [];
     products.forEach(g => {
       (g.variations || []).forEach(v => {
@@ -250,7 +250,7 @@ const M8 = (() => {
     } else {
       quotes.push(q);
     }
-    save();
+    await save();
     editingQuoteId = null;
     quoteItems = [];
     renderQuoteItemsList();
@@ -323,7 +323,7 @@ const M8 = (() => {
       confirmText: 'Remover', confirmClass: 'btn-danger',
       onConfirm() {
         quotes = quotes.filter(q => q.id !== id);
-        save(); renderQuoteHistory();
+        await save(); renderQuoteHistory();
         Toast.success('Orçamento removido.');
       }
     });
@@ -350,7 +350,7 @@ const M8 = (() => {
       notes:    $('m8-c-notes')?.value?.trim()    || '',
       createdAt: new Date().toISOString()
     });
-    save();
+    await save();
     closeClientModal();
     renderClients();
     Logger.log(`Cadastrou cliente: ${name}`);
@@ -361,8 +361,8 @@ const M8 = (() => {
     $('modal-m8-client').classList.remove('open');
   }
 
-  function init() {
-    load();
+  async function init() {
+    await load();
     $('m8-add-client-btn')?.addEventListener('click', openAddClient);
     $('m8-save-client-btn')?.addEventListener('click', saveClient);
     $('m8-cancel-client-btn')?.addEventListener('click', closeClientModal);
@@ -374,7 +374,7 @@ const M8 = (() => {
 
     document.addEventListener('route:change', e => {
       if (e.detail.route !== 'm8') return;
-      load(); renderClients(); renderProductPicker();
+      await load(); renderClients(); renderProductPicker();
       if (selectedClient) {
         selectedClient = clients.find(c => c.id === selectedClient.id) || null;
         renderClientPanel();

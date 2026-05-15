@@ -21,22 +21,22 @@ const M1 = (() => {
   let activeTab      = 'records';
 
   /* ── Persistência ── */
-  function save() {
-    Storage.set(Storage.KEYS.EMPLOYEES, employees);
-    Storage.set(TRK, timeRecords);
-    Storage.set(ABK, absences);
-    Storage.set(Storage.KEYS.DEBTS, debts);
+  async function save() {
+    await Storage.set(Storage.KEYS.EMPLOYEES, employees);
+    await Storage.set(TRK, timeRecords);
+    await Storage.set(ABK, absences);
+    await Storage.set(Storage.KEYS.DEBTS, debts);
   }
 
-  function load() {
-    employees   = Storage.get(Storage.KEYS.EMPLOYEES, []);
-    timeRecords = Storage.get(TRK, {});
-    absences    = Storage.get(ABK, {});
-    debts       = Storage.get(Storage.KEYS.DEBTS, {});
+  async function load() {
+    employees   = await Storage.get(Storage.KEYS.EMPLOYEES, []);
+    timeRecords = await Storage.get(TRK, {});
+    absences    = await Storage.get(ABK, {});
+    debts       = await Storage.get(Storage.KEYS.DEBTS, {});
 
     // Migrar formato antigo (hub_hours)
     if (Object.keys(timeRecords).length === 0) {
-      const oldHours = Storage.get(Storage.KEYS.HOURS, null);
+      const oldHours = await Storage.get(Storage.KEYS.HOURS, null);
       if (oldHours) {
         Object.keys(oldHours).forEach(empId => {
           timeRecords[empId] = (oldHours[empId] || []).map(r => ({
@@ -49,7 +49,7 @@ const M1 = (() => {
             masterNote: r.period ? `Migrado: ${r.period}` : 'Migrado do sistema anterior',
           }));
         });
-        save();
+        await save();
       }
     }
   }
@@ -153,7 +153,7 @@ const M1 = (() => {
         rec.overtimeMinutes = calcOvertime(rec);
       }
 
-      save();
+      await save();
       Logger.log(`Ponto ${labels[punchNum - 1]} — ${session.name} — ${now}${geo ? '' : ' (sem geo)'}`);
       renderPunchPanel(empId);
       renderEmployeeList();
@@ -387,7 +387,7 @@ const M1 = (() => {
     rec.workedMinutes   = calcWorked(rec);
     rec.overtimeMinutes = calcOvertime(rec);
     rec.status = 'approved';
-    save();
+    await save();
     Logger.log(`Aprovou registro de ponto de ${employees.find(e => e.id === activeEmployee)?.name} — ${rec.date}`);
     renderPanel();
     renderEmployeeList();
@@ -399,7 +399,7 @@ const M1 = (() => {
     const rec = (timeRecords[activeEmployee] || []).find(r => r.id === recId);
     if (!rec) return;
     rec.status = 'rejected';
-    save();
+    await save();
     Logger.log(`Rejeitou registro de ponto de ${employees.find(e => e.id === activeEmployee)?.name} — ${rec.date}`);
     renderPanel();
     renderEmployeeList();
@@ -439,7 +439,7 @@ const M1 = (() => {
     rec.workedMinutes   = calcWorked(rec);
     rec.overtimeMinutes = calcOvertime(rec);
     rec.status = 'approved';
-    save();
+    await save();
     closeEditRecord();
     renderPanel();
     renderEmployeeList();
@@ -454,7 +454,7 @@ const M1 = (() => {
       confirmText: 'Remover',
       onConfirm() {
         timeRecords[activeEmployee] = (timeRecords[activeEmployee] || []).filter(r => r.id !== recId);
-        save();
+        await save();
         renderPanel();
         Toast.success('Registro removido.');
       }
@@ -502,7 +502,7 @@ const M1 = (() => {
       attachName: _absAttach?.name || null,
       attachB64:  _absAttach?.b64  || null,
     });
-    save();
+    await save();
     closeAbsenceModal();
     renderAbsencesTable();
     Logger.log(`Ausência marcada — ${employees.find(e => e.id === activeEmployee)?.name} — ${date}`);
@@ -516,7 +516,7 @@ const M1 = (() => {
       confirmText: 'Remover',
       onConfirm() {
         absences[activeEmployee] = (absences[activeEmployee] || []).filter(a => a.id !== absId);
-        save();
+        await save();
         renderAbsencesTable();
         Toast.success('Ausência removida.');
       }
@@ -545,7 +545,7 @@ const M1 = (() => {
     timeRecords[emp.id] = [];
     absences[emp.id]    = [];
     debts[emp.id]       = 0;
-    save();
+    await save();
     input.value = '';
     selectEmployee(emp.id);
     renderEmployeeList();
@@ -566,7 +566,7 @@ const M1 = (() => {
         delete absences[id];
         delete debts[id];
         if (activeEmployee === id) activeEmployee = employees[0]?.id || null;
-        save();
+        await save();
         renderEmployeeList();
         renderPanel();
         Toast.success('Colaborador removido.');
@@ -584,7 +584,7 @@ const M1 = (() => {
     if (!activeEmployee) return;
     const val = parseFloat($('m1-debt-input').value) || 0;
     debts[activeEmployee] = val;
-    save();
+    await save();
     renderPanel();
     renderEmployeeList();
     Toast.success('Horas devedoras salvas.');
@@ -663,8 +663,8 @@ const M1 = (() => {
   }
 
   /* ── Init ── */
-  function init() {
-    load();
+  async function init() {
+    await load();
 
     const session = Auth.getSession();
     if (session?.profile === 'colab') {

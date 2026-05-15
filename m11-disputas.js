@@ -65,10 +65,10 @@ const M11 = (() => {
   };
 
   function loadData() {
-    let data = Storage.get(KEY, null);
+    let data = await Storage.get(KEY, null);
     if (!data) {
       data = SEED;
-      Storage.set(KEY, data);
+      await Storage.set(KEY, data);
     }
     return data;
   }
@@ -191,7 +191,7 @@ const M11 = (() => {
         const tmp = document.createElement('div');
         tmp.innerHTML = ta.value;
         d.scripts[si].variants[vi] = ta.value;
-        Storage.set(KEY, d);
+        await Storage.set(KEY, d);
       });
     });
   }
@@ -199,7 +199,7 @@ const M11 = (() => {
   function addVariant(si) {
     const data = loadData();
     data.scripts[si].variants.push('Novo script — edite aqui.');
-    Storage.set(KEY, data);
+    await Storage.set(KEY, data);
     renderScriptsManagement();
     Toast.success('Variante adicionada.');
   }
@@ -210,7 +210,7 @@ const M11 = (() => {
       Toast.error('Mantenha ao menos uma variante.'); return;
     }
     data.scripts[si].variants.splice(vi, 1);
-    Storage.set(KEY, data);
+    await Storage.set(KEY, data);
     renderScriptsManagement();
   }
 
@@ -222,7 +222,7 @@ const M11 = (() => {
     if (tab === 'manage') renderScriptsManagement();
   }
 
-  function init() {
+  async function init() {
     populateDropdowns();
     $('m11-generate-btn')?.addEventListener('click', generateScript);
     $('m11-ai-btn')?.addEventListener('click', generateScriptAI);

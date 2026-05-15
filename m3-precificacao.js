@@ -20,14 +20,14 @@ const M3 = (() => {
   let variations = [];
 
   /* ── Persistência ──────────────────────────────────────── */
-  function save() {
-    Storage.set(Storage.KEYS.PRICING,  pricing);
-    Storage.set(Storage.KEYS.MKT_FEES, mktFees);
+  async function save() {
+    await Storage.set(Storage.KEYS.PRICING,  pricing);
+    await Storage.set(Storage.KEYS.MKT_FEES, mktFees);
   }
 
-  function load() {
-    pricing = Storage.get(Storage.KEYS.PRICING, {});
-    const stored = Storage.get(Storage.KEYS.MKT_FEES, null);
+  async function load() {
+    pricing = await Storage.get(Storage.KEYS.PRICING, {});
+    const stored = await Storage.get(Storage.KEYS.MKT_FEES, null);
     if (stored && stored.shein) {
       mktFees = stored;
     } else if (stored && stored.shopee && !stored.shein) {
@@ -192,7 +192,7 @@ const M3 = (() => {
       shopee: { commission: g('m3-shopee-commission') },
       tiktok: { commission: g('m3-tiktok-commission') },
     };
-    save();
+    await save();
     calcAndRender();
     Toast.success('Taxas dos marketplaces salvas.');
   }
@@ -209,13 +209,13 @@ const M3 = (() => {
     const sellQty   = parseInt($('m3-sell-qty')?.value)     || 1;
     const freight   = parseFloat($('m3-freight')?.value)    || 0;
     pricing[activeVariationId] = { sell_price: sellPrice, sell_qty: sellQty, freight };
-    save();
+    await save();
     calcAndRender();
   }
 
   /* ── Inicialização ─────────────────────────────────────── */
-  function init() {
-    load();
+  async function init() {
+    await load();
 
     const saveFeesBtn = $('m3-save-fees-btn');
     if (saveFeesBtn) saveFeesBtn.addEventListener('click', saveFees);
@@ -239,7 +239,7 @@ const M3 = (() => {
     });
     document.addEventListener('route:change', (e) => {
       if (e.detail.route === 'm3') {
-        load();
+        await load();
         variations = M2.getFlatVariations();
         renderFees();
         renderProductList();
