@@ -39,8 +39,8 @@ const MePanel = (() => {
   /* ── Stats rápidos ───────────────────────────────────────── */
   async function renderStats(session) {
     // Horas extras aprovadas do mês atual (novo formato)
-    const timeRecords = await Storage.get('hub_time_records', {});
-    const employees   = await Storage.get(Storage.KEYS.EMPLOYEES, []);
+    const timeRecords = Storage.getSync('hub_time_records', {});
+    const employees   = Storage.getSync(Storage.KEYS.EMPLOYEES, []);
     const emp = employees.find(e => e.name === session.name);
     let monthHours = 0;
     if (emp) {
@@ -53,13 +53,13 @@ const MePanel = (() => {
     if (hoursEl) hoursEl.textContent = Utils.num(monthHours, 1) + 'h';
 
     // Tarefas próprias
-    const tasks = await Storage.get(Storage.KEYS.TASKS, []);
+    const tasks = Storage.getSync(Storage.KEYS.TASKS, []);
     const myTasks = tasks.filter(t => !t.owner || t.owner === session.name);
     const tasksEl = $('me-stat-tasks');
     if (tasksEl) tasksEl.textContent = myTasks.length;
 
     // Produção da semana (pacotes)
-    const records = await Storage.get(Storage.KEYS.PRODUCTION, []);
+    const records = Storage.getSync(Storage.KEYS.PRODUCTION, []);
     const today = new Date();
     const dow = today.getDay();
     const weekStart = new Date(today);
@@ -77,7 +77,7 @@ const MePanel = (() => {
     const list = $('me-tasks-list');
     if (!list) return;
 
-    const tasks = await Storage.get(Storage.KEYS.TASKS, [])
+    const tasks = Storage.getSync(Storage.KEYS.TASKS, [])
       .filter(t => !t.owner || t.owner === session.name)
       .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
       .slice(0, 6);
@@ -106,7 +106,7 @@ const MePanel = (() => {
     const list = $('me-hours-list');
     if (!list) return;
 
-    const employees = await Storage.get(Storage.KEYS.EMPLOYEES, []);
+    const employees = Storage.getSync(Storage.KEYS.EMPLOYEES, []);
     const emp = employees.find(e => e.name === session.name);
 
     if (!emp) {
@@ -117,7 +117,7 @@ const MePanel = (() => {
       return;
     }
 
-    const timeRecords = await Storage.get('hub_time_records', {});
+    const timeRecords = Storage.getSync('hub_time_records', {});
     const thisMonth   = Utils.currentMonth();
     const records     = (timeRecords[emp.id] || [])
       .filter(r => (r.date || '').startsWith(thisMonth))
@@ -150,7 +150,7 @@ const MePanel = (() => {
   }
 
   /* ── Init ────────────────────────────────────────────────── */
-  async function init() {
+  function init() {
     document.addEventListener('route:change', async (e) => {
       if (e.detail.route === 'me') render();
     });
@@ -158,3 +158,4 @@ const MePanel = (() => {
 
   return { init, render };
 })();
+window.MePanel = MePanel;

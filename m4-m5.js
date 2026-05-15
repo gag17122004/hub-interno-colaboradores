@@ -109,8 +109,15 @@ const M5 = (() => {
 
   let tasks = [];
 
-  async function save() { await Storage.set(Storage.KEYS.TASKS, tasks); }
-  async function load() { tasks = await Storage.get(Storage.KEYS.TASKS, []); }
+  async function save() {
+    Storage._setLocal(Storage.KEYS.TASKS, tasks);  // síncrono, imediato
+    Storage.set(Storage.KEYS.TASKS, tasks).catch(() => {}); // Firebase em background
+  }
+
+  function load() {
+    // Carrega do localStorage de forma síncrona — sempre disponível
+    tasks = Storage._getLocal(Storage.KEYS.TASKS, []);
+  }
 
   /* ── Renderização ──────────────────────────────────────── */
   function render() {
@@ -198,7 +205,7 @@ const M5 = (() => {
     _editId = null;
   }
 
-  async function saveTask() {
+  function saveTask() {
     const date  = document.getElementById('m5-task-date').value;
     const item  = document.getElementById('m5-task-item').value.trim();
     const notes = document.getElementById('m5-task-notes').value.trim();
@@ -216,7 +223,7 @@ const M5 = (() => {
       tasks.push({ id: Utils.uid(), date, item, notes, owner });
     }
 
-    await save();
+    save();
     Logger.log(`${_editId ? 'Editou' : 'Adicionou'} tarefa: ${item}`);
     closeModal();
     render();
@@ -224,7 +231,7 @@ const M5 = (() => {
     Toast.success(_editId ? 'Tarefa atualizada.' : 'Tarefa adicionada.');
   }
 
-  async function removeTask(id) {
+  function removeTask(id) {
     const task = tasks.find(t => t.id === id);
     if (!task) return;
     Modal.confirm({
@@ -232,9 +239,9 @@ const M5 = (() => {
       body: `<p>Remover <strong>"${Utils.esc(task.item)}"</strong>?</p>`,
       confirmText: 'Remover',
       confirmClass: 'btn-danger',
-      async onConfirm() {
+      onConfirm() {
         tasks = tasks.filter(t => t.id !== id);
-        await save();
+        save();
         Logger.log(`Removeu tarefa: ${task.item}`);
         render();
         updateCount();
@@ -244,24 +251,19 @@ const M5 = (() => {
   }
 
   /* ── Init ──────────────────────────────────────────────── */
-  async function init() {
-    await load();
+  function init() {
+    load();
 
-    const addBtn = document.getElementById('m5-add-btn');
-    if (addBtn) addBtn.addEventListener('click', openAdd);
-
-    const saveBtn = document.getElementById('m5-save-task-btn');
-    if (saveBtn) saveBtn.addEventListener('click', saveTask);
-
-    const cancelBtn = document.getElementById('m5-cancel-task-btn');
-    if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+    document.getElementById('m5-add-btn')?.addEventListener('click', openAdd);
+    document.getElementById('m5-save-task-btn')?.addEventListener('click', saveTask);
+    document.getElementById('m5-cancel-task-btn')?.addEventListener('click', closeModal);
 
     render();
     updateCount();
 
-    document.addEventListener('route:change', async (e) => {
+    document.addEventListener('route:change', e => {
       if (e.detail.route === 'm5') {
-        await load();
+        load();
         render();
         updateCount();
       }
@@ -270,3 +272,5 @@ const M5 = (() => {
 
   return { init, editTask, removeTask };
 })();
+window.M4 = M4;
+window.M5 = M5;

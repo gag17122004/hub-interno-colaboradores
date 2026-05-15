@@ -21,22 +21,22 @@ const M1 = (() => {
   let activeTab      = 'records';
 
   /* ── Persistência ── */
-  async function save() {
-    await Storage.set(Storage.KEYS.EMPLOYEES, employees);
-    await Storage.set(TRK, timeRecords);
-    await Storage.set(ABK, absences);
-    await Storage.set(Storage.KEYS.DEBTS, debts);
+  function save() {
+    Storage.setSync(Storage.KEYS.EMPLOYEES, employees);
+    Storage.setSync(TRK, timeRecords);
+    Storage.setSync(ABK, absences);
+    Storage.setSync(Storage.KEYS.DEBTS, debts);
   }
 
   async function load() {
-    employees   = await Storage.get(Storage.KEYS.EMPLOYEES, []);
-    timeRecords = await Storage.get(TRK, {});
-    absences    = await Storage.get(ABK, {});
-    debts       = await Storage.get(Storage.KEYS.DEBTS, {});
+    employees   = Storage.getSync(Storage.KEYS.EMPLOYEES, []);
+    timeRecords = Storage.getSync(TRK, {});
+    absences    = Storage.getSync(ABK, {});
+    debts       = Storage.getSync(Storage.KEYS.DEBTS, {});
 
     // Migrar formato antigo (hub_hours)
     if (Object.keys(timeRecords).length === 0) {
-      const oldHours = await Storage.get(Storage.KEYS.HOURS, null);
+      const oldHours = Storage.getSync(Storage.KEYS.HOURS, null);
       if (oldHours) {
         Object.keys(oldHours).forEach(empId => {
           timeRecords[empId] = (oldHours[empId] || []).map(r => ({
@@ -49,7 +49,7 @@ const M1 = (() => {
             masterNote: r.period ? `Migrado: ${r.period}` : 'Migrado do sistema anterior',
           }));
         });
-        await save();
+        save();
       }
     }
   }
@@ -107,7 +107,7 @@ const M1 = (() => {
 
   /* ── Ponto ── */
   async function punch(punchNum) {
-    const session = await Auth.getSession();
+    const session = Auth.getSession();
     if (!session) return;
 
     let empId = activeEmployee;
@@ -153,7 +153,7 @@ const M1 = (() => {
         rec.overtimeMinutes = calcOvertime(rec);
       }
 
-      await save();
+      save();
       Logger.log(`Ponto ${labels[punchNum - 1]} — ${session.name} — ${now}${geo ? '' : ' (sem geo)'}`);
       renderPunchPanel(empId);
       renderEmployeeList();
@@ -165,7 +165,7 @@ const M1 = (() => {
   async function renderEmployeeList() {
     const list = $('m1-employee-list');
     if (!list) return;
-    const session = await Auth.getSession();
+    const session = Auth.getSession();
     let displayEmps = employees;
     if (session?.profile === 'colab') {
       displayEmps = employees.filter(e => e.name === session.name);
@@ -224,7 +224,7 @@ const M1 = (() => {
     if (badge) badge.textContent = pendCt > 0 ? pendCt : '';
 
     // Mostrar ponto hoje se for o próprio colaborador ou master
-    const session = await Auth.getSession();
+    const session = Auth.getSession();
     const punchCard = $('m1-punch-card');
     if (punchCard) {
       const isOwnRecord = session?.profile === 'master' || (session?.name && emp.name === session.name);
@@ -387,7 +387,7 @@ const M1 = (() => {
     rec.workedMinutes   = calcWorked(rec);
     rec.overtimeMinutes = calcOvertime(rec);
     rec.status = 'approved';
-    await save();
+    save();
     Logger.log(`Aprovou registro de ponto de ${employees.find(e => e.id === activeEmployee)?.name} — ${rec.date}`);
     renderPanel();
     renderEmployeeList();
@@ -399,11 +399,51 @@ const M1 = (() => {
     const rec = (timeRecords[activeEmployee] || []).find(r => r.id === recId);
     if (!rec) return;
     rec.status = 'rejected';
-    await save();
+    save();
     Logger.log(`Rejeitou registro de ponto de ${employees.find(e => e.id === activeEmployee)?.name} — ${rec.date}`);
     renderPanel();
     renderEmployeeList();
     Toast.info('Registro rejeitado.');
+  }
+
+  /* ── Painel de senhas (master) ── */
+  function renderPasswordPanel() {
+    const box = $('m1-password-panel');
+    if (!box || !Auth.isMaster()) return;
+    const passwords = Auth.getPasswords();
+    const rows = [{ name: Auth.MASTER_NAME }, ...employees].map(emp => {
+      const name = emp.name;
+      const pass = Auth.getPassword(name);
+      const isDefault = name === Auth.MASTER_NAME && !passwords[name];
+      return `<div class="p5-mini-card" style="padding:9px">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:center">
+          <div style="min-width:0">
+            <div class="text-sm font-bold">${Utils.esc(name)}</div>
+            <div class="text-xs text-muted font-mono">${pass ? Utils.esc(pass) : 'Primeiro acesso pendente'}${isDefault ? ' (padrão)' : ''}</div>
+          </div>
+          <button class="btn btn-xs btn-secondary" onclick="Auth.resetColabPassword('${Utils.esc(name).replace(/'/g, "\\'")}')"><i class="fa-solid fa-key"></i></button>
+        </div>
+      </div>`;
+    }).join('');
+    box.innerHTML = rows || '<div class="text-xs text-muted">Nenhum colaborador.</div>';
+  }
+  window.renderPasswordPanel = renderPasswordPanel;
+
+  /* ── Lançamento manual de ponto (master) ── */
+  function openManualRecord() {
+    if (!Auth.isMaster() || !activeEmployee) return;
+    if (!timeRecords[activeEmployee]) timeRecords[activeEmployee] = [];
+    const rec = {
+      id: Utils.uid(),
+      date: new Date().toISOString().split('T')[0],
+      punch1: null, punch2: null, punch3: null, punch4: null,
+      geo1: null,   geo2: null,   geo3: null,   geo4: null,
+      workedMinutes: 0, overtimeMinutes: 0,
+      status: 'pending', masterNote: '', manualDraft: true
+    };
+    timeRecords[activeEmployee].unshift(rec);
+    save();
+    openEditRecord(rec.id);
   }
 
   /* ── Modal: editar registro ── */
@@ -439,7 +479,7 @@ const M1 = (() => {
     rec.workedMinutes   = calcWorked(rec);
     rec.overtimeMinutes = calcOvertime(rec);
     rec.status = 'approved';
-    await save();
+    save();
     closeEditRecord();
     renderPanel();
     renderEmployeeList();
@@ -454,7 +494,7 @@ const M1 = (() => {
       confirmText: 'Remover',
       async onConfirm() {
         timeRecords[activeEmployee] = (timeRecords[activeEmployee] || []).filter(r => r.id !== recId);
-        await save();
+        save();
         renderPanel();
         Toast.success('Registro removido.');
       }
@@ -502,7 +542,7 @@ const M1 = (() => {
       attachName: _absAttach?.name || null,
       attachB64:  _absAttach?.b64  || null,
     });
-    await save();
+    save();
     closeAbsenceModal();
     renderAbsencesTable();
     Logger.log(`Ausência marcada — ${employees.find(e => e.id === activeEmployee)?.name} — ${date}`);
@@ -516,7 +556,7 @@ const M1 = (() => {
       confirmText: 'Remover',
       async onConfirm() {
         absences[activeEmployee] = (absences[activeEmployee] || []).filter(a => a.id !== absId);
-        await save();
+        save();
         renderAbsencesTable();
         Toast.success('Ausência removida.');
       }
@@ -545,7 +585,7 @@ const M1 = (() => {
     timeRecords[emp.id] = [];
     absences[emp.id]    = [];
     debts[emp.id]       = 0;
-    await save();
+    save();
     input.value = '';
     selectEmployee(emp.id);
     renderEmployeeList();
@@ -566,7 +606,7 @@ const M1 = (() => {
         delete absences[id];
         delete debts[id];
         if (activeEmployee === id) activeEmployee = employees[0]?.id || null;
-        await save();
+        save();
         renderEmployeeList();
         renderPanel();
         Toast.success('Colaborador removido.');
@@ -584,7 +624,7 @@ const M1 = (() => {
     if (!activeEmployee) return;
     const val = parseFloat($('m1-debt-input').value) || 0;
     debts[activeEmployee] = val;
-    await save();
+    save();
     renderPanel();
     renderEmployeeList();
     Toast.success('Horas devedoras salvas.');
@@ -664,9 +704,9 @@ const M1 = (() => {
 
   /* ── Init ── */
   async function init() {
-    await load();
+    load();
 
-    const session = await Auth.getSession();
+    const session = Auth.getSession();
     if (session?.profile === 'colab') {
       const myEmp = employees.find(e => e.name === session.name);
       if (myEmp) activeEmployee = myEmp.id;
@@ -689,8 +729,10 @@ const M1 = (() => {
     $('m1-cancel-absence-btn')?.addEventListener('click', closeAbsenceModal);
     $('m1-abs-attach-btn')?.addEventListener('click', () => $('m1-abs-attach-input')?.click());
     $('m1-abs-attach-input')?.addEventListener('change', onAbsAttach);
+    $('m1-manual-record-btn')?.addEventListener('click', openManualRecord);
 
     renderEmployeeList();
+    renderPasswordPanel();
     renderPanel();
     if (activeEmployee) renderPunchPanel(activeEmployee);
 
@@ -702,6 +744,7 @@ const M1 = (() => {
         if (myEmp) activeEmployee = myEmp.id;
       }
       renderEmployeeList();
+      renderPasswordPanel();
       renderPanel();
       if (activeEmployee) renderPunchPanel(activeEmployee);
     });
@@ -711,6 +754,7 @@ const M1 = (() => {
     init, addEmployee, removeEmployee, selectEmployee,
     saveDebt, onFilterChange, setTab, punch,
     approveRecord, rejectRecord, openEditRecord, closeEditRecord, saveEditRecord, removeRecord,
-    openAddAbsence, closeAbsenceModal, saveAbsence, removeAbsence, downloadAttach, printMonth,
+    openManualRecord, openAddAbsence, closeAbsenceModal, saveAbsence, removeAbsence, downloadAttach, printMonth,
   };
 })();
+window.M1 = M1;

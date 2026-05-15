@@ -119,7 +119,7 @@ const M12 = (() => {
     });
   }
 
-  async function init() {
+  function init() {
     $('m12-optimize-btn')?.addEventListener('click', optimizeTitle);
     $('m12-multiply-btn')?.addEventListener('click', multiplyTitle);
     $('m12-tab-ai')?.addEventListener('click',       () => setTab('ai'));
@@ -128,3 +128,4 @@ const M12 = (() => {
 
   return { init, setTab };
 })();
+window.M12 = M12;

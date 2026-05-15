@@ -20,14 +20,14 @@ const M3 = (() => {
   let variations = [];
 
   /* ── Persistência ──────────────────────────────────────── */
-  async function save() {
-    await Storage.set(Storage.KEYS.PRICING,  pricing);
-    await Storage.set(Storage.KEYS.MKT_FEES, mktFees);
+  function save() {
+    Storage.setSync(Storage.KEYS.PRICING,  pricing);
+    Storage.setSync(Storage.KEYS.MKT_FEES, mktFees);
   }
 
-  async function load() {
-    pricing = await Storage.get(Storage.KEYS.PRICING, {});
-    const stored = await Storage.get(Storage.KEYS.MKT_FEES, null);
+  function load() {
+    pricing = Storage.getSync(Storage.KEYS.PRICING, {});
+    const stored = Storage.getSync(Storage.KEYS.MKT_FEES, null);
     if (stored && stored.shein) {
       mktFees = stored;
     } else if (stored && stored.shopee && !stored.shein) {
@@ -192,7 +192,7 @@ const M3 = (() => {
       shopee: { commission: g('m3-shopee-commission') },
       tiktok: { commission: g('m3-tiktok-commission') },
     };
-    await save();
+    save();
     calcAndRender();
     Toast.success('Taxas dos marketplaces salvas.');
   }
@@ -209,13 +209,13 @@ const M3 = (() => {
     const sellQty   = parseInt($('m3-sell-qty')?.value)     || 1;
     const freight   = parseFloat($('m3-freight')?.value)    || 0;
     pricing[activeVariationId] = { sell_price: sellPrice, sell_qty: sellQty, freight };
-    await save();
+    save();
     calcAndRender();
   }
 
   /* ── Inicialização ─────────────────────────────────────── */
   async function init() {
-    await load();
+    load();
 
     const saveFeesBtn = $('m3-save-fees-btn');
     if (saveFeesBtn) saveFeesBtn.addEventListener('click', saveFees);
@@ -239,7 +239,7 @@ const M3 = (() => {
     });
     document.addEventListener('route:change', async (e) => {
       if (e.detail.route === 'm3') {
-        await load();
+        load();
         variations = M2.getFlatVariations();
         renderFees();
         renderProductList();
@@ -253,3 +253,4 @@ const M3 = (() => {
   return { init, selectVariation, saveFees, savePricingInputs, calcAndRender };
 
 })();
+window.M3 = M3;

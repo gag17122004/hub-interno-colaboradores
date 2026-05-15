@@ -13,31 +13,31 @@ const M8 = (() => {
   let quoteItems = [];
   let editingQuoteId = null;
 
-  async function save() {
-    await Storage.set(CLIENTS_KEY, clients);
-    await Storage.set(QUOTES_KEY,  quotes);
+  function save() {
+    Storage.setSync(CLIENTS_KEY, clients);
+    Storage.setSync(QUOTES_KEY,  quotes);
   }
-  async function load() {
-    clients = await Storage.get(CLIENTS_KEY, []);
-    quotes  = await Storage.get(QUOTES_KEY,  []);
-  }
-
-  async function getPriceKg() {
-    return await Storage.get('hub_raw_prices', {}).kg || 0;
+  function load() {
+    clients = Storage.getSync(CLIENTS_KEY, []);
+    quotes  = Storage.getSync(QUOTES_KEY,  []);
   }
 
-  async function getAllVariations() {
-    const products = await Storage.get(Storage.KEYS.PRODUCTS, []);
+  function getPriceKg() {
+    const stored = Storage.getSync('hub_raw_prices', {});
+    return stored.single ?? stored.coex ?? stored.pebd ?? 0;
+  }
+
+  function getAllVariations() {
+    const products = Storage.getSync(Storage.KEYS.PRODUCTS, []);
     const vars = [];
     products.forEach(g => {
       (g.variations || []).forEach(v => {
         vars.push({
-          prodId: v.id,
+          prodId:    v.id,
           groupName: g.name,
-          sku: v.sku || '',
+          sku:       v.sku || '',
           lotWeight: Number(v.lotWeight) || 0,
-          qty: Number(v.qty) || 1,
-          type: g.type || 'Saco'
+          qty:       Number(v.qty) || 1,
         });
       });
     });
@@ -64,9 +64,13 @@ const M8 = (() => {
       <div class="m1-emp-item ${selectedClient?.id === c.id ? 'active' : ''}"
            onclick="M8.selectClient('${c.id}')">
         <div class="m1-emp-avatar" style="background:var(--indigo)">${Utils.esc(c.name.charAt(0).toUpperCase())}</div>
-        <div class="m1-emp-info">
+        <div class="m1-emp-info" style="flex:1;min-width:0">
           <div class="m1-emp-name">${Utils.esc(c.name)}</div>
           <div class="m1-emp-bal text-muted">${Utils.esc(c.phone || c.whatsapp || '—')}</div>
+        </div>
+        <div class="flex gap-1" onclick="event.stopPropagation()">
+          <button class="btn btn-xs btn-ghost btn-icon" title="Editar" onclick="M8.editClient('${c.id}')"><i class="fa-solid fa-pen" style="font-size:10px"></i></button>
+          <button class="btn btn-xs btn-ghost btn-icon" title="Remover" onclick="M8.deleteClient('${c.id}')"><i class="fa-solid fa-xmark" style="font-size:10px"></i></button>
         </div>
       </div>`).join('');
   }
@@ -228,7 +232,7 @@ const M8 = (() => {
     if ($('m8-grandtotal')) $('m8-grandtotal').textContent = Utils.brl(grand);
   }
 
-  async function saveQuote() {
+  function saveQuote() {
     if (!selectedClient)         { Toast.error('Selecione um cliente.'); return; }
     if (quoteItems.length === 0) { Toast.error('Adicione pelo menos um item.'); return; }
     const subtotal = quoteItems.reduce((s, it) => s + it.total, 0);
@@ -250,7 +254,7 @@ const M8 = (() => {
     } else {
       quotes.push(q);
     }
-    await save();
+    save();
     editingQuoteId = null;
     quoteItems = [];
     renderQuoteItemsList();
@@ -316,21 +320,24 @@ const M8 = (() => {
     win.document.close();
   }
 
-  async function removeQuote(id) {
+  function removeQuote(id) {
     Modal.confirm({
       title: 'Remover Orçamento',
       body: '<p>Remover este orçamento do histórico?</p>',
       confirmText: 'Remover', confirmClass: 'btn-danger',
-      async onConfirm() {
+      onConfirm() {
         quotes = quotes.filter(q => q.id !== id);
-        await save(); renderQuoteHistory();
+        save(); renderQuoteHistory();
         Toast.success('Orçamento removido.');
       }
     });
   }
 
   /* ── CRUD clientes ── */
+  let _editingClientId = null;
+
   function openAddClient() {
+    _editingClientId = null;
     $('m8-client-modal-title').textContent = 'Novo Cliente';
     ['m8-c-name','m8-c-phone','m8-c-email','m8-c-whatsapp','m8-c-notes'].forEach(id => {
       const el = $(id); if (el) el.value = '';
@@ -338,31 +345,77 @@ const M8 = (() => {
     $('modal-m8-client').classList.add('open');
   }
 
-  async function saveClient() {
+  function editClient(id) {
+    const c = clients.find(x => x.id === id);
+    if (!c) return;
+    _editingClientId = id;
+    $('m8-client-modal-title').textContent = 'Editar Cliente';
+    $('m8-c-name').value     = c.name     || '';
+    $('m8-c-phone').value    = c.phone    || '';
+    $('m8-c-email').value    = c.email    || '';
+    $('m8-c-whatsapp').value = c.whatsapp || '';
+    $('m8-c-notes').value    = c.notes    || '';
+    $('modal-m8-client').classList.add('open');
+  }
+
+  function deleteClient(id) {
+    const c = clients.find(x => x.id === id);
+    if (!c) return;
+    Modal.confirm({
+      title: 'Remover Cliente',
+      body: `<p>Remover <strong>${Utils.esc(c.name)}</strong> e todos os orçamentos associados?</p>`,
+      confirmText: 'Remover', confirmClass: 'btn-danger',
+      onConfirm() {
+        clients = clients.filter(x => x.id !== id);
+        quotes  = quotes.filter(q => q.clientId !== id);
+        if (selectedClient?.id === id) {
+          selectedClient = null;
+          $('m8-no-client')?.classList.remove('hidden');
+          $('m8-client-panel')?.classList.add('hidden');
+        }
+        save();
+        renderClients();
+        Toast.success('Cliente removido.');
+      }
+    });
+  }
+
+  function saveClient() {
     const name = $('m8-c-name')?.value?.trim();
     if (!name) { Toast.error('Informe o nome do cliente.'); return; }
-    clients.push({
-      id: Utils.uid(),
+    const data = {
       name,
       phone:    $('m8-c-phone')?.value?.trim()    || '',
       email:    $('m8-c-email')?.value?.trim()    || '',
       whatsapp: $('m8-c-whatsapp')?.value?.trim() || '',
       notes:    $('m8-c-notes')?.value?.trim()    || '',
-      createdAt: new Date().toISOString()
-    });
-    await save();
+    };
+    if (_editingClientId) {
+      const idx = clients.findIndex(x => x.id === _editingClientId);
+      if (idx !== -1) clients[idx] = { ...clients[idx], ...data };
+      if (selectedClient?.id === _editingClientId) {
+        selectedClient = clients[idx];
+        renderClientPanel();
+      }
+      Logger.log(`Editou cliente: ${name}`);
+      Toast.success('Cliente atualizado!');
+    } else {
+      clients.push({ id: Utils.uid(), createdAt: new Date().toISOString(), ...data });
+      Logger.log(`Cadastrou cliente: ${name}`);
+      Toast.success('Cliente cadastrado!');
+    }
+    save();
     closeClientModal();
     renderClients();
-    Logger.log(`Cadastrou cliente: ${name}`);
-    Toast.success('Cliente cadastrado!');
   }
 
   function closeClientModal() {
     $('modal-m8-client').classList.remove('open');
+    _editingClientId = null;
   }
 
-  async function init() {
-    await load();
+  function init() {
+    load();
     $('m8-add-client-btn')?.addEventListener('click', openAddClient);
     $('m8-save-client-btn')?.addEventListener('click', saveClient);
     $('m8-cancel-client-btn')?.addEventListener('click', closeClientModal);
@@ -372,9 +425,9 @@ const M8 = (() => {
     $('m8-discount')?.addEventListener('input', recalcTotals);
     renderClients();
 
-    document.addEventListener('route:change', async (e) => {
+    document.addEventListener('route:change', e => {
       if (e.detail.route !== 'm8') return;
-      await load(); renderClients(); renderProductPicker();
+      load(); renderClients(); renderProductPicker();
       if (selectedClient) {
         selectedClient = clients.find(c => c.id === selectedClient.id) || null;
         renderClientPanel();
@@ -382,5 +435,6 @@ const M8 = (() => {
     });
   }
 
-  return { init, selectClient, removeItem, removeQuote, printQuote, openAddClient };
+  return { init, selectClient, editClient, deleteClient, removeItem, removeQuote, printQuote, openAddClient };
 })();
+window.M8 = M8;

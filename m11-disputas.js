@@ -64,17 +64,17 @@ const M11 = (() => {
     ]
   };
 
-  async function loadData() {
-    let data = await Storage.get(KEY, null);
+  function loadData() {
+    let data = Storage.getSync(KEY, null);
     if (!data) {
       data = SEED;
-      await Storage.set(KEY, data);
+      Storage.setSync(KEY, data);
     }
     return data;
   }
 
-  async function populateDropdowns() {
-    const data = await loadData();
+  function populateDropdowns() {
+    const data = loadData();
     const reasonSel = $('m11-reason');
     const justSel   = $('m11-just');
     if (reasonSel) {
@@ -148,10 +148,10 @@ const M11 = (() => {
   }
 
   /* ── Gerenciamento de scripts (master) ── */
-  async function renderScriptsManagement() {
+  function renderScriptsManagement() {
     const container = $('m11-scripts-manage');
     if (!container) return;
-    const data = await loadData();
+    const data = loadData();
 
     container.innerHTML = data.scripts.map((s, si) => {
       const reason = data.reasons.find(r => r.id === s.reasonId)?.label || s.reasonId;
@@ -183,7 +183,7 @@ const M11 = (() => {
     }).join('');
 
     container.querySelectorAll('.m11-script-ta').forEach(ta => {
-      ta.addEventListener('input', async () => {
+      ta.addEventListener('input', () => {
         const d  = loadData();
         const si = parseInt(ta.dataset.si);
         const vi = parseInt(ta.dataset.vi);
@@ -191,26 +191,26 @@ const M11 = (() => {
         const tmp = document.createElement('div');
         tmp.innerHTML = ta.value;
         d.scripts[si].variants[vi] = ta.value;
-        await Storage.set(KEY, d);
+        Storage.setSync(KEY, d);
       });
     });
   }
 
-  async function addVariant(si) {
-    const data = await loadData();
+  function addVariant(si) {
+    const data = loadData();
     data.scripts[si].variants.push('Novo script — edite aqui.');
-    await Storage.set(KEY, data);
+    Storage.setSync(KEY, data);
     renderScriptsManagement();
     Toast.success('Variante adicionada.');
   }
 
-  async function removeVariant(si, vi) {
-    const data = await loadData();
+  function removeVariant(si, vi) {
+    const data = loadData();
     if (data.scripts[si].variants.length <= 1) {
       Toast.error('Mantenha ao menos uma variante.'); return;
     }
     data.scripts[si].variants.splice(vi, 1);
-    await Storage.set(KEY, data);
+    Storage.setSync(KEY, data);
     renderScriptsManagement();
   }
 
@@ -222,7 +222,7 @@ const M11 = (() => {
     if (tab === 'manage') renderScriptsManagement();
   }
 
-  async function init() {
+  function init() {
     populateDropdowns();
     $('m11-generate-btn')?.addEventListener('click', generateScript);
     $('m11-ai-btn')?.addEventListener('click', generateScriptAI);
@@ -230,7 +230,7 @@ const M11 = (() => {
     $('m11-tab-generator')?.addEventListener('click', () => setTab('generator'));
     $('m11-tab-manage')?.addEventListener('click',    () => setTab('manage'));
 
-    document.addEventListener('route:change', async (e) => {
+    document.addEventListener('route:change', (e) => {
       if (e.detail.route !== 'm11') return;
       populateDropdowns();
     });
@@ -238,3 +238,4 @@ const M11 = (() => {
 
   return { init, setTab, addVariant, removeVariant, generateScriptAI };
 })();
+window.M11 = M11;

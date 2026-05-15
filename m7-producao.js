@@ -22,14 +22,14 @@ const M7 = (() => {
   let colors   = ['Preto'];
 
   /* ── Persistência ── */
-  async function save() {
-    await Storage.set(Storage.KEYS.PRODUCTION, records);
-    await Storage.set(GOALS_KEY, prodGoals);
+  function save() {
+    Storage.setSync(Storage.KEYS.PRODUCTION, records);
+    Storage.setSync(GOALS_KEY, prodGoals);
   }
 
-  async function load() {
-    records   = await Storage.get(Storage.KEYS.PRODUCTION, []);
-    prodGoals = await Storage.get(GOALS_KEY, []);
+  function load() {
+    records   = Storage.getSync(Storage.KEYS.PRODUCTION, []);
+    prodGoals = Storage.getSync(GOALS_KEY, []);
   }
 
   /* ── Helpers de data ── */
@@ -443,7 +443,7 @@ const M7 = (() => {
       Logger.log(`Registrou produção: ${packages} pacotes (${machine}) em ${date}`);
     }
 
-    await save(); closeModal(); renderStats(); renderTable();
+    save(); closeModal(); renderStats(); renderTable();
     if (activeTab === 'history') renderHistory();
     Toast.success(_editingId ? 'Registro atualizado.' : 'Produção registrada.');
   }
@@ -457,7 +457,7 @@ const M7 = (() => {
       confirmText: 'Remover', confirmClass: 'btn-danger',
       async onConfirm() {
         records = records.filter(x => x.id !== id);
-        await save(); renderStats(); renderTable();
+        save(); renderStats(); renderTable();
         if (activeTab === 'history') renderHistory();
         Logger.log(`Removeu registro de produção de ${Utils.fmtDate(r.date)}`);
         Toast.success('Registro removido.');
@@ -506,7 +506,7 @@ const M7 = (() => {
       prodGoals.push({ id: Utils.uid(), prodType, size, kgPerDay });
     }
 
-    await save(); closeGoalModal(); renderGoalsTable(); renderStats();
+    save(); closeGoalModal(); renderGoalsTable(); renderStats();
     Logger.log(`${_editingGoalId ? 'Editou' : 'Definiu'} meta: ${Utils.num(kgPerDay,1)} kg/dia para ${prodType} ${size||''}`);
     Toast.success('Meta salva.');
   }
@@ -518,7 +518,7 @@ const M7 = (() => {
       confirmText: 'Remover', confirmClass: 'btn-danger',
       async onConfirm() {
         prodGoals = prodGoals.filter(g => g.id !== id);
-        await save(); renderGoalsTable(); renderStats();
+        save(); renderGoalsTable(); renderStats();
         Toast.success('Meta removida.');
       }
     });
@@ -534,7 +534,7 @@ const M7 = (() => {
 
   /* ── Init ── */
   async function init() {
-    await load();
+    load();
 
     $('m7-add-btn')?.addEventListener('click', openAdd);
     $('m7-save-btn')?.addEventListener('click', saveRecord);
@@ -552,7 +552,7 @@ const M7 = (() => {
 
     document.addEventListener('route:change', async (e) => {
       if (e.detail.route !== 'm7') return;
-      await load(); renderStats(); renderTable();
+      load(); renderStats(); renderTable();
       if (activeTab === 'history') renderHistory();
       if (activeTab === 'goals')   renderGoalsTable();
     });
@@ -565,3 +565,4 @@ const M7 = (() => {
   };
 
 })();
+window.M7 = M7;

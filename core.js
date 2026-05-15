@@ -164,6 +164,21 @@ const Storage = {
     }
   },
 
+  // Acesso síncrono (localStorage direto) — usado pelos módulos para evitar
+  // problemas de timing com Firebase. Firebase continua recebendo as escritas
+  // em background para sincronização futura.
+  getSync(key, fallback = null) {
+    return this._getLocal(key, fallback);
+  },
+  setSync(key, value) {
+    this._setLocal(key, value);
+    this.set(key, value).catch(() => {});
+  },
+  removeSync(key) {
+    this._removeLocal(key);
+    this.remove(key).catch(() => {});
+  },
+
   // Chaves centralizadas — evita typos espalhados pelo código
   KEYS: {
     THEME:        'hub_theme',
@@ -182,7 +197,10 @@ const Storage = {
     CLIENTS:      'hub_clients',      // [{ id, name, phone, email, whatsapp, notes }]
     QUOTES:       'hub_quotes',       // [{ id, clientId, date, items, grandTotal }]
     MAINTENANCE:  'hub_maintenance',  // [{ id, type, machine, date, ... }]
-    DISPUTE_SCRIPTS: 'hub_dispute_scripts' // { reasons, justifications, scripts }
+    DISPUTE_SCRIPTS: 'hub_dispute_scripts',
+    PASSWORDS:       'hub_passwords',
+    SIZE_CHANGES:    'hub_size_changes',
+    INVENTORY:       'hub_inventory'
   }
 };
 
@@ -223,129 +241,174 @@ const Logger = {
    1.2 AUTH — Sistema de Login e Permissões
    ============================================================ */
 const Auth = {
-  PASSWORDS: {
-    MASTER: 'master123',
-    COLAB:  'colab123'
+  MASTER_NAME: 'Administrador',
+  DEFAULT_MASTER_PASS: 'master123',
+  COLAB_BLOCKED: ['m3', 'm4', 'm6', 'm8', 'm9', 'm11', 'm12'],
+  _pendingName: null,
+
+  getPasswords() { return Storage._getLocal(Storage.KEYS.PASSWORDS, {}); },
+  savePasswords(pw) { Storage._setLocal(Storage.KEYS.PASSWORDS, pw); },
+  getPassword(name) {
+    const pw = this.getPasswords();
+    return name === this.MASTER_NAME ? (pw[this.MASTER_NAME] || this.DEFAULT_MASTER_PASS) : (pw[name] || null);
+  },
+  setPassword(name, pass) { const pw = this.getPasswords(); pw[name] = pass; this.savePasswords(pw); },
+  hasPassword(name) { return name === this.MASTER_NAME ? true : !!this.getPasswords()[name]; },
+
+  confirmPunchPassword(cb) {
+    const session = this.getSession();
+    if (!session) return;
+    const modal = document.getElementById('modal-punch-pass');
+    if (!modal) { cb(); return; }
+    document.getElementById('punch-pass-name').textContent = session.name;
+    document.getElementById('punch-pass-input').value = '';
+    modal.classList.add('open');
+    const confirm = () => {
+      const val = document.getElementById('punch-pass-input').value;
+      const expected = this.getPassword(session.name);
+      if (!expected || val === expected) {
+        modal.classList.remove('open');
+        cb();
+      } else {
+        Toast.error('Senha incorreta. Nao e possivel bater ponto.');
+        document.getElementById('punch-pass-input').value = '';
+      }
+    };
+    document.getElementById('btn-punch-pass-confirm').onclick = confirm;
+    document.getElementById('btn-punch-pass-cancel').onclick = () => modal.classList.remove('open');
+    document.getElementById('punch-pass-input').onkeydown = e => { if (e.key === 'Enter') confirm(); };
+    setTimeout(() => document.getElementById('punch-pass-input').focus(), 100);
   },
 
-  /* Rotas bloqueadas para colaboradores */
-  COLAB_BLOCKED: ['m3', 'm4', 'm6', 'm8', 'm9', 'm11', 'm12'],
+  resetColabPassword(name) {
+    const newPass = prompt('Nova senha para "' + name + '":');
+    if (!newPass || newPass.length < 4) { Toast.error('Senha muito curta (minimo 4 caracteres).'); return; }
+    this.setPassword(name, newPass);
+    Logger.log('Master redefiniu senha de: ' + name);
+    Toast.success('Senha de "' + name + '" redefinida.');
+    if (typeof renderPasswordPanel === 'function') renderPasswordPanel();
+  },
 
-  async init() {
-    const session = await this.getSession();
+  init() {
+    const session = this.getSession();
     if (session) {
       this._applySession(session);
     } else {
       this.showLogin();
     }
-
-    // Eventos de Login
-    document.getElementById('btn-login-next').addEventListener('click', () => this.handleNext());
-    document.getElementById('btn-login-finish').addEventListener('click', () => this.handleFinish());
-    document.getElementById('btn-login-back').addEventListener('click', () => this.showStep(1));
-    document.getElementById('btn-logout').addEventListener('click', () => this.logout());
-
-    // Enter na senha
-    document.getElementById('login-pass').addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') this.handleNext();
-    });
+    document.getElementById('btn-login-next')?.addEventListener('click', () => this.handleSelectName());
+    document.getElementById('btn-login-finish')?.addEventListener('click', () => this.handlePassword());
+    document.getElementById('btn-login-back')?.addEventListener('click', () => this.showStep(1));
+    document.getElementById('btn-login-back3')?.addEventListener('click', () => this.showStep(1));
+    document.getElementById('btn-login-set-pass')?.addEventListener('click', () => this.handleSetPassword());
+    document.getElementById('btn-logout')?.addEventListener('click', () => this.logout());
+    document.getElementById('login-pass')?.addEventListener('keypress', e => { if (e.key === 'Enter') this.handlePassword(); });
+    document.getElementById('login-confirm-pass')?.addEventListener('keypress', e => { if (e.key === 'Enter') this.handleSetPassword(); });
+    this._populateNameSelect();
   },
 
-  async handleNext() {
-    const pass = document.getElementById('login-pass').value;
-    if (pass === this.PASSWORDS.MASTER) {
-      this.login('master', 'Administrador');
-    } else if (pass === this.PASSWORDS.COLAB) {
-      this.showStep(2);
-      await this.loadColabSelect();
+  _populateNameSelect() {
+    const sel = document.getElementById('login-name-select');
+    if (!sel) return;
+    const employees = Storage._getLocal(Storage.KEYS.EMPLOYEES, []);
+    sel.innerHTML = '<option value="">Selecione seu nome...</option>' +
+      '<option value="' + Utils.esc(this.MASTER_NAME) + '">' + Utils.esc(this.MASTER_NAME) + '</option>' +
+      employees.map(e => '<option value="' + Utils.esc(e.name) + '">' + Utils.esc(e.name) + '</option>').join('');
+  },
+
+  handleSelectName() {
+    const sel = document.getElementById('login-name-select');
+    const name = sel?.value?.trim();
+    if (!name) { Toast.error('Selecione seu nome.'); return; }
+    this._pendingName = name;
+    if (!this.hasPassword(name)) {
+      this.showStep(3);
     } else {
-      Toast.error('Senha incorreta.');
+      const lbl = document.getElementById('login-step2-label');
+      if (lbl) lbl.textContent = 'Ola, ' + name + '! Digite sua senha:';
+      const passEl = document.getElementById('login-pass');
+      if (passEl) passEl.value = '';
+      this.showStep(2);
+      setTimeout(() => passEl?.focus(), 80);
     }
   },
 
-  handleFinish() {
-    const name = document.getElementById('login-colab-select').value;
-    if (!name) return Toast.error('Selecione seu nome.');
+  handlePassword() {
+    const pass = document.getElementById('login-pass')?.value;
+    const name = this._pendingName;
+    if (!name) { this.showStep(1); return; }
+    if (pass !== this.getPassword(name)) { Toast.error('Senha incorreta.'); return; }
+    this.login(name === this.MASTER_NAME ? 'master' : 'colab', name);
+  },
+
+  handleSetPassword() {
+    const p1 = document.getElementById('login-new-pass')?.value;
+    const p2 = document.getElementById('login-confirm-pass')?.value;
+    const name = this._pendingName;
+    if (!name) { this.showStep(1); return; }
+    if (p1.length < 4) { Toast.error('Senha deve ter no minimo 4 caracteres.'); return; }
+    if (p1 !== p2) { Toast.error('As senhas nao coincidem.'); return; }
+    this.setPassword(name, p1);
+    Logger.log('Definiu senha no primeiro acesso: ' + name);
     this.login('colab', name);
   },
 
-  async login(profile, name) {
+  login(profile, name) {
     const session = { profile, name };
-    await Storage.set(Storage.KEYS.SESSION, session);
+    Storage._setLocal(Storage.KEYS.SESSION, session);
     this._applySession(session);
     Logger.log('Fez login no sistema');
-    Toast.success(`Bem-vindo, ${name}!`);
+    Toast.success('Bem-vindo, ' + name + '!');
   },
 
-  async logout() {
+  logout() {
     Modal.confirm({
       title: 'Sair do Sistema',
-      body: 'Deseja realmente encerrar sua sessão?',
-      onConfirm: async () => {
+      body: 'Deseja realmente encerrar sua sessao?',
+      onConfirm: () => {
         Logger.log('Fez logout do sistema');
-        await Storage.remove(Storage.KEYS.SESSION);
+        Storage._removeLocal(Storage.KEYS.SESSION);
         window.location.reload();
       }
     });
   },
 
-  async getSession() {
-    return await Storage.get(Storage.KEYS.SESSION);
-  },
-
-  async isMaster() {
-    const s = await this.getSession();
-    return s && s.profile === 'master';
-  },
+  getSession() { return Storage._getLocal(Storage.KEYS.SESSION); },
+  isMaster()   { const s = this.getSession(); return !!(s && s.profile === 'master'); },
 
   showLogin() {
-    document.getElementById('login-screen').classList.remove('hidden');
+    document.getElementById('login-screen')?.classList.remove('hidden');
+    this._populateNameSelect();
     this.showStep(1);
   },
 
   showStep(n) {
-    document.getElementById('login-step-1').classList.toggle('hidden', n !== 1);
-    document.getElementById('login-step-2').classList.toggle('hidden', n !== 2);
-  },
-
-  async loadColabSelect() {
-    const select = document.getElementById('login-colab-select');
-    const employees = await Storage.get(Storage.KEYS.EMPLOYEES, []);
-    if (employees.length === 0) {
-      select.innerHTML = '<option value="">Nenhum colaborador cadastrado</option>';
-      return;
-    }
-    select.innerHTML = '<option value="">Selecione seu nome...</option>' +
-      employees.map(e => `<option value="${Utils.esc(e.name)}">${Utils.esc(e.name)}</option>`).join('');
+    [1, 2, 3].forEach(i => {
+      const el = document.getElementById('login-step-' + i);
+      if (el) el.classList.toggle('hidden', i !== n);
+    });
   },
 
   _applySession(session) {
-    document.getElementById('login-screen').classList.add('hidden');
-    document.getElementById('user-info').classList.remove('hidden');
-    document.getElementById('user-display-name').textContent = session.name;
-    
+    document.getElementById('login-screen')?.classList.add('hidden');
+    document.getElementById('user-info')?.classList.remove('hidden');
+    const nameEl = document.getElementById('user-display-name');
+    if (nameEl) nameEl.textContent = session.name;
     document.body.classList.remove('is-master', 'is-colab');
     document.body.classList.add(session.profile === 'master' ? 'is-master' : 'is-colab');
-
-    // Restrição de sidebar: oculta itens conforme perfil
     document.querySelectorAll('[data-route]').forEach(el => {
-      const route      = el.dataset.route;
+      const route = el.dataset.route;
       const masterOnly = el.classList.contains('master-only');
       const colabOnly  = el.classList.contains('colab-only');
-
       if (session.profile === 'colab') {
-        const blocked = Auth.COLAB_BLOCKED.includes(route) || masterOnly;
-        el.classList.toggle('hidden', blocked);
+        el.classList.toggle('hidden', Auth.COLAB_BLOCKED.includes(route) || masterOnly);
       } else {
-        // Master: esconde itens exclusivos do colaborador
         el.classList.toggle('hidden', colabOnly);
       }
     });
-
     Router.init();
   }
 };
-
 /* ============================================================
    2. UTILS — Funções utilitárias globais
    ============================================================ */
@@ -622,25 +685,20 @@ const App = {
   async init() {
     Theme.init();
     Auth.init();
-
-    // Inicializa cada módulo na ordem
-    MePanel.init();
-    M1.init();
-    M2.init();
-    M3.init();
-    M4.init();
-    M5.init();
-    M6.init();
-    M7.init();
-    M8.init();
-    M9.init();
-    M10.init();
-    M11.init();
-    M12.init();
-
+    document.dispatchEvent(new CustomEvent('hub:ready'));
     console.info('[Hub Interno] Aplicação iniciada com sucesso.');
   }
 };
+
+window.Storage = Storage;
+window.Auth    = Auth;
+window.Logger  = Logger;
+window.Utils   = Utils;
+window.Toast   = Toast;
+window.Modal   = Modal;
+window.Theme   = Theme;
+window.Router  = Router;
+window.App     = App;
 
 // Aguarda o DOM estar pronto
 document.addEventListener('DOMContentLoaded', () => App.init());

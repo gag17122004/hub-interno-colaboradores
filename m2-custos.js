@@ -86,15 +86,15 @@ const M2 = (() => {
   let _currentGroupId    = null;
 
   /* ── Persistência ── */
-  async function save() {
-    await Storage.set(Storage.KEYS.RAW_PRICES, { single: rawPrice });
-    await Storage.set(Storage.KEYS.PRODUCTS, products);
+  function save() {
+    Storage.setSync(Storage.KEYS.RAW_PRICES, { single: rawPrice });
+    Storage.setSync(Storage.KEYS.PRODUCTS, products);
   }
 
-  async function load() {
-    const stored = await Storage.get(Storage.KEYS.RAW_PRICES, {});
+  function load() {
+    const stored = Storage.getSync(Storage.KEYS.RAW_PRICES, {});
     rawPrice = stored.single ?? stored.coex ?? stored.pebd ?? 0;
-    const rawProds = await Storage.get(Storage.KEYS.PRODUCTS, []);
+    const rawProds = Storage.getSync(Storage.KEYS.PRODUCTS, []);
     products = rawProds.map(p => {
       if (p.variations) return p;
       return {
@@ -310,7 +310,7 @@ const M2 = (() => {
       products.push({ id: Utils.uid(), name, variations: [] });
       Logger.log(`Criou grupo: ${name}`);
     }
-    await save();
+    save();
     closeGroupModal();
     renderProducts();
     document.dispatchEvent(new CustomEvent('m2:products:updated'));
@@ -326,7 +326,7 @@ const M2 = (() => {
       confirmText: 'Remover', confirmClass: 'btn-danger',
       async onConfirm() {
         products = products.filter(p => p.id !== prodId);
-        await save(); renderProducts();
+        save(); renderProducts();
         document.dispatchEvent(new CustomEvent('m2:products:updated'));
         Logger.log(`Removeu grupo: ${prod.name}`);
         Toast.success('Grupo removido.');
@@ -401,7 +401,7 @@ const M2 = (() => {
       Logger.log(`Adicionou variação ${sku}`);
     }
 
-    await save(); closeVariationModal(); renderProducts();
+    save(); closeVariationModal(); renderProducts();
     document.dispatchEvent(new CustomEvent('m2:products:updated'));
     Toast.success(_editingVariationId ? 'Variação atualizada.' : 'Variação adicionada.');
   }
@@ -417,7 +417,7 @@ const M2 = (() => {
       confirmText: 'Remover', confirmClass: 'btn-danger',
       async onConfirm() {
         prod.variations = prod.variations.filter(x => x.id !== varId);
-        await save(); renderProducts();
+        save(); renderProducts();
         document.dispatchEvent(new CustomEvent('m2:products:updated'));
         Logger.log(`Removeu variação ${v.sku}`);
         Toast.success('Variação removida.');
@@ -430,7 +430,7 @@ const M2 = (() => {
     const val = parseFloat(document.getElementById('m2-price-kg')?.value);
     if (isNaN(val) || val < 0) { Toast.error('Preço inválido.'); return; }
     rawPrice = val;
-    await save(); renderProducts();
+    save(); renderProducts();
     document.dispatchEvent(new CustomEvent('m2:prices:updated'));
     Logger.log(`Atualizou preço/kg para R$ ${Utils.num(val, 2)}`);
     Toast.success('Preço atualizado e custos recalculados.');
@@ -478,7 +478,7 @@ const M2 = (() => {
         });
 
         const finalize = async () => {
-          await save(); renderProducts();
+          save(); renderProducts();
           document.dispatchEvent(new CustomEvent('m2:products:updated'));
           Logger.log(`Importou XLSX: +${added} adicionados, ${updated} atualizados`);
           Toast.success(`Importação: ${added} adicionados, ${updated} atualizados.`);
@@ -531,7 +531,14 @@ const M2 = (() => {
     const c = parseFloat(document.getElementById('m2-calc-c')?.value) || _calcC;
     const m = parseFloat(document.getElementById('m2-calc-m')?.value) || _calcM;
     _calcW = w; _calcC = c; _calcM = m;
+    const prevTipo = _calcTipo;
     _calcTipo = document.getElementById('m2-calc-tipo')?.value || _calcTipo;
+    // Auto-preenche micron padrão quando o tipo muda
+    if (_calcTipo !== prevTipo) {
+      const defaultMicron = _calcTipo === 'Envelope' ? 0.035 : 0.03;
+      const micEl = document.getElementById('m2-calc-m');
+      if (micEl) { micEl.value = defaultMicron; _calcM = defaultMicron; }
+    }
 
     const pesoG  = calcEstimatedWeight(w, c, m);
     const pesoKg = pesoG / 1000;
@@ -560,13 +567,16 @@ const M2 = (() => {
 
   let _canvas   = null;
   let _ctx      = null;
-  let _dragging = null; // 'right' | 'bottom' | null
+  let _dragging = null;
   let _dragStartX = 0;
   let _dragStartY = 0;
   let _dragStartW = 0;
   let _dragStartC = 0;
+  let _dragFixedScale = 1;   // escala capturada no início do drag — não muda durante
+  let _rightHandleX = 0, _rightHandleY = 0;
+  let _bottomHandleX = 0, _bottomHandleY = 0;
 
-  const PAD = 40; // padding interno do canvas
+  const PAD = 40;
 
   function initCanvas() {
     _canvas = document.getElementById('m2-canvas-2d');
@@ -582,104 +592,192 @@ const M2 = (() => {
     _canvas.addEventListener('touchend',   onCanvasMouseUp);
   }
 
-  function getScale(w, c) {
+  function _shapeScale(w, c) {
+    // Escala proporcional: usa a menor razão para que ambas as dimensões caibam
+    // O limite máximo (8px/cm) evita que objetos muito pequenos fiquem gigantes
     const maxW = _canvas.width  - PAD * 2;
-    const maxH = _canvas.height - PAD * 2;
-    return Math.min(maxW / w, maxH / c, 8); // max 8px/cm
+    const maxH = _canvas.height - PAD * 2 - 30; // 30px reservados para labels
+    return Math.min(maxW / w, maxH / c, 8);
   }
 
-  function getRectBounds(w, c) {
-    const scale = getScale(w, c);
-    const rw = w * scale;
-    const rh = c * scale;
-    const rx = (_canvas.width  - rw) / 2;
-    const ry = (_canvas.height - rh) / 2;
-    return { rx, ry, rw, rh, scale };
+  /* ── Saco de Lixo — visual realista (saco preto amassado) ── */
+  function _drawSaco(ctx, rx, ry, rw, rh) {
+    ctx.save();
+    const rad = Math.min(rw, rh) * 0.05;
+
+    // Corpo principal do saco
+    const grd = ctx.createLinearGradient(rx, ry, rx + rw, ry + rh);
+    grd.addColorStop(0,   '#252525');
+    grd.addColorStop(0.4, '#1a1a1a');
+    grd.addColorStop(1,   '#111111');
+    ctx.fillStyle = grd;
+    ctx.strokeStyle = '#3a3a3a';
+    ctx.lineWidth = 1.5;
+    ctx.shadowBlur = 12; ctx.shadowColor = 'rgba(0,0,0,0.6)';
+    ctx.beginPath();
+    ctx.moveTo(rx + rad, ry);
+    ctx.lineTo(rx + rw - rad, ry);
+    ctx.quadraticCurveTo(rx + rw, ry,       rx + rw, ry + rad);
+    ctx.lineTo(rx + rw, ry + rh - rad);
+    ctx.quadraticCurveTo(rx + rw, ry + rh,  rx + rw - rad, ry + rh);
+    ctx.lineTo(rx + rad, ry + rh);
+    ctx.quadraticCurveTo(rx, ry + rh,        rx, ry + rh - rad);
+    ctx.lineTo(rx, ry + rad);
+    ctx.quadraticCurveTo(rx, ry,             rx + rad, ry);
+    ctx.closePath();
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.stroke();
+
+    // Rugas / dobras do plástico
+    ctx.strokeStyle = '#2e2e2e';
+    ctx.lineWidth = 0.7;
+    ctx.globalAlpha = 0.7;
+    const wrinkles = [
+      [0.08,0.12, 0.38,0.32, 0.14,0.22],
+      [0.04,0.42, 0.42,0.62, 0.10,0.50],
+      [0.12,0.68, 0.48,0.85, 0.22,0.75],
+      [0.58,0.08, 0.88,0.28, 0.68,0.16],
+      [0.52,0.38, 0.82,0.58, 0.60,0.46],
+      [0.62,0.65, 0.94,0.88, 0.72,0.74],
+      [0.22,0.25, 0.65,0.45, 0.40,0.32],
+      [0.28,0.55, 0.72,0.72, 0.46,0.60],
+      [0.10,0.78, 0.38,0.90, 0.20,0.82],
+    ];
+    wrinkles.forEach(([x1,y1,x2,y2,cx,cy]) => {
+      ctx.beginPath();
+      ctx.moveTo(rx + x1*rw, ry + y1*rh);
+      ctx.quadraticCurveTo(rx + cx*rw, ry + cy*rh, rx + x2*rw, ry + y2*rh);
+      ctx.stroke();
+    });
+    ctx.globalAlpha = 1;
+
+    // Brilho sutil no canto superior esquerdo
+    const grdShine = ctx.createRadialGradient(rx+rw*0.2, ry+rh*0.15, 0, rx+rw*0.2, ry+rh*0.15, rw*0.4);
+    grdShine.addColorStop(0,   'rgba(255,255,255,0.06)');
+    grdShine.addColorStop(1,   'rgba(255,255,255,0)');
+    ctx.fillStyle = grdShine;
+    ctx.beginPath(); ctx.rect(rx, ry, rw, rh); ctx.fill();
+
+    ctx.restore();
+  }
+
+  /* ── Envelope de Segurança — visual realista (mailer escuro c/ tarja azul) ── */
+  function _drawEnvelope(ctx, rx, ry, rw, rh) {
+    ctx.save();
+
+    // Corpo principal
+    const grd = ctx.createLinearGradient(rx, ry, rx + rw, ry + rh);
+    grd.addColorStop(0, '#30384a');
+    grd.addColorStop(1, '#252d3a');
+    ctx.fillStyle = grd;
+    ctx.strokeStyle = '#4a5568';
+    ctx.lineWidth = 2;
+    ctx.shadowBlur = 8; ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.beginPath(); ctx.rect(rx, ry, rw, rh); ctx.fill();
+    ctx.shadowBlur = 0; ctx.stroke();
+
+    // Tarjas de segurança no topo (3 faixas)
+    const stripeH = Math.max(10, rh * 0.09);
+    const stripes = [
+      { color: '#5bc8d8', h: stripeH * 0.33 },
+      { color: '#1e3a5f', h: stripeH * 0.34 },
+      { color: '#4db8c8', h: stripeH * 0.33 },
+    ];
+    let sy = ry + 2;
+    stripes.forEach(s => {
+      ctx.fillStyle = s.color;
+      ctx.fillRect(rx + 2, sy, rw - 4, s.h);
+      sy += s.h;
+    });
+
+    // Linha de picote (separação faixa / corpo)
+    ctx.strokeStyle = '#4a5568';
+    ctx.lineWidth = 0.5;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath(); ctx.moveTo(rx + 2, ry + stripeH + 2); ctx.lineTo(rx + rw - 2, ry + stripeH + 2); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Reflexo sutil na superfície
+    const shine = ctx.createLinearGradient(rx, ry, rx, ry + rh * 0.4);
+    shine.addColorStop(0,   'rgba(255,255,255,0.04)');
+    shine.addColorStop(1,   'rgba(255,255,255,0)');
+    ctx.fillStyle = shine;
+    ctx.fillRect(rx, ry, rw, rh * 0.4);
+
+    ctx.restore();
   }
 
   function draw2D(w, c, m) {
     if (!_canvas || !_ctx) return;
-    const { rx, ry, rw, rh, scale } = getRectBounds(w, c);
     const ctx = _ctx;
-    ctx.clearRect(0, 0, _canvas.width, _canvas.height);
+    const CW = _canvas.width, CH = _canvas.height;
+    ctx.clearRect(0, 0, CW, CH);
 
-    // Fundo grade
-    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--border') || '#334155';
-    ctx.lineWidth = 0.5;
-    for (let x = 0; x < _canvas.width; x += 20) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,_canvas.height); ctx.stroke(); }
-    for (let y = 0; y < _canvas.height; y += 20) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(_canvas.width,y); ctx.stroke(); }
+    // Grade de fundo
+    const borderColor = getComputedStyle(document.documentElement).getPropertyValue('--border') || '#334155';
+    ctx.strokeStyle = borderColor; ctx.lineWidth = 0.5;
+    for (let x = 0; x < CW; x += 20) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,CH); ctx.stroke(); }
+    for (let y = 0; y < CH; y += 20) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(CW,y); ctx.stroke(); }
 
-    // Sombra
-    ctx.shadowColor = 'rgba(0,0,0,0.3)';
-    ctx.shadowBlur  = 8;
-    ctx.shadowOffsetX = 3; ctx.shadowOffsetY = 3;
+    const sc = _shapeScale(w, c);
+    const rw = w * sc;
+    const rh = c * sc;
+    const rx = (CW - rw) / 2;
+    const ry = (CH - rh) / 2 + 8;
+    const isSaco = _calcTipo !== 'Envelope';
 
-    // Camada 2 (offset)
-    ctx.fillStyle = 'rgba(45,212,191,0.15)';
-    ctx.strokeStyle = 'rgba(45,212,191,0.4)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.rect(rx + 6, ry + 6, rw, rh);
-    ctx.fill(); ctx.stroke();
-
-    // Camada 1 (frente)
-    ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
-    ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
-    ctx.fillStyle = 'rgba(45,212,191,0.25)';
-    ctx.strokeStyle = '#2dd4bf';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.rect(rx, ry, rw, rh);
-    ctx.fill(); ctx.stroke();
+    // Desenha o produto selecionado
+    if (isSaco) _drawSaco(ctx, rx, ry, rw, rh);
+    else        _drawEnvelope(ctx, rx, ry, rw, rh);
 
     // Alças de arrastar
-    const handleSz = 10;
-    ctx.fillStyle = '#2dd4bf';
-    ctx.shadowBlur = 4; ctx.shadowColor = '#2dd4bf';
-    // Direita (largura)
-    ctx.beginPath();
-    ctx.arc(rx + rw, ry + rh / 2, handleSz / 2, 0, Math.PI * 2);
-    ctx.fill();
-    // Baixo (comprimento)
-    ctx.beginPath();
-    ctx.arc(rx + rw / 2, ry + rh, handleSz / 2, 0, Math.PI * 2);
-    ctx.fill();
+    const handleColor = isSaco ? '#f97316' : '#2dd4bf';
+    ctx.fillStyle = handleColor;
+    ctx.shadowBlur = 4; ctx.shadowColor = handleColor + '66';
+    _rightHandleX = rx + rw; _rightHandleY = ry + rh / 2;
+    ctx.beginPath(); ctx.arc(_rightHandleX, _rightHandleY, 5, 0, Math.PI*2); ctx.fill();
+    _bottomHandleX = rx + rw / 2; _bottomHandleY = ry + rh;
+    ctx.beginPath(); ctx.arc(_bottomHandleX, _bottomHandleY, 5, 0, Math.PI*2); ctx.fill();
     ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
 
-    // Labels dimensões
-    const accent = '#2dd4bf';
+    // Labels de dimensão
+    const accent = isSaco ? '#f97316' : '#2dd4bf';
     ctx.fillStyle = accent;
-    ctx.font = 'bold 12px DM Mono, monospace';
+    ctx.font = 'bold 11px DM Mono, monospace';
     ctx.textAlign = 'center';
-    // Largura
-    ctx.fillText(`${Utils.num(w, 1)} cm`, rx + rw / 2, ry - 8);
-    // Comprimento
+    ctx.fillText(`${Utils.num(w, 1)} cm`, rx + rw / 2, ry - 10);
+    ctx.save();
     ctx.translate(rx - 10, ry + rh / 2);
     ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = 'center';
     ctx.fillText(`${Utils.num(c, 1)} cm`, 0, 0);
     ctx.restore();
 
-    // Label central
+    // Info central (peso + micragem)
     const pesoG = calcEstimatedWeight(w, c, m);
-    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text') || '#e2e8f0';
-    ctx.font = '11px DM Sans, sans-serif';
-    ctx.fillText(`2 camadas · ${Utils.num(pesoG, 1)}g`, rx + rw / 2, ry + rh / 2);
-    ctx.fillStyle = 'rgba(45,212,191,0.6)';
+    const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text') || '#e2e8f0';
+    ctx.fillStyle = textColor;
+    ctx.font = 'bold 12px DM Mono, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(`${Utils.num(pesoG, 1)} g / un`, rx + rw / 2, ry + rh / 2 - 6);
+    ctx.fillStyle = accent + 'cc';
     ctx.font = '10px DM Mono, monospace';
-    ctx.fillText(`${Utils.num(m, 3)} mm`, rx + rw / 2, ry + rh / 2 + 16);
+    ctx.fillText(`${Utils.num(m, 3)} mm`, rx + rw / 2, ry + rh / 2 + 10);
   }
 
   function getHandleArea(x, y) {
-    const { rx, ry, rw, rh } = getRectBounds(_calcW, _calcC);
-    const d = 12;
-    if (Math.abs(x - (rx + rw)) < d && Math.abs(y - (ry + rh / 2)) < d) return 'right';
-    if (Math.abs(x - (rx + rw / 2)) < d && Math.abs(y - (ry + rh)) < d) return 'bottom';
+    const d = 14;
+    if (Math.abs(x - _rightHandleX)  < d && Math.abs(y - _rightHandleY)  < d) return 'right';
+    if (Math.abs(x - _bottomHandleX) < d && Math.abs(y - _bottomHandleY) < d) return 'bottom';
     return null;
   }
 
   function getCanvasPos(e) {
     const rect = _canvas.getBoundingClientRect();
-    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    const sx = _canvas.width  / rect.width;
+    const sy = _canvas.height / rect.height;
+    return { x: (e.clientX - rect.left) * sx, y: (e.clientY - rect.top) * sy };
   }
 
   function onCanvasMouseDown(e) {
@@ -690,6 +788,7 @@ const M2 = (() => {
       _dragging = area;
       _dragStartX = x; _dragStartY = y;
       _dragStartW = _calcW; _dragStartC = _calcC;
+      _dragFixedScale = _shapeScale(_calcW, _calcC); // escala fixa para este drag
       _canvas.style.cursor = area === 'right' ? 'ew-resize' : 'ns-resize';
     }
   }
@@ -704,17 +803,15 @@ const M2 = (() => {
       return;
     }
 
-    const scale = getScale(_calcW, _calcC);
+    const sc = _dragFixedScale; // usa escala fixa do início do drag
     if (_dragging === 'right') {
-      const delta = (x - _dragStartX) / scale;
-      const newW = Math.max(1, _dragStartW + delta);
-      _calcW = Math.round(newW * 10) / 10;
+      const delta = (x - _dragStartX) / sc;
+      _calcW = Math.max(1, Math.round((_dragStartW + delta) * 10) / 10);
       const inp = document.getElementById('m2-calc-w');
       if (inp) inp.value = _calcW;
     } else {
-      const delta = (y - _dragStartY) / scale;
-      const newC = Math.max(1, _dragStartC + delta);
-      _calcC = Math.round(newC * 10) / 10;
+      const delta = (y - _dragStartY) / sc;
+      _calcC = Math.max(1, Math.round((_dragStartC + delta) * 10) / 10);
       const inp = document.getElementById('m2-calc-c');
       if (inp) inp.value = _calcC;
     }
@@ -753,14 +850,14 @@ const M2 = (() => {
 
   /* ── Seed ── */
   async function seedIfEmpty() {
-    if (await Storage.get(_SEED_KEY)) return;
-    if (products.length > 0) { await Storage.set(_SEED_KEY, true); return; }
+    if (Storage.getSync(_SEED_KEY)) return;
+    if (products.length > 0) { Storage.setSync(_SEED_KEY, true); return; }
     rawPrice = _DEFAULT_PRICE;
     products = _DEFAULT_PRODUCTS.map(group => ({
       id: Utils.uid(), name: group.name,
       variations: group.variations.map(v => ({ id: Utils.uid(), ...v }))
     }));
-    await save(); await Storage.set(_SEED_KEY, true);
+    save(); Storage.setSync(_SEED_KEY, true);
     renderPrice(); renderProducts();
     document.dispatchEvent(new CustomEvent('m2:products:updated'));
     Toast.info('Produtos padrão carregados. Preço/kg: R$ 9,85.');
@@ -768,7 +865,7 @@ const M2 = (() => {
 
   /* ── Init ── */
   async function init() {
-    await load();
+    load();
 
     document.getElementById('m2-save-price-btn')?.addEventListener('click', savePrice);
     document.getElementById('m2-add-group-btn')?.addEventListener('click', openAddGroup);
@@ -797,7 +894,7 @@ const M2 = (() => {
 
     document.addEventListener('route:change', async (e) => {
       if (e.detail.route !== 'm2') return;
-      await load(); renderPrice(); renderProducts(); renderSalesTable();
+      load(); renderPrice(); renderProducts(); renderSalesTable();
       updateWeightCalc();
     });
   }
@@ -812,3 +909,4 @@ const M2 = (() => {
   };
 
 })();
+window.M2 = M2;

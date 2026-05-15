@@ -9,7 +9,7 @@ const M9 = (() => {
 
   /* ── Anotações manuais ── */
   async function getNotes() {
-    return await Storage.get(NOTES_KEY, []);
+    return Storage.getSync(NOTES_KEY, []);
   }
 
   async function saveNote() {
@@ -20,7 +20,7 @@ const M9 = (() => {
 
     const notes = getNotes();
     notes.push({ id: Date.now(), empName, date, text });
-    await Storage.set(NOTES_KEY, notes);
+    Storage.setSync(NOTES_KEY, notes);
     if ($('m9-note-text'))  $('m9-note-text').value  = '';
     Toast.success('Anotação salva.');
     renderNotes();
@@ -29,7 +29,7 @@ const M9 = (() => {
 
   async function deleteNote(id) {
     const notes = getNotes().filter(n => n.id !== id);
-    await Storage.set(NOTES_KEY, notes);
+    Storage.setSync(NOTES_KEY, notes);
     renderNotes();
   }
 
@@ -60,15 +60,15 @@ const M9 = (() => {
   async function populateNoteEmpSelect() {
     const sel = $('m9-note-emp');
     if (!sel) return;
-    const employees = await Storage.get(Storage.KEYS.EMPLOYEES, []);
+    const employees = Storage.getSync(Storage.KEYS.EMPLOYEES, []);
     sel.innerHTML = `<option value="">Selecione o colaborador...</option>` +
       employees.map(e => `<option value="${Utils.esc(e.name)}">${Utils.esc(e.name)}</option>`).join('');
   }
 
   async function getEmployeeData(name, dateFrom, dateTo) {
     // M1 — horas extras e ausências
-    const timeRecords = await Storage.get('hub_time_records', {});
-    const employees   = await Storage.get(Storage.KEYS.EMPLOYEES, []);
+    const timeRecords = Storage.getSync('hub_time_records', {});
+    const employees   = Storage.getSync(Storage.KEYS.EMPLOYEES, []);
     const emp = employees.find(e => e.name === name);
     let overtimeH = 0, absencesCount = 0;
     if (emp) {
@@ -76,23 +76,23 @@ const M9 = (() => {
       overtimeH = recs
         .filter(r => r.status === 'approved')
         .reduce((s, r) => s + (Number(r.overtimeMinutes) || 0) / 60, 0);
-      const abs = await Storage.get('hub_absences', {});
+      const abs = Storage.getSync('hub_absences', {});
       absencesCount = (abs[emp.id] || []).filter(a => a.date >= dateFrom && a.date <= dateTo).length;
     }
 
     // M7 — produção
-    const production = await Storage.get(Storage.KEYS.PRODUCTION, [])
+    const production = Storage.getSync(Storage.KEYS.PRODUCTION, [])
       .filter(r => r.operator === name && r.date >= dateFrom && r.date <= dateTo);
     const totalKg   = production.reduce((s, r) => s + (Number(r.weight)   || 0), 0);
     const totalPkgs = production.reduce((s, r) => s + (Number(r.packages) || 0), 0);
     const prodDays  = new Set(production.map(r => r.date)).size;
 
     // M5 — tarefas
-    const tasks = await Storage.get(Storage.KEYS.TASKS, [])
+    const tasks = Storage.getSync(Storage.KEYS.TASKS, [])
       .filter(t => t.owner === name && (!t.date || (t.date >= dateFrom && t.date <= dateTo)));
 
     // M10 — paradas de máquina
-    const maint = await Storage.get('hub_maintenance', [])
+    const maint = Storage.getSync('hub_maintenance', [])
       .filter(m => m.type === 'operator' && m.createdBy === name && m.date >= dateFrom && m.date <= dateTo);
     const totalDowntime = maint.reduce((s, m) => s + (Number(m.downtime) || 0), 0);
 
@@ -171,7 +171,7 @@ const M9 = (() => {
   async function renderEmployeeCheckboxes() {
     const container = $('m9-emp-list');
     if (!container) return;
-    const employees = await Storage.get(Storage.KEYS.EMPLOYEES, []);
+    const employees = Storage.getSync(Storage.KEYS.EMPLOYEES, []);
     if (employees.length === 0) {
       container.innerHTML = '<p class="text-xs text-muted">Nenhum colaborador cadastrado em M1.</p>';
       return;
@@ -184,7 +184,7 @@ const M9 = (() => {
       </label>`).join('');
   }
 
-  async function init() {
+  function init() {
     $('m9-generate-btn')?.addEventListener('click', generateReport);
     $('m9-save-note-btn')?.addEventListener('click', saveNote);
 
@@ -208,3 +208,4 @@ const M9 = (() => {
 
   return { init, deleteNote };
 })();
+window.M9 = M9;
