@@ -820,15 +820,16 @@ body.is-master table .master-only { display: table-cell !important; }
 #mob-menu-btn {
   display: none;
   align-items: center; justify-content: center;
-  width: 40px; height: 40px;
-  border: none; background: transparent;
-  color: var(--text); font-size: 20px;
+  width: 44px; height: 44px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text); font-size: 18px;
   cursor: pointer; border-radius: 8px;
   transition: background .15s;
   flex-shrink: 0;
 }
-#mob-menu-btn:hover  { background: var(--surface2); }
-#mob-menu-btn:active { background: var(--surface3); }
+#mob-menu-btn:hover  { background: var(--surface3); }
+#mob-menu-btn:active { background: var(--accent-bg); border-color: var(--accent); }
 
 </style>
 
