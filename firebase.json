@@ -4,7 +4,29 @@
     "ignore": [
       "firebase.json",
       "**/.*",
-      "**/node_modules/**"
+      "**/node_modules/**",
+      "tests/**",
+      "shared.js"
+    ],
+    "redirects": [
+      {
+        "source": "/favicon.ico",
+        "destination": "/icon.svg",
+        "type": 301
+      }
+    ],
+    "headers": [
+      {
+        "source": "**/*.js",
+        "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+      },
+      {
+        "source": "index.html",
+        "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+      }
     ]
+  },
+  "firestore": {
+    "rules": "firestore.rules"
   }
 }

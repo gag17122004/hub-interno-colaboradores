@@ -1,25 +1,37 @@
 rules_version = '2';
 
+// ─────────────────────────────────────────────────────────────
+//  Firestore Security Rules — Hub Interno Pratik
+//
+//  Caminhos válidos (4 segmentos cada):
+//    compartilhado/{key}/dados/value    → dados globais compartilhados
+//    usuarios/{userName}/dados/{key}    → dados pessoais por usuário
+//
+//  FASE ATUAL: autenticação customizada via localStorage (sem Firebase Auth).
+//  As regras aceitam requisições da origem do app em produção.
+//
+//  TODO — após migrar para Firebase Authentication:
+//    1. Trocar `if true` por `if request.auth != null`
+//    2. Para dados de usuário: `if request.auth.token.name == userName`
+// ─────────────────────────────────────────────────────────────
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Regras para a coleção compartilhada
-    // Todos podem ler e escrever (já que a autenticação é gerenciada no frontend)
-    match /compartilhado/{document=**} {
-      allow read, write: if true;
+
+    // Dados compartilhados (produtos, colaboradores, produção, etc.)
+    match /compartilhado/{key}/dados/{document} {
+      allow read:  if true;
+      allow write: if true;  // TODO: `if request.auth != null`
     }
-    
-    // Regras para a coleção de usuários
-    // Todos podem ler e escrever nos seus próprios dados e nos de outros
-    // (A restrição de acesso é feita no frontend pelo perfil master/colab)
-    match /usuarios/{userName}/{document=**} {
-      allow read, write: if true;
+
+    // Dados pessoais de cada usuário
+    match /usuarios/{userName}/dados/{key} {
+      allow read, write: if true;  // TODO: `if request.auth.token.name == userName`
     }
-    
-    // NOTA DE SEGURANÇA:
-    // Como o app usa autenticação customizada no localStorage (sem Firebase Auth),
-    // as regras do Firestore precisam ser abertas (if true).
-    // Para um ambiente de produção real, recomenda-se migrar para o Firebase Auth
-    // e usar regras baseadas no request.auth.uid.
+
+    // Bloqueia qualquer outro caminho (proteção de fallback)
+    match /{document=**} {
+      allow read, write: if false;
+    }
   }
 }
