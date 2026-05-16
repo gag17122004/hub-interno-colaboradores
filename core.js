@@ -44,7 +44,13 @@ const Storage = {
       'hub_employees', 'hub_hours', 'hub_products', 'hub_clients', 'hub_quotes',
       'hub_maintenance', 'hub_production', 'hub_pricing', 'hub_raw_prices',
       'hub_mkt_fees', 'hub_debts', 'hub_audit', 'hub_dispute_scripts',
-      'hub_prod_goal', 'hub_products_seeded_v1'
+      'hub_prod_goal', 'hub_products_seeded_v1',
+      // adicionados: chaves que faltavam no caminho compartilhado
+      'hub_time_records', 'hub_absences', 'hub_tasks', 'hub_passwords',
+      'hub_size_changes', 'hub_inventory',
+      'hub_m13_platform_manuals', 'hub_m14_resolution_manuals',
+      'hub_m15_periodic_todos', 'hub_m16_calendar_events',
+      'hub_m17_announcements', 'hub_m18_machines'
     ];
 
     // hub_session é especial — sempre localStorage
@@ -103,7 +109,9 @@ const Storage = {
       this._hideLoading();
       
       if (docSnap.exists()) {
-        return docSnap.data().value;
+        const value = docSnap.data().value;
+        this._setLocal(key, value); // write-back: mantém localStorage em sincronia com Firestore
+        return value;
       } else {
         // Se não existe no Firebase, tenta pegar do localStorage (migração)
         const localData = this._getLocal(key);
@@ -180,6 +188,24 @@ const Storage = {
   removeSync(key) {
     this._removeLocal(key);
     this.remove(key).catch(() => {});
+  },
+
+  // Sincroniza um conjunto de chaves do Firestore para o localStorage em paralelo.
+  // Não exibe loading global — uso interno nos módulos ao abrir uma rota.
+  async syncBatch(keys) {
+    if (!USAR_FIREBASE) return;
+    if (!this._getLocal('hub_session')) return;
+    await Promise.all((keys || []).map(key => {
+      if (key === 'hub_session' || key === 'hub_theme') return Promise.resolve();
+      return (async () => {
+        try {
+          const docRef = this._getDocRef(key);
+          if (!docRef) return;
+          const snap = await getDoc(docRef);
+          if (snap.exists()) this._setLocal(key, snap.data().value);
+        } catch (_) {}
+      })();
+    }));
   },
 
   // Chaves centralizadas — evita typos espalhados pelo código

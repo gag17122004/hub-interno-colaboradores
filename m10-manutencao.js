@@ -14,7 +14,10 @@ const M10 = (() => {
   const DEFAULT_MACHINES = ['01 (Saco)', '02 (Envelope)', '03 (Saco)'];
 
   function save() { Storage.setSync(KEY, records); }
-  function load() { records = Storage.getSync(KEY, []); }
+  async function load() {
+    await Storage.syncBatch([KEY]);
+    records = Storage.getSync(KEY, []);
+  }
 
   function getMachines() {
     const all = new Set(DEFAULT_MACHINES);
@@ -212,8 +215,8 @@ const M10 = (() => {
     });
   }
 
-  function init() {
-    load();
+  async function init() {
+    await load();
     $('m10-add-record-btn')?.addEventListener('click', openAddRecord);
     $('m10-save-record-btn')?.addEventListener('click', saveRecord);
     $('m10-cancel-record-btn')?.addEventListener('click', () => $('modal-m10-record')?.classList.remove('open'));
@@ -221,9 +224,9 @@ const M10 = (() => {
 
     renderMachineList();
 
-    document.addEventListener('route:change', e => {
+    document.addEventListener('route:change', async e => {
       if (e.detail.route !== 'm10') return;
-      load(); renderMachineList();
+      await load(); renderMachineList();
       if (selectedMachine) renderMachinePanel();
     });
   }

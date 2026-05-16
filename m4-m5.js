@@ -114,9 +114,9 @@ const M5 = (() => {
     Storage.set(Storage.KEYS.TASKS, tasks).catch(() => {}); // Firebase em background
   }
 
-  function load() {
-    // Carrega do localStorage de forma síncrona — sempre disponível
-    tasks = Storage._getLocal(Storage.KEYS.TASKS, []);
+  async function load() {
+    await Storage.syncBatch([Storage.KEYS.TASKS]);
+    tasks = Storage.getSync(Storage.KEYS.TASKS, []);
   }
 
   /* ── Renderização ──────────────────────────────────────── */
@@ -251,8 +251,8 @@ const M5 = (() => {
   }
 
   /* ── Init ──────────────────────────────────────────────── */
-  function init() {
-    load();
+  async function init() {
+    await load();
 
     document.getElementById('m5-add-btn')?.addEventListener('click', openAdd);
     document.getElementById('m5-save-task-btn')?.addEventListener('click', saveTask);
@@ -261,9 +261,9 @@ const M5 = (() => {
     render();
     updateCount();
 
-    document.addEventListener('route:change', e => {
+    document.addEventListener('route:change', async e => {
       if (e.detail.route === 'm5') {
-        load();
+        await load();
         render();
         updateCount();
       }

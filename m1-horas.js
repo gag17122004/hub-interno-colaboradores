@@ -29,6 +29,7 @@ const M1 = (() => {
   }
 
   async function load() {
+    await Storage.syncBatch([Storage.KEYS.EMPLOYEES, TRK, ABK, Storage.KEYS.DEBTS]);
     employees   = Storage.getSync(Storage.KEYS.EMPLOYEES, []);
     timeRecords = Storage.getSync(TRK, {});
     absences    = Storage.getSync(ABK, {});
