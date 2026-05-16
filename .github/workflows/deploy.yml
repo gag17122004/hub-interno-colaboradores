@@ -19,3 +19,5 @@ jobs:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_HUB_INTERNO_COLABORADORES }}
           channelId: live
           projectId: hub-interno-colaboradores
+        env:
+          FIREBASE_CLI_PREVIEWS: hostingchannels
