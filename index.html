@@ -742,8 +742,9 @@ body.is-master table .master-only { display: table-cell !important; }
   .mob-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 299; }
   .mob-overlay.active { display: block; }
 
-  /* Botão hambúrguer visível */
-  #mob-menu-btn { display: flex; }
+  /* Botão hambúrguer visível — !important necessário: a regra base (#mob-menu-btn {display:none})
+     aparece depois no CSS, então sem !important ela vence por ordem de cascata */
+  #mob-menu-btn { display: flex !important; }
 
   /* Topbar compacta (sem posicionamento especial — o flex já a mantém no topo) */
   .topbar       { padding: 10px 14px; }
