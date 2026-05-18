@@ -269,12 +269,68 @@
     let setups = [], editId = null, _query = '';
     const load = () => { setups = getSync(KEYS.sizeChanges, []); };
     const save = () => setSync(KEYS.sizeChanges, setups);
+    const num  = v => (v !== '' && v !== null && v !== undefined) ? String(v) : null;
 
-    const PARAM_LABELS = [
-      { key: 'temperature', icon: 'fa-temperature-half', label: 'Temperatura'  },
-      { key: 'speed',       icon: 'fa-gauge-high',       label: 'Velocidade'   },
-      { key: 'scale',       icon: 'fa-weight-hanging',   label: 'Balança'      },
-    ];
+    function updateTempFields() {
+      const isEnv = $('m19-product-type')?.value === 'Envelope';
+      $('m19-temp-envelope')?.classList.toggle('hidden', !isEnv);
+      $('m19-temp-saco')?.classList.toggle('hidden', isEnv);
+    }
+
+    function paramRow(icon, label, value, unit) {
+      if (value === null || value === '' || value === undefined) return '';
+      return `<div style="display:flex;align-items:center;gap:6px;font-size:12px;padding:3px 0">
+        <i class="fa-solid ${icon}" style="width:13px;text-align:center;color:var(--accent);font-size:10px;flex-shrink:0"></i>
+        <span style="color:var(--text-sec);min-width:0">${label}</span>
+        <span class="font-mono font-bold" style="margin-left:auto">${esc(String(value))}${unit ? ' <span style="font-weight:400;color:var(--text-sec)">'+unit+'</span>' : ''}</span>
+      </div>`;
+    }
+
+    function renderCard(s) {
+      const isEnv    = s.productType === 'Envelope';
+      const badge    = isEnv
+        ? `<span class="badge badge-info" style="font-size:10px">Envelope</span>`
+        : `<span class="badge" style="background:rgba(249,115,22,.15);color:#f97316;font-size:10px">Saco de Lixo</span>`;
+
+      const tempRows = isEnv
+        ? paramRow('fa-temperature-half','Sup. Dianteiro', s.tempSupD,   '°C')
+        + paramRow('fa-temperature-half','Sup. Traseiro',  s.tempSupT,   '°C')
+        + paramRow('fa-temperature-half','Cabec. Inferior',s.tempCabInf, '°C')
+        : paramRow('fa-temperature-half','Z1 Sup. Diant.', s.tempZ1,     '°C')
+        + paramRow('fa-temperature-half','Z2 Sup. Tras.',  s.tempZ2,     '°C')
+        + paramRow('fa-temperature-half','Z3 Inferior',    s.tempZ3,     '°C')
+        + paramRow('fa-temperature-half','Z4 Auxiliar',    s.tempZ4,     '°C');
+
+      const params =
+          paramRow('fa-gauge-high',          'Cortes/min',      s.cortesMin,    'cpm')
+        + paramRow('fa-ruler',               'Comprimento',     s.comprimento,  'mm')
+        + paramRow('fa-clock',               'Espera',          s.espera,       's')
+        + paramRow('fa-conveyor-belt-alt',   'Vel. Esteira',    s.velEsteira,   '%')
+        + paramRow('fa-weight-hanging',      'Ganho Balança',   s.ganhoBalanca, '')
+        + paramRow('fa-arrow-up-wide-short', 'Escala Máx.',     s.escalaMax,    '')
+        + paramRow('fa-rotate',              'Pos. Desbob.',    s.posDesbob,    '')
+        + tempRows
+        + paramRow('fa-angle-left',          'Ângulo Inicial',  s.anguloIni,    '°')
+        + paramRow('fa-angle-right',         'Ângulo Final',    s.anguloFin,    '°')
+        + paramRow('fa-sliders',             'Corr. Comprimento',s.correcaoComp,'');
+
+      const isMaster = Auth.isMaster();
+      return `
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+            <div>
+              <div style="font-size:14px;font-weight:700;color:var(--text)">${esc(s.sizeName||'—')}</div>
+              <div style="margin-top:4px">${badge}</div>
+            </div>
+            ${isMaster ? `<div class="flex gap-1" style="flex-shrink:0">
+              <button class="btn btn-xs btn-secondary" onclick="M19.edit('${s.id}')"><i class="fa-solid fa-pen"></i></button>
+              <button class="btn btn-xs btn-danger"    onclick="M19.remove('${s.id}')"><i class="fa-solid fa-trash"></i></button>
+            </div>` : ''}
+          </div>
+          ${params ? `<div style="display:flex;flex-direction:column;padding:10px;background:var(--surface);border-radius:8px;border:1px solid var(--border)">${params}</div>` : ''}
+          ${s.notes ? `<div style="font-size:11px;color:var(--text-sec);white-space:pre-wrap;border-top:1px solid var(--border);padding-top:8px">${esc(s.notes)}</div>` : ''}
+        </div>`;
+    }
 
     function render() {
       load();
@@ -283,16 +339,12 @@
       const visible = setups.filter(s =>
         !q || (s.machine||'').toLowerCase().includes(q) || (s.sizeName||'').toLowerCase().includes(q)
       );
-
       if (!visible.length) {
-        el.innerHTML = `<div class="empty-state"><i class="fa-solid fa-ruler-combined"></i><p>${_query ? 'Nenhum setup encontrado.' : 'Nenhum setup cadastrado. Clique em "Novo Setup" para começar.'}</p></div>`;
+        el.innerHTML = `<div class="empty-state"><i class="fa-solid fa-ruler-combined"></i><p>${_query ? 'Nenhum setup encontrado.' : 'Clique em "Novo Setup" para começar.'}</p></div>`;
         return;
       }
-
-      // Agrupar por máquina
       const grouped = {};
       visible.forEach(s => { const k = s.machine||'Sem máquina'; (grouped[k]=grouped[k]||[]).push(s); });
-
       el.innerHTML = Object.keys(grouped).sort().map(machine => `
         <div style="margin-bottom:20px">
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
@@ -300,36 +352,8 @@
             <span style="font-size:14px;font-weight:700;color:var(--text)">${esc(machine)}</span>
             <span class="badge badge-muted">${grouped[machine].length} setup(s)</span>
           </div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px">
-            ${grouped[machine].map(s => {
-              const isMaster = Auth.isMaster();
-              const productBadge = s.productType === 'Envelope'
-                ? `<span class="badge badge-info" style="font-size:10px">Envelope</span>`
-                : `<span class="badge" style="background:rgba(249,115,22,.15);color:#f97316;font-size:10px">Saco de Lixo</span>`;
-              const params = PARAM_LABELS.filter(p => s[p.key]).map(p =>
-                `<div style="display:flex;align-items:center;gap:6px;font-size:12px">
-                  <i class="fa-solid ${p.icon}" style="width:14px;text-align:center;color:var(--accent);font-size:11px"></i>
-                  <span class="text-muted">${p.label}:</span>
-                  <span class="font-mono font-bold">${esc(s[p.key])}</span>
-                </div>`
-              ).join('');
-              const extras = [s.adjustments, s.notes].filter(Boolean);
-              return `
-                <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px">
-                  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
-                    <div>
-                      <div style="font-size:14px;font-weight:700;color:var(--text)">${esc(s.sizeName||'—')}</div>
-                      <div style="margin-top:4px">${productBadge}</div>
-                    </div>
-                    ${isMaster ? `<div class="flex gap-1" style="flex-shrink:0">
-                      <button class="btn btn-xs btn-secondary" onclick="M19.edit('${s.id}')"><i class="fa-solid fa-pen"></i></button>
-                      <button class="btn btn-xs btn-danger" onclick="M19.remove('${s.id}')"><i class="fa-solid fa-trash"></i></button>
-                    </div>` : ''}
-                  </div>
-                  ${params ? `<div style="display:flex;flex-direction:column;gap:5px;padding:10px;background:var(--surface);border-radius:8px;border:1px solid var(--border)">${params}</div>` : ''}
-                  ${extras.length ? `<div style="font-size:11px;color:var(--text-sec);white-space:pre-wrap;border-top:1px solid var(--border);padding-top:8px">${extras.map(x => esc(x)).join('\n')}</div>` : ''}
-                </div>`;
-            }).join('')}
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px">
+            ${grouped[machine].map(renderCard).join('')}
           </div>
         </div>`).join('');
     }
@@ -337,41 +361,66 @@
     function open(s) {
       editId = s?.id || null;
       $('m19-modal-title').textContent = editId ? 'Editar Setup' : 'Novo Setup de Tamanho';
-      $('m19-machine').value     = s?.machine     || '';
-      $('m19-size-name').value   = s?.sizeName    || '';
-      $('m19-product-type').value= s?.productType || 'Saco de Lixo';
-      $('m19-temp').value        = s?.temperature || '';
-      $('m19-speed').value       = s?.speed       || '';
-      $('m19-scale').value       = s?.scale       || '';
-      $('m19-adjustments').value = s?.adjustments || '';
-      $('m19-notes').value       = s?.notes       || '';
+      $('m19-machine').value      = s?.machine      || '';
+      $('m19-size-name').value    = s?.sizeName     || '';
+      $('m19-product-type').value = s?.productType  || 'Saco de Lixo';
+      $('m19-cortes-min').value   = s?.cortesMin    ?? '';
+      $('m19-comprimento').value  = s?.comprimento  ?? '';
+      $('m19-espera').value       = s?.espera        ?? '';
+      $('m19-vel-esteira').value  = s?.velEsteira   ?? '';
+      $('m19-ganho').value        = s?.ganhoBalanca ?? '';
+      $('m19-escala-max').value   = s?.escalaMax    ?? '';
+      $('m19-pos-desbob').value   = s?.posDesbob    ?? '';
+      $('m19-temp-sup-d').value   = s?.tempSupD     ?? '';
+      $('m19-temp-sup-t').value   = s?.tempSupT     ?? '';
+      $('m19-temp-cab-inf').value = s?.tempCabInf   ?? '';
+      $('m19-temp-z1').value      = s?.tempZ1       ?? '';
+      $('m19-temp-z2').value      = s?.tempZ2       ?? '';
+      $('m19-temp-z3').value      = s?.tempZ3       ?? '';
+      $('m19-temp-z4').value      = s?.tempZ4       ?? '';
+      $('m19-ang-ini').value      = s?.anguloIni    ?? '';
+      $('m19-ang-fin').value      = s?.anguloFin    ?? '';
+      $('m19-corr-comp').value    = s?.correcaoComp ?? '';
+      $('m19-notes').value        = s?.notes        || '';
+      updateTempFields();
       $('m19-modal').classList.add('open');
     }
 
     function saveSetup() {
-      const machine   = $('m19-machine').value.trim();
-      const sizeName  = $('m19-size-name').value.trim();
+      const machine  = $('m19-machine').value.trim();
+      const sizeName = $('m19-size-name').value.trim();
       if (!machine || !sizeName) return Toast.error('Preencha máquina e nome do setup.');
+      const n = id => { const v = $(id)?.value; return v !== '' ? Number(v) : null; };
       const data = {
         machine, sizeName,
         productType:  $('m19-product-type').value,
-        temperature:  $('m19-temp').value.trim(),
-        speed:        $('m19-speed').value.trim(),
-        scale:        $('m19-scale').value.trim(),
-        adjustments:  $('m19-adjustments').value.trim(),
+        cortesMin:    n('m19-cortes-min'),
+        comprimento:  n('m19-comprimento'),
+        espera:       n('m19-espera'),
+        velEsteira:   n('m19-vel-esteira'),
+        ganhoBalanca: n('m19-ganho'),
+        escalaMax:    n('m19-escala-max'),
+        posDesbob:    n('m19-pos-desbob'),
+        tempSupD:     n('m19-temp-sup-d'),
+        tempSupT:     n('m19-temp-sup-t'),
+        tempCabInf:   n('m19-temp-cab-inf'),
+        tempZ1:       n('m19-temp-z1'),
+        tempZ2:       n('m19-temp-z2'),
+        tempZ3:       n('m19-temp-z3'),
+        tempZ4:       n('m19-temp-z4'),
+        anguloIni:    n('m19-ang-ini'),
+        anguloFin:    n('m19-ang-fin'),
+        correcaoComp: n('m19-corr-comp'),
         notes:        $('m19-notes').value.trim(),
         updatedAt:    new Date().toISOString(),
         updatedBy:    Auth.getSession()?.name || '—',
       };
-      if (editId) {
-        Object.assign(setups.find(s => s.id === editId), data);
-      } else {
-        setups.push({ id: Utils.uid(), createdAt: new Date().toISOString(), ...data });
-      }
+      if (editId) Object.assign(setups.find(s => s.id === editId), data);
+      else setups.push({ id: Utils.uid(), createdAt: new Date().toISOString(), ...data });
       save();
       $('m19-modal').classList.remove('open');
       render();
-      Logger.log(`${editId?'Editou':'Criou'} setup de tamanho: ${machine} — ${sizeName}`);
+      Logger.log(`${editId?'Editou':'Criou'} setup: ${machine} — ${sizeName}`);
       Toast.success('Setup salvo.');
     }
 
@@ -379,9 +428,8 @@
       const s = setups.find(x => x.id === id);
       if (!s) return;
       Modal.confirm({
-        title: 'Remover Setup',
+        title: 'Remover Setup', confirmText: 'Remover', confirmClass: 'btn-danger',
         body: `<p>Remover o setup <strong>${esc(s.sizeName)}</strong> da máquina ${esc(s.machine)}?</p>`,
-        confirmText: 'Remover', confirmClass: 'btn-danger',
         onConfirm() { setups = setups.filter(x => x.id !== id); save(); render(); Toast.success('Setup removido.'); }
       });
     }
@@ -397,7 +445,7 @@
         document.addEventListener('route:change', e => { if (e.detail.route === 'm19') render(); });
         render();
       },
-      render, edit(id) { open(setups.find(s => s.id === id)); }, remove
+      render, updateTempFields, edit(id) { open(setups.find(s => s.id === id)); }, remove
     };
   })();
 

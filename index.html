@@ -2987,9 +2987,11 @@ body.is-master table .master-only { display: table-cell !important; }
     <div class="modal-backdrop" id="m15-modal"><div class="modal"><div class="modal-title" id="m15-modal-title">Nova Tarefa</div><div class="p5-grid-2"><div class="field"><label>Data especifica (opcional)</label><input type="date" id="m15-date" /></div><div class="field"><label>Periodicidade</label><select id="m15-period"><option value="none">Sem repeticao</option><option value="daily">Diaria</option><option value="weekly">Semanal</option><option value="monthly">Mensal</option></select></div></div><div class="field master-only"><label>Visibilidade</label><select id="m15-scope"><option value="all">Todos os colaboradores</option><option value="general">Tarefa geral</option><option value="personal">Somente para mim</option></select></div><div class="field"><label>Tarefa</label><input type="text" id="m15-title" /></div><div class="field"><label>Notas</label><textarea id="m15-notes" rows="3"></textarea></div><div class="modal-footer"><button class="btn btn-secondary" id="m15-cancel">Cancelar</button><button class="btn btn-primary" id="m15-save">Salvar</button></div></div></div>
     <div class="modal-backdrop" id="m18-modal"><div class="modal"><div class="modal-title" id="m18-modal-title">Maquina</div><div class="p5-grid-2"><div class="field"><label>Nome da maquina</label><input type="text" id="m18-name" /></div><div class="field"><label>Numero HECE WhatsApp</label><input type="text" id="m18-phone" placeholder="5511999999999" /></div></div><div class="field"><label>Mensagem personalizada WhatsApp</label><input type="text" id="m18-wa-message" placeholder="Ola, preciso de suporte para esta maquina." /></div><div class="field"><label>Manual em texto</label><textarea id="m18-manual" rows="6"></textarea></div><div class="field"><label>PDF do manual (opcional)</label><input type="file" id="m18-pdf" accept="application/pdf" /><div class="text-xs text-muted mt-1" id="m18-pdf-label"></div></div><div class="modal-footer"><button class="btn btn-secondary" id="m18-cancel">Cancelar</button><button class="btn btn-primary" id="m18-save">Salvar</button></div></div></div>
     <div class="modal-backdrop" id="m19-modal">
-      <div class="modal" style="max-width:500px">
+      <div class="modal" style="max-width:560px">
         <div class="modal-title" id="m19-modal-title">Novo Setup de Tamanho</div>
-        <div style="display:flex;flex-direction:column;gap:14px">
+        <div style="display:flex;flex-direction:column;gap:16px">
+
+          <!-- Identificação -->
           <div class="p5-grid-2">
             <div class="field">
               <label>Máquina *</label>
@@ -2999,30 +3001,91 @@ body.is-master table .master-only { display: table-cell !important; }
               <label>Nome do Setup *</label>
               <input type="text" id="m19-size-name" placeholder="Ex: Saco 50L Preto" />
             </div>
-            <div class="field">
-              <label>Tipo de Produto</label>
-              <select id="m19-product-type">
-                <option value="Saco de Lixo">Saco de Lixo</option>
-                <option value="Envelope">Envelope</option>
-              </select>
-            </div>
-            <div class="field">
-              <label>Temperatura(s)</label>
-              <input type="text" id="m19-temp" placeholder="Ex: 180°C / 185°C" />
-            </div>
-            <div class="field">
-              <label>Velocidade</label>
-              <input type="text" id="m19-speed" placeholder="Ex: 120 ppm" />
-            </div>
-            <div class="field">
-              <label>Balança (peso alvo)</label>
-              <input type="text" id="m19-scale" placeholder="Ex: 9.8g" />
-            </div>
           </div>
           <div class="field">
-            <label>Parâmetros adicionais</label>
-            <textarea id="m19-adjustments" rows="3" placeholder="Pressão dos rolos, ajuste de selagem, etc."></textarea>
+            <label>Tipo de Produto</label>
+            <select id="m19-product-type" onchange="M19.updateTempFields()">
+              <option value="Saco de Lixo">Saco de Lixo</option>
+              <option value="Envelope">Envelope de Segurança</option>
+            </select>
           </div>
+
+          <!-- Velocidade e medidas -->
+          <div class="text-xs font-bold" style="text-transform:uppercase;letter-spacing:.08em;color:var(--text-sec)">Velocidade & Medidas</div>
+          <div class="p5-grid-2">
+            <div class="field">
+              <label>Cortes por minuto</label>
+              <input type="number" id="m19-cortes-min" placeholder="Ex: 120" step="1" min="0" />
+            </div>
+            <div class="field">
+              <label>Comprimento (mm)</label>
+              <input type="number" id="m19-comprimento" placeholder="Ex: 550" step="1" min="0" />
+            </div>
+            <div class="field">
+              <label>Espera (seg) — entre pacotes</label>
+              <input type="number" id="m19-espera" placeholder="Ex: 2" step="0.1" min="0" />
+            </div>
+            <div class="field">
+              <label>Velocidade esteira (%)</label>
+              <input type="number" id="m19-vel-esteira" placeholder="Ex: 80" step="1" min="0" max="100" />
+            </div>
+          </div>
+
+          <!-- Balança / Desbobinador -->
+          <div class="text-xs font-bold" style="text-transform:uppercase;letter-spacing:.08em;color:var(--text-sec)">Balança & Desbobinador</div>
+          <div class="p5-grid-2">
+            <div class="field">
+              <label>Ganho da balança</label>
+              <input type="number" id="m19-ganho" placeholder="Ex: 150" step="1" />
+            </div>
+            <div class="field">
+              <label>Escala máxima</label>
+              <input type="number" id="m19-escala-max" placeholder="Ex: 200" step="1" />
+            </div>
+            <div class="field">
+              <label>Posição do desbobinador</label>
+              <input type="number" id="m19-pos-desbob" placeholder="Ex: 75" step="1" />
+            </div>
+          </div>
+
+          <!-- Temperatura — Envelope de Segurança -->
+          <div id="m19-temp-envelope" class="hidden">
+            <div class="text-xs font-bold" style="text-transform:uppercase;letter-spacing:.08em;color:var(--text-sec);margin-bottom:10px">Temperatura</div>
+            <div class="p5-grid-2">
+              <div class="field"><label>Sup. Dianteiro (°C)</label><input type="number" id="m19-temp-sup-d" step="1" /></div>
+              <div class="field"><label>Sup. Traseiro (°C)</label><input type="number" id="m19-temp-sup-t" step="1" /></div>
+              <div class="field"><label>Cabeç. Inferior (°C)</label><input type="number" id="m19-temp-cab-inf" step="1" /></div>
+            </div>
+          </div>
+
+          <!-- Temperatura — Saco de Lixo -->
+          <div id="m19-temp-saco">
+            <div class="text-xs font-bold" style="text-transform:uppercase;letter-spacing:.08em;color:var(--text-sec);margin-bottom:10px">Temperatura</div>
+            <div class="p5-grid-2">
+              <div class="field"><label>Z1 Sup. Dianteiro (°C)</label><input type="number" id="m19-temp-z1" step="1" /></div>
+              <div class="field"><label>Z2 Sup. Traseiro (°C)</label><input type="number" id="m19-temp-z2" step="1" /></div>
+              <div class="field"><label>Z3 Inferior (°C)</label><input type="number" id="m19-temp-z3" step="1" /></div>
+              <div class="field"><label>Z4 Auxiliar (°C)</label><input type="number" id="m19-temp-z4" step="1" /></div>
+            </div>
+          </div>
+
+          <!-- Ângulo e Correção -->
+          <div class="text-xs font-bold" style="text-transform:uppercase;letter-spacing:.08em;color:var(--text-sec)">Ângulo do Transporte & Correção</div>
+          <div class="p5-grid-2">
+            <div class="field">
+              <label>Ângulo inicial</label>
+              <input type="number" id="m19-ang-ini" placeholder="Ex: 45" step="1" />
+            </div>
+            <div class="field">
+              <label>Ângulo final</label>
+              <input type="number" id="m19-ang-fin" placeholder="Ex: 90" step="1" />
+            </div>
+            <div class="field">
+              <label>Correção comprimento</label>
+              <input type="number" id="m19-corr-comp" placeholder="Ex: 2" step="1" />
+            </div>
+          </div>
+
           <div class="field">
             <label>Observações</label>
             <textarea id="m19-notes" rows="2" placeholder="Atenção especial ao trocar para este tamanho..."></textarea>
