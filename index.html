@@ -1574,6 +1574,61 @@ body.is-master table .master-only { display: table-cell !important; }
         </div>
       </div>
 
+      <!-- Modal: escolha tipo de lançamento manual -->
+      <div class="modal-backdrop" id="modal-manual-type">
+        <div class="modal" style="max-width:360px">
+          <div class="modal-title">Lançar Manual</div>
+          <p class="text-sm text-muted" style="margin-bottom:16px">Selecione o tipo de lançamento:</p>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <button class="btn btn-primary" style="flex-direction:column;align-items:flex-start;height:auto;padding:14px 16px;text-align:left" onclick="M1.openOvertimeRecord()">
+              <div style="display:flex;align-items:center;gap:8px;font-weight:700"><i class="fa-solid fa-clock"></i> Apenas Horas Extras</div>
+              <div style="font-size:11px;font-weight:400;margin-top:4px;opacity:.85">Informe diretamente quantas horas extras foram feitas, sem registrar o dia completo</div>
+            </button>
+            <button class="btn btn-secondary" style="flex-direction:column;align-items:flex-start;height:auto;padding:14px 16px;text-align:left" onclick="M1.openDayRecord()">
+              <div style="display:flex;align-items:center;gap:8px;font-weight:700"><i class="fa-solid fa-calendar-day"></i> Dia de Trabalho</div>
+              <div style="font-size:11px;font-weight:400;margin-top:4px;opacity:.85">Registre o dia completo com horários de entrada e saída</div>
+            </button>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="document.getElementById('modal-manual-type').classList.remove('open')">Cancelar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal: lançar apenas horas extras -->
+      <div class="modal-backdrop" id="modal-overtime-only">
+        <div class="modal" style="max-width:400px">
+          <div class="modal-title">Lançar Horas Extras</div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div class="field">
+              <label>Colaborador</label>
+              <div id="ot-employee-name" style="font-weight:600;padding:8px 0;color:var(--accent)"></div>
+            </div>
+            <div class="field">
+              <label>Data</label>
+              <input type="date" id="ot-date" />
+            </div>
+            <div class="field">
+              <label>Horas Extras</label>
+              <div style="display:flex;gap:8px;align-items:center">
+                <input type="number" id="ot-hours" min="0" max="23" step="1" placeholder="0" style="width:76px" />
+                <span class="text-muted text-sm">h</span>
+                <input type="number" id="ot-minutes" min="0" max="59" step="5" placeholder="0" style="width:76px" />
+                <span class="text-muted text-sm">min</span>
+              </div>
+            </div>
+            <div class="field">
+              <label>Justificativa</label>
+              <input type="text" id="ot-note" placeholder="Ex: Reunião fora do horário" />
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" id="ot-cancel-btn">Cancelar</button>
+            <button class="btn btn-primary" id="ot-save-btn"><i class="fa-solid fa-check"></i> Salvar</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Modal: ausência -->
       <div class="modal-backdrop" id="modal-absence">
         <div class="modal" style="max-width:420px">

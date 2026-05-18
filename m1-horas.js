@@ -433,6 +433,11 @@ const M1 = (() => {
   /* ── Lançamento manual de ponto (master) ── */
   function openManualRecord() {
     if (!Auth.isMaster() || !activeEmployee) return;
+    $('modal-manual-type').classList.add('open');
+  }
+
+  function openDayRecord() {
+    $('modal-manual-type').classList.remove('open');
     if (!timeRecords[activeEmployee]) timeRecords[activeEmployee] = [];
     const rec = {
       id: Utils.uid(),
@@ -445,6 +450,48 @@ const M1 = (() => {
     timeRecords[activeEmployee].unshift(rec);
     save();
     openEditRecord(rec.id);
+  }
+
+  function openOvertimeRecord() {
+    $('modal-manual-type').classList.remove('open');
+    const emp = employees.find(e => e.id === activeEmployee);
+    const nameEl = $('ot-employee-name');
+    if (nameEl) nameEl.textContent = emp?.name || '—';
+    $('ot-date').value    = new Date().toISOString().split('T')[0];
+    $('ot-hours').value   = '';
+    $('ot-minutes').value = '';
+    $('ot-note').value    = '';
+    $('modal-overtime-only').classList.add('open');
+  }
+
+  function saveOvertimeRecord() {
+    const date    = $('ot-date').value;
+    const hours   = parseInt($('ot-hours').value)   || 0;
+    const minutes = parseInt($('ot-minutes').value) || 0;
+    const note    = $('ot-note').value.trim();
+
+    if (!date)                        { Toast.error('Informe a data.'); return; }
+    const overtimeMinutes = hours * 60 + minutes;
+    if (overtimeMinutes <= 0)         { Toast.error('Informe as horas extras.'); return; }
+
+    if (!timeRecords[activeEmployee]) timeRecords[activeEmployee] = [];
+    timeRecords[activeEmployee].push({
+      id: Utils.uid(),
+      date,
+      punch1: null, punch2: null, punch3: null, punch4: null,
+      geo1: null,   geo2: null,   geo3: null,   geo4: null,
+      workedMinutes: overtimeMinutes,
+      overtimeMinutes,
+      status: 'approved',
+      masterNote: note || 'Lançamento manual de horas extras',
+      manualOvertime: true
+    });
+    save();
+    $('modal-overtime-only').classList.remove('open');
+    renderPanel();
+    renderEmployeeList();
+    Logger.log(`Horas extras manuais: ${employees.find(e=>e.id===activeEmployee)?.name} — ${hours}h${minutes}min em ${date}`);
+    Toast.success(`${hours}h${minutes > 0 ? minutes + 'min' : ''} de horas extras lançadas.`);
   }
 
   /* ── Modal: editar registro ── */
@@ -748,6 +795,8 @@ const M1 = (() => {
     $('m1-abs-attach-btn')?.addEventListener('click', () => $('m1-abs-attach-input')?.click());
     $('m1-abs-attach-input')?.addEventListener('change', onAbsAttach);
     $('m1-manual-record-btn')?.addEventListener('click', openManualRecord);
+    $('ot-save-btn')?.addEventListener('click', saveOvertimeRecord);
+    $('ot-cancel-btn')?.addEventListener('click', () => $('modal-overtime-only').classList.remove('open'));
 
     renderEmployeeList();
     renderPasswordPanel();
@@ -772,7 +821,8 @@ const M1 = (() => {
     init, addEmployee, removeEmployee, selectEmployee,
     saveDebt, onFilterChange, setTab, punch,
     approveRecord, rejectRecord, openEditRecord, closeEditRecord, saveEditRecord, removeRecord,
-    openManualRecord, openAddAbsence, closeAbsenceModal, saveAbsence, removeAbsence, downloadAttach, printMonth,
+    openManualRecord, openDayRecord, openOvertimeRecord, saveOvertimeRecord,
+    openAddAbsence, closeAbsenceModal, saveAbsence, removeAbsence, downloadAttach, printMonth,
   };
 })();
 window.M1 = M1;
