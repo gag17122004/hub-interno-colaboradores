@@ -96,13 +96,37 @@ const M1 = (() => {
     return `https://maps.google.com/?q=${geo.lat},${geo.lng}`;
   }
 
+  function geoLabel(geo) {
+    if (!geo?.lat) return null;
+    const acc = geo.acc ? ` (±${geo.acc}m)` : '';
+    return acc;
+  }
+
   /* ── Geolocalização ── */
   function getGeo(cb) {
     if (!navigator.geolocation) { cb(null); return; }
+
+    const opts = { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 };
+
     navigator.geolocation.getCurrentPosition(
-      p => cb({ lat: p.coords.latitude, lng: p.coords.longitude }),
-      () => cb(null),
-      { timeout: 8000 }
+      p => cb({
+        lat: p.coords.latitude,
+        lng: p.coords.longitude,
+        acc: Math.round(p.coords.accuracy) // metros de precisão
+      }),
+      err => {
+        // fallback: tenta sem alta precisão se o GPS falhar (ex.: sem sinal)
+        if (err.code === err.TIMEOUT || err.code === err.POSITION_UNAVAILABLE) {
+          navigator.geolocation.getCurrentPosition(
+            p => cb({ lat: p.coords.latitude, lng: p.coords.longitude, acc: Math.round(p.coords.accuracy) }),
+            () => cb(null),
+            { enableHighAccuracy: false, timeout: 8000, maximumAge: 30000 }
+          );
+        } else {
+          cb(null);
+        }
+      },
+      opts
     );
   }
 
@@ -311,7 +335,15 @@ const M1 = (() => {
       }[r.status] || '';
       const geoIcons = [1,2,3,4].map(n => {
         const g = r[`geo${n}`];
-        return g ? `<a href="${geoLink(g)}" target="_blank" title="P${n}" style="margin-right:3px;font-size:11px"><i class="fa-solid fa-location-dot"></i>${n}</a>` : '';
+        if (!g) return '';
+        const accColor = !g.acc ? 'var(--text-sec)'
+          : g.acc <= 50  ? 'var(--success)'
+          : g.acc <= 200 ? 'var(--warning)'
+          : 'var(--danger)';
+        const accTitle = g.acc ? `±${g.acc}m` : 'precisão desconhecida';
+        return `<a href="${geoLink(g)}" target="_blank" title="Batida ${n} — ${accTitle}" style="margin-right:4px;font-size:11px;white-space:nowrap">
+          <i class="fa-solid fa-location-dot" style="color:${accColor}"></i><span style="font-size:10px">${n}${g.acc ? ' ±'+g.acc+'m' : ''}</span>
+        </a>`;
       }).filter(Boolean).join('');
       return `
         <tr>
