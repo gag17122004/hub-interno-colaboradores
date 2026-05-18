@@ -464,7 +464,12 @@
           <td>${esc(i.supplier || '—')}</td>
           <td><span class="badge badge-info">${esc(i.createdBy || '—')}</span><div class="text-xs text-muted">${new Date(i.createdAt || Date.now()).toLocaleString('pt-BR')}</div></td>
           <td class="text-xs">${last ? `${esc(last.by)} — ${new Date(last.when).toLocaleString('pt-BR')}<br>${esc(last.what)}` : '—'}</td>
-          <td><button class="btn btn-xs btn-secondary" onclick="M20.edit('${i.id}')"><i class="fa-solid fa-pen"></i></button> <button class="btn btn-xs btn-ghost" onclick="M20.history('${i.id}')"><i class="fa-solid fa-clock-rotate-left"></i></button></td>
+          <td>
+            <button class="btn btn-xs btn-ghost" onclick="M20.history('${i.id}')"><i class="fa-solid fa-clock-rotate-left"></i></button>
+            ${Auth.isMaster() ? `
+            <button class="btn btn-xs btn-secondary" onclick="M20.edit('${i.id}')"><i class="fa-solid fa-pen"></i></button>
+            <button class="btn btn-xs btn-danger"    onclick="M20.remove('${i.id}')"><i class="fa-solid fa-trash"></i></button>` : ''}
+          </td>
         </tr>`;
       }).join('');
     }
@@ -492,7 +497,16 @@
       }
       save(); $('m20-modal').classList.remove('open'); render(); Logger.log(`Atualizou inventário: ${data.item}`); Toast.success('Item salvo.');
     }
-    return { init() { load(); Storage.subscribe(KEYS.inventory, data => { items = data ?? []; render(); }); $('m20-add-btn')?.addEventListener('click', () => open(null)); $('m20-save')?.addEventListener('click', saveItem); $('m20-cancel')?.addEventListener('click', () => $('m20-modal').classList.remove('open')); document.addEventListener('route:change', async e => { if (e.detail.route === 'm20') { await Storage.syncBatch([KEYS.inventory]); render(); } }); render(); }, render, edit(id) { open(items.find(i => i.id === id)); }, history(id) { const item = items.find(i => i.id === id); if (!item) return; Modal.confirm({ title: `Histórico: ${esc(item.item)}`, body: `<div style="font-size:12px;color:var(--text-sec);display:flex;flex-direction:column;gap:8px">${(item.history || []).map(h => `<div><strong>${esc(h.by)}</strong> — ${new Date(h.when).toLocaleString('pt-BR')}<br>${esc(h.what)}</div>`).join('') || 'Sem histórico.'}</div>`, confirmText: 'Fechar', confirmClass: 'btn-primary', onConfirm(){} }); } };
+    function removeItem(id) {
+      const item = items.find(i => i.id === id);
+      if (!item) return;
+      Modal.confirm({
+        title: 'Remover Item', confirmText: 'Remover', confirmClass: 'btn-danger',
+        body: `<p>Remover <strong>${esc(item.item)}</strong> do inventário? Esta ação não pode ser desfeita.</p>`,
+        onConfirm() { items = items.filter(i => i.id !== id); save(); render(); Toast.success('Item removido.'); }
+      });
+    }
+    return { init() { load(); Storage.subscribe(KEYS.inventory, data => { items = data ?? []; render(); }); $('m20-add-btn')?.addEventListener('click', () => open(null)); $('m20-save')?.addEventListener('click', saveItem); $('m20-cancel')?.addEventListener('click', () => $('m20-modal').classList.remove('open')); document.addEventListener('route:change', async e => { if (e.detail.route === 'm20') { await Storage.syncBatch([KEYS.inventory]); render(); } }); render(); }, render, edit(id) { open(items.find(i => i.id === id)); }, remove: removeItem, history(id) { const item = items.find(i => i.id === id); if (!item) return; Modal.confirm({ title: `Histórico: ${esc(item.item)}`, body: `<div style="font-size:12px;color:var(--text-sec);display:flex;flex-direction:column;gap:8px">${(item.history || []).map(h => `<div><strong>${esc(h.by)}</strong> — ${new Date(h.when).toLocaleString('pt-BR')}<br>${esc(h.what)}</div>`).join('') || 'Sem histórico.'}</div>`, confirmText: 'Fechar', confirmClass: 'btn-primary', onConfirm(){} }); } };
   })();
 
   window.M21 = (() => {
