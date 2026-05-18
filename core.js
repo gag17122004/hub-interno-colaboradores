@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
+import { doc, getDoc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
 import { db } from "./firebase-config.js";
 
 const USAR_FIREBASE = true;
@@ -206,6 +206,25 @@ const Storage = {
         } catch (_) {}
       })();
     }));
+  },
+
+  // Escuta mudanças em tempo real para uma chave. Chama callback(value) sempre
+  // que o documento mudar no Firestore (qualquer dispositivo). Retorna unsubscribe.
+  subscribe(key, callback) {
+    if (!USAR_FIREBASE || key === 'hub_session' || key === 'hub_theme') return () => {};
+    try {
+      const docRef = this._getDocRef(key);
+      if (!docRef) return () => {};
+      return onSnapshot(docRef, snap => {
+        if (snap.exists()) {
+          const value = snap.data().value;
+          this._setLocal(key, value);
+          callback(value);
+        }
+      }, err => console.warn(`[Storage.subscribe] "${key}":`, err.code));
+    } catch (e) {
+      return () => {};
+    }
   },
 
   // Chaves centralizadas — evita typos espalhados pelo código

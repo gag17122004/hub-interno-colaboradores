@@ -254,6 +254,12 @@ const M5 = (() => {
   async function init() {
     await load();
 
+    Storage.subscribe(Storage.KEYS.TASKS, data => {
+      tasks = data ?? [];
+      render();
+      updateCount();
+    });
+
     document.getElementById('m5-add-btn')?.addEventListener('click', openAdd);
     document.getElementById('m5-save-task-btn')?.addEventListener('click', saveTask);
     document.getElementById('m5-cancel-task-btn')?.addEventListener('click', closeModal);

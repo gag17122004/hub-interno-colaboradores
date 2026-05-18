@@ -705,7 +705,24 @@ const M1 = (() => {
 
   /* ── Init ── */
   async function init() {
-    load();
+    await load();
+
+    // Listeners em tempo real — atualiza em todos os dispositivos automaticamente
+    Storage.subscribe(Storage.KEYS.EMPLOYEES, data => {
+      employees = data ?? [];
+      renderEmployeeList();
+      renderPasswordPanel();
+    });
+    Storage.subscribe(TRK, data => {
+      timeRecords = data ?? {};
+      if (activeEmployee) renderPanel();
+    });
+    Storage.subscribe(ABK, data => {
+      absences = data ?? {};
+    });
+    Storage.subscribe(Storage.KEYS.DEBTS, data => {
+      debts = data ?? {};
+    });
 
     const session = Auth.getSession();
     if (session?.profile === 'colab') {

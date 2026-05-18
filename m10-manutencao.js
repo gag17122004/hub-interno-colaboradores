@@ -217,6 +217,13 @@ const M10 = (() => {
 
   async function init() {
     await load();
+
+    Storage.subscribe(KEY, data => {
+      records = data ?? [];
+      renderMachineList();
+      if (selectedMachine) renderMachinePanel();
+    });
+
     $('m10-add-record-btn')?.addEventListener('click', openAddRecord);
     $('m10-save-record-btn')?.addEventListener('click', saveRecord);
     $('m10-cancel-record-btn')?.addEventListener('click', () => $('modal-m10-record')?.classList.remove('open'));
