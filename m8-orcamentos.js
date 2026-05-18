@@ -181,7 +181,7 @@ const M8 = (() => {
       <div class="m8-item-row" style="display:grid;grid-template-columns:1fr 70px 52px 90px auto 36px;gap:8px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border)">
         <div>
           <div style="font-size:12px;font-weight:600">${Utils.esc(item.prodName)}</div>
-          <div class="text-xs text-muted">Custo Pratik: ${Utils.brl(item.unitCostPratik)}</div>
+          <div class="text-xs text-muted">${Utils.esc(item.variationName || '')}</div>
         </div>
         <input type="number" class="m8-item-qty"   data-idx="${i}" value="${item.qty}" min="1"
           style="font-size:12px;padding:4px 6px;text-align:center" />
