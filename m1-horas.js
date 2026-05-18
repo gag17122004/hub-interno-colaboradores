@@ -454,9 +454,12 @@ const M1 = (() => {
 
   function openOvertimeRecord() {
     $('modal-manual-type').classList.remove('open');
-    const emp = employees.find(e => e.id === activeEmployee);
-    const nameEl = $('ot-employee-name');
-    if (nameEl) nameEl.textContent = emp?.name || '—';
+    const sel = $('ot-employee-select');
+    if (sel) {
+      sel.innerHTML = employees.map(e =>
+        `<option value="${e.id}"${e.id === activeEmployee ? ' selected' : ''}>${Utils.esc(e.name)}</option>`
+      ).join('');
+    }
     $('ot-date').value    = new Date().toISOString().split('T')[0];
     $('ot-hours').value   = '';
     $('ot-minutes').value = '';
@@ -465,17 +468,19 @@ const M1 = (() => {
   }
 
   function saveOvertimeRecord() {
+    const empId   = $('ot-employee-select').value;
     const date    = $('ot-date').value;
     const hours   = parseInt($('ot-hours').value)   || 0;
     const minutes = parseInt($('ot-minutes').value) || 0;
     const note    = $('ot-note').value.trim();
 
+    if (!empId)                       { Toast.error('Selecione um colaborador.'); return; }
     if (!date)                        { Toast.error('Informe a data.'); return; }
     const overtimeMinutes = hours * 60 + minutes;
     if (overtimeMinutes <= 0)         { Toast.error('Informe as horas extras.'); return; }
 
-    if (!timeRecords[activeEmployee]) timeRecords[activeEmployee] = [];
-    timeRecords[activeEmployee].push({
+    if (!timeRecords[empId]) timeRecords[empId] = [];
+    timeRecords[empId].push({
       id: Utils.uid(),
       date,
       punch1: null, punch2: null, punch3: null, punch4: null,
@@ -490,8 +495,9 @@ const M1 = (() => {
     $('modal-overtime-only').classList.remove('open');
     renderPanel();
     renderEmployeeList();
-    Logger.log(`Horas extras manuais: ${employees.find(e=>e.id===activeEmployee)?.name} — ${hours}h${minutes}min em ${date}`);
-    Toast.success(`${hours}h${minutes > 0 ? minutes + 'min' : ''} de horas extras lançadas.`);
+    const empName = employees.find(e => e.id === empId)?.name || empId;
+    Logger.log(`Horas extras manuais: ${empName} — ${hours}h${minutes}min em ${date}`);
+    Toast.success(`${hours}h${minutes > 0 ? minutes + 'min' : ''} lançadas para ${empName}.`);
   }
 
   /* ── Modal: editar registro ── */
