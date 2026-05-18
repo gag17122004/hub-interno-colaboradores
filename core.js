@@ -50,7 +50,7 @@ const Storage = {
       'hub_size_changes', 'hub_inventory',
       'hub_m13_platform_manuals', 'hub_m14_resolution_manuals',
       'hub_m15_periodic_todos', 'hub_m16_calendar_events',
-      'hub_m17_announcements', 'hub_m18_machines'
+      'hub_m17_announcements', 'hub_m18_machines', 'hub_contacts'
     ];
 
     // hub_session é especial — sempre localStorage
@@ -248,7 +248,8 @@ const Storage = {
     DISPUTE_SCRIPTS: 'hub_dispute_scripts',
     PASSWORDS:       'hub_passwords',
     SIZE_CHANGES:    'hub_size_changes',
-    INVENTORY:       'hub_inventory'
+    INVENTORY:       'hub_inventory',
+    CONTACTS:        'hub_contacts'
   }
 };
 

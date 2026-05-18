@@ -495,6 +495,89 @@
     return { init() { load(); Storage.subscribe(KEYS.inventory, data => { items = data ?? []; render(); }); $('m20-add-btn')?.addEventListener('click', () => open(null)); $('m20-save')?.addEventListener('click', saveItem); $('m20-cancel')?.addEventListener('click', () => $('m20-modal').classList.remove('open')); document.addEventListener('route:change', async e => { if (e.detail.route === 'm20') { await Storage.syncBatch([KEYS.inventory]); render(); } }); render(); }, render, edit(id) { open(items.find(i => i.id === id)); }, history(id) { const item = items.find(i => i.id === id); if (!item) return; Modal.confirm({ title: `Histórico: ${esc(item.item)}`, body: `<div style="font-size:12px;color:var(--text-sec);display:flex;flex-direction:column;gap:8px">${(item.history || []).map(h => `<div><strong>${esc(h.by)}</strong> — ${new Date(h.when).toLocaleString('pt-BR')}<br>${esc(h.what)}</div>`).join('') || 'Sem histórico.'}</div>`, confirmText: 'Fechar', confirmClass: 'btn-primary', onConfirm(){} }); } };
   })();
 
+  window.M21 = (() => {
+    let contacts = [], editId = null;
+    const KEY  = Storage.KEYS.CONTACTS;
+    const load = () => { contacts = getSync(KEY, []); };
+    const save = () => setSync(KEY, contacts);
+
+    function render() {
+      load();
+      const el = $('m21-list'); if (!el) return;
+      if (!contacts.length) {
+        el.innerHTML = `<div class="empty-state"><i class="fa-solid fa-address-book"></i><p>Nenhum contato cadastrado.</p></div>`;
+        return;
+      }
+      const isMaster = Auth.isMaster();
+      el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-top:4px">
+        ${contacts.map(c => {
+          const initials = (c.name || '?').split(' ').slice(0,2).map(w => w[0]).join('').toUpperCase();
+          const phone    = (c.phone || '').replace(/\D/g, '');
+          const waUrl    = phone ? `https://wa.me/${phone}` : null;
+          return `
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:18px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center">
+              <div style="width:52px;height:52px;border-radius:50%;background:var(--accent-bg);border:2px solid var(--accent-bd);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:var(--accent)">${esc(initials)}</div>
+              <div>
+                <div style="font-size:14px;font-weight:700;color:var(--text)">${esc(c.name)}</div>
+                ${c.role ? `<div class="text-xs text-muted mt-1">${esc(c.role)}</div>` : ''}
+              </div>
+              <div style="display:flex;gap:8px;margin-top:2px">
+                ${waUrl ? `<a href="${waUrl}" target="_blank" rel="noopener" class="btn btn-primary btn-sm"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>` : `<span class="text-xs text-muted">Sem número</span>`}
+                ${isMaster ? `<button class="btn btn-xs btn-secondary" onclick="M21.edit('${c.id}')"><i class="fa-solid fa-pen"></i></button>
+                <button class="btn btn-xs btn-danger" onclick="M21.remove('${c.id}')"><i class="fa-solid fa-trash"></i></button>` : ''}
+              </div>
+            </div>`;
+        }).join('')}
+      </div>`;
+    }
+
+    function open(c) {
+      editId = c?.id || null;
+      $('m21-modal-title').textContent = editId ? 'Editar Contato' : 'Novo Contato';
+      $('m21-name').value  = c?.name  || '';
+      $('m21-role').value  = c?.role  || '';
+      $('m21-phone').value = c?.phone || '';
+      $('m21-modal').classList.add('open');
+    }
+
+    function saveContact() {
+      const name  = $('m21-name').value.trim();
+      const role  = $('m21-role').value.trim();
+      const phone = $('m21-phone').value.trim();
+      if (!name) return Toast.error('Informe o nome do contato.');
+      const data = { name, role, phone, updatedAt: new Date().toISOString() };
+      if (editId) Object.assign(contacts.find(c => c.id === editId), data);
+      else contacts.push({ id: Utils.uid(), ...data });
+      save();
+      $('m21-modal').classList.remove('open');
+      render();
+      Toast.success('Contato salvo.');
+    }
+
+    function remove(id) {
+      const c = contacts.find(x => x.id === id);
+      if (!c) return;
+      Modal.confirm({
+        title: 'Remover Contato', confirmText: 'Remover', confirmClass: 'btn-danger',
+        body: `<p>Remover o contato <strong>${esc(c.name)}</strong>?</p>`,
+        onConfirm() { contacts = contacts.filter(x => x.id !== id); save(); render(); Toast.success('Contato removido.'); }
+      });
+    }
+
+    return {
+      init() {
+        load();
+        Storage.subscribe(KEY, data => { contacts = data ?? []; render(); });
+        $('m21-add-btn')?.addEventListener('click', () => open(null));
+        $('m21-save')?.addEventListener('click', saveContact);
+        $('m21-cancel')?.addEventListener('click', () => $('m21-modal').classList.remove('open'));
+        document.addEventListener('route:change', e => { if (e.detail.route === 'm21') render(); });
+        render();
+      },
+      render, edit(id) { open(contacts.find(c => c.id === id)); }, remove
+    };
+  })();
+
   // Listeners dos botoes do modal — DOM ja parsed (script defer)
   document.getElementById('p5-manual-save')?.addEventListener('click', () => {
     const route = document.getElementById('p5-manual-save')?.dataset?.route;

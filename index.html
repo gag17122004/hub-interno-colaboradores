@@ -1195,6 +1195,11 @@ body.is-master table .master-only { display: table-cell !important; }
         <span>Inventário</span>
       </div>
 
+      <div class="nav-item" data-route="m21" data-sub="Contatos com acesso rápido ao WhatsApp">
+        <i class="fa-solid fa-address-book"></i>
+        <span>Contatos</span>
+      </div>
+
       <span class="nav-label master-only">Master</span>
 
       <div class="nav-item master-only" data-route="m8" data-sub="Clientes, orçamentos e geração de PDF">
@@ -1701,6 +1706,49 @@ body.is-master table .master-only { display: table-cell !important; }
             <thead><tr><th>Item</th><th>Qtd</th><th>Fornecedor</th><th>Lançado por</th><th>Última alteração</th><th>Ações</th></tr></thead>
             <tbody id="m20-tbody"><tr><td colspan="6" class="empty-state"><p>Nenhum item cadastrado.</p></td></tr></tbody>
           </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         MÓDULO 21 — CONTATOS
+         ══════════════════════════════════════════════════════ -->
+    <section id="panel-m21" class="module-panel">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title-lg">Contatos</div>
+            <div class="text-xs text-muted mt-1">Acesso rápido ao WhatsApp de cada contato.</div>
+          </div>
+          <button class="btn btn-primary btn-sm master-only" id="m21-add-btn">
+            <i class="fa-solid fa-plus"></i> Novo Contato
+          </button>
+        </div>
+        <div id="m21-list"></div>
+      </div>
+
+      <!-- Modal: novo / editar contato -->
+      <div class="modal-backdrop" id="m21-modal">
+        <div class="modal" style="max-width:400px">
+          <div class="modal-title" id="m21-modal-title">Novo Contato</div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div class="field">
+              <label>Nome *</label>
+              <input type="text" id="m21-name" placeholder="Ex: João Silva" />
+            </div>
+            <div class="field">
+              <label>Quem é</label>
+              <input type="text" id="m21-role" placeholder="Ex: Técnico HECE, Fornecedor, Transportadora" />
+            </div>
+            <div class="field">
+              <label>Número (WhatsApp)</label>
+              <input type="tel" id="m21-phone" placeholder="Ex: 11999999999 (só números)" />
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" id="m21-cancel">Cancelar</button>
+            <button class="btn btn-primary" id="m21-save"><i class="fa-solid fa-check"></i> Salvar</button>
+          </div>
         </div>
       </div>
     </section>
@@ -3189,6 +3237,7 @@ const GroqAI = {
     if (typeof M10 !== 'undefined') M10.init();
     if (typeof M11 !== 'undefined') M11.init();
     if (typeof M12 !== 'undefined') M12.init();
+    if (typeof M21 !== 'undefined') M21.init();
   });
 
   document.addEventListener('DOMContentLoaded', () => {
