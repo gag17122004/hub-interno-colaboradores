@@ -3031,7 +3031,33 @@ body.is-master table .master-only { display: table-cell !important; }
       </div>
     </section>
 
-    <div class="modal-backdrop" id="p5-manual-modal"><div class="modal"><div class="modal-title" id="p5-manual-title">Manual</div><div class="field"><label>Nome</label><input type="text" id="p5-manual-name" /></div><div class="field"><label>Conteudo</label><textarea id="p5-manual-content" rows="8"></textarea></div><div class="modal-footer"><button class="btn btn-secondary" id="p5-manual-cancel">Cancelar</button><button class="btn btn-primary" id="p5-manual-save">Salvar</button></div></div></div>
+    <div class="modal-backdrop" id="p5-manual-modal">
+      <div class="modal" style="max-width:600px">
+        <div class="modal-title" id="p5-manual-title">Manual</div>
+        <div class="field" style="margin-bottom:14px">
+          <label>Nome *</label>
+          <input type="text" id="p5-manual-name" placeholder="Ex: Como anunciar no Shopee" />
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-sec)">Conteúdo</span>
+            <div style="display:flex;gap:6px">
+              <button type="button" class="btn btn-xs btn-secondary" onclick="ManualEditor.addText()">
+                <i class="fa-solid fa-paragraph"></i> Texto
+              </button>
+              <button type="button" class="btn btn-xs btn-secondary" onclick="ManualEditor.addImage()">
+                <i class="fa-solid fa-image"></i> Imagem
+              </button>
+            </div>
+          </div>
+          <div id="p5-blocks-editor" style="display:flex;flex-direction:column;gap:8px;max-height:420px;overflow-y:auto;padding:2px"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="p5-manual-cancel">Cancelar</button>
+          <button class="btn btn-primary" id="p5-manual-save">Salvar</button>
+        </div>
+      </div>
+    </div>
     <div class="modal-backdrop" id="m15-modal"><div class="modal"><div class="modal-title" id="m15-modal-title">Nova Tarefa</div><div class="p5-grid-2"><div class="field"><label>Data especifica (opcional)</label><input type="date" id="m15-date" /></div><div class="field"><label>Periodicidade</label><select id="m15-period"><option value="none">Sem repeticao</option><option value="daily">Diaria</option><option value="weekly">Semanal</option><option value="monthly">Mensal</option></select></div></div><div class="field master-only"><label>Visibilidade</label><select id="m15-scope"><option value="all">Todos os colaboradores</option><option value="general">Tarefa geral</option><option value="personal">Somente para mim</option></select></div><div class="field"><label>Tarefa</label><input type="text" id="m15-title" /></div><div class="field"><label>Notas</label><textarea id="m15-notes" rows="3"></textarea></div><div class="modal-footer"><button class="btn btn-secondary" id="m15-cancel">Cancelar</button><button class="btn btn-primary" id="m15-save">Salvar</button></div></div></div>
     <div class="modal-backdrop" id="m18-modal"><div class="modal"><div class="modal-title" id="m18-modal-title">Maquina</div><div class="p5-grid-2"><div class="field"><label>Nome da maquina</label><input type="text" id="m18-name" /></div><div class="field"><label>Numero HECE WhatsApp</label><input type="text" id="m18-phone" placeholder="5511999999999" /></div></div><div class="field"><label>Mensagem personalizada WhatsApp</label><input type="text" id="m18-wa-message" placeholder="Ola, preciso de suporte para esta maquina." /></div><div class="field"><label>Manual em texto</label><textarea id="m18-manual" rows="6"></textarea></div><div class="field"><label>PDF do manual (opcional)</label><input type="file" id="m18-pdf" accept="application/pdf" /><div class="text-xs text-muted mt-1" id="m18-pdf-label"></div></div><div class="modal-footer"><button class="btn btn-secondary" id="m18-cancel">Cancelar</button><button class="btn btn-primary" id="m18-save">Salvar</button></div></div></div>
     <div class="modal-backdrop" id="m19-modal">

@@ -16,6 +16,105 @@
   const periodLabel = v => ({ none: 'Sem repetição', daily: 'Diária', weekly: 'Semanal', monthly: 'Mensal' }[v] || 'Sem repetição');
   const eventTypeLabel = v => ({ fulls: 'Fulls', visitas: 'Visitas', recebimento: 'Recebimento de fornecedor', outros: 'Outros' }[v] || v);
 
+  // ── Editor de blocos (texto + imagem) para manuais ──────────
+  window.ManualEditor = (() => {
+    let _blocks = [];
+
+    function _compress(file, cb) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        const img = new Image();
+        img.onload = () => {
+          const maxW = 1200, maxH = 1600;
+          const scale = Math.min(maxW / img.width, maxH / img.height, 1);
+          const canvas = document.createElement('canvas');
+          canvas.width  = Math.round(img.width  * scale);
+          canvas.height = Math.round(img.height * scale);
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          cb(canvas.toDataURL('image/jpeg', 0.75));
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function _render() {
+      const el = document.getElementById('p5-blocks-editor');
+      if (!el) return;
+      if (!_blocks.length) {
+        el.innerHTML = `<div class="empty-state" style="padding:20px 0"><i class="fa-solid fa-pen-to-square"></i><p>Clique em "Texto" ou "Imagem" para adicionar conteúdo.</p></div>`;
+        return;
+      }
+      el.innerHTML = _blocks.map((b, i) => {
+        const btns = `<div style="display:flex;gap:4px">
+          ${i > 0 ? `<button type="button" class="btn btn-xs btn-ghost" onclick="ManualEditor.moveUp(${i})"><i class="fa-solid fa-chevron-up"></i></button>` : ''}
+          ${i < _blocks.length - 1 ? `<button type="button" class="btn btn-xs btn-ghost" onclick="ManualEditor.moveDown(${i})"><i class="fa-solid fa-chevron-down"></i></button>` : ''}
+          <button type="button" class="btn btn-xs btn-danger" onclick="ManualEditor.remove(${i})"><i class="fa-solid fa-trash"></i></button>
+        </div>`;
+        if (b.type === 'text') return `
+          <div style="border:1px solid var(--border);border-radius:8px;padding:10px;background:var(--surface2)">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+              <span class="text-xs text-muted"><i class="fa-solid fa-paragraph"></i> Texto</span>${btns}
+            </div>
+            <textarea rows="4" style="width:100%;resize:vertical;font-size:13px;line-height:1.5"
+              placeholder="Digite o texto aqui..."
+              oninput="ManualEditor.setText(${i},this.value)">${Utils.esc(b.content)}</textarea>
+          </div>`;
+        if (b.type === 'image') return `
+          <div style="border:1px solid var(--border);border-radius:8px;padding:10px;background:var(--surface2)">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <span class="text-xs text-muted"><i class="fa-solid fa-image"></i> Imagem</span>${btns}
+            </div>
+            <img src="${b.data}" style="max-width:100%;max-height:260px;border-radius:6px;object-fit:contain;display:block;margin:0 auto" />
+            <input type="text" placeholder="Legenda (opcional)" value="${Utils.esc(b.caption || '')}"
+              style="margin-top:8px;width:100%;font-size:12px"
+              oninput="ManualEditor.setCaption(${i},this.value)" />
+          </div>`;
+        return '';
+      }).join('');
+    }
+
+    return {
+      load(blocks, legacy) {
+        _blocks = (Array.isArray(blocks) && blocks.length)
+          ? JSON.parse(JSON.stringify(blocks))
+          : legacy ? [{ type: 'text', content: legacy }] : [{ type: 'text', content: '' }];
+        _render();
+      },
+      addText() {
+        _blocks.push({ type: 'text', content: '' }); _render();
+        setTimeout(() => { const el = document.getElementById('p5-blocks-editor'); if (el) { el.scrollTop = el.scrollHeight; const t = el.querySelectorAll('textarea'); if (t.length) t[t.length-1].focus(); } }, 50);
+      },
+      addImage() {
+        const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+        inp.onchange = e => { const f = e.target.files[0]; if (!f) return;
+          _compress(f, data => { _blocks.push({ type: 'image', data, caption: '' }); _render();
+            setTimeout(() => { const el = document.getElementById('p5-blocks-editor'); if (el) el.scrollTop = el.scrollHeight; }, 50); }); };
+        inp.click();
+      },
+      setText(i, v)    { if (_blocks[i]) _blocks[i].content = v; },
+      setCaption(i, v) { if (_blocks[i]) _blocks[i].caption = v; },
+      remove(i)   { _blocks.splice(i, 1); _render(); },
+      moveUp(i)   { if (i > 0) { [_blocks[i-1], _blocks[i]] = [_blocks[i], _blocks[i-1]]; _render(); } },
+      moveDown(i) { if (i < _blocks.length-1) { [_blocks[i], _blocks[i+1]] = [_blocks[i+1], _blocks[i]]; _render(); } },
+      getBlocks() { return JSON.parse(JSON.stringify(_blocks)); }
+    };
+  })();
+
+  function renderManualBlocks(item) {
+    if (Array.isArray(item.blocks) && item.blocks.length) {
+      return item.blocks.map(b => {
+        if (b.type === 'text')  return `<div style="white-space:pre-wrap;margin-bottom:12px;line-height:1.65">${Utils.esc(b.content)}</div>`;
+        if (b.type === 'image') return `<div style="margin:16px 0;text-align:center">
+          <img src="${b.data}" alt="${Utils.esc(b.caption||'')}" style="max-width:100%;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,.25)" />
+          ${b.caption ? `<div class="text-xs text-muted" style="margin-top:6px">${Utils.esc(b.caption)}</div>` : ''}
+        </div>`;
+        return '';
+      }).join('');
+    }
+    return `<div style="white-space:pre-wrap;line-height:1.65">${Utils.esc(item.content || '')}</div>`;
+  }
+
   function manualModule(route, key, defaults, icon) {
     let items = [], selected = null, editingId = null;
     const load = async () => {
@@ -40,10 +139,10 @@
             <div class="card-title-lg">${esc(item.name)}</div>
             <div class="p5-toolbar master-only">
               <button class="btn btn-secondary btn-sm" onclick="${route.toUpperCase()}.edit('${item.id}')"><i class="fa-solid fa-pen"></i> Editar</button>
-              <button class="btn btn-danger btn-sm" onclick="${route.toUpperCase()}.remove('${item.id}')"><i class="fa-solid fa-trash"></i> Remover</button>
+              <button class="btn btn-danger btn-sm"    onclick="${route.toUpperCase()}.remove('${item.id}')"><i class="fa-solid fa-trash"></i> Remover</button>
             </div>
           </div>
-          <div class="p5-content">${esc(item.content)}</div>
+          <div class="p5-content">${renderManualBlocks(item)}</div>
         </div>` : `<div class="empty-state"><i class="fa-solid fa-book-open"></i><p>Selecione um manual.</p></div>`;
     };
     const open = item => {
@@ -51,18 +150,22 @@
       $('p5-manual-save').dataset.route = route;
       $('p5-manual-title').textContent = editingId ? 'Editar Manual' : 'Novo Manual';
       $('p5-manual-name').value = item?.name || '';
-      $('p5-manual-content').value = item?.content || '';
+      ManualEditor.load(item?.blocks, item?.content);
       $('p5-manual-modal').classList.add('open');
     };
     return {
       async init() { await load(); Storage.subscribe(key, data => { items = data ?? []; render(); }); $(`${route}-add-btn`)?.addEventListener('click', () => open(null)); document.addEventListener('route:change', async e => { if (e.detail.route === route) render(); }); render(); },
       render, select(id) { selected = id; render(); }, edit(id) { open(items.find(i => i.id === id)); },
       saveModal() {
-        const name = $('p5-manual-name').value.trim(), content = $('p5-manual-content').value.trim();
-        if (!name || !content) return Toast.error('Preencha nome e conteúdo.');
-        if (editingId) Object.assign(items.find(i => i.id === editingId), { name, content });
-        else { const item = { id: Utils.uid(), name, content }; items.push(item); selected = item.id; }
-        save(); $('p5-manual-modal').classList.remove('open'); render(); Toast.success('Manual salvo.'); Logger.log(`Salvou manual ${route.toUpperCase()}: ${name}`);
+        const name   = $('p5-manual-name').value.trim();
+        const blocks = ManualEditor.getBlocks();
+        if (!name) return Toast.error('Preencha o nome do manual.');
+        if (!blocks.length) return Toast.error('Adicione pelo menos um bloco de conteúdo.');
+        const content = blocks.filter(b => b.type === 'text').map(b => b.content).join('\n\n');
+        if (editingId) Object.assign(items.find(i => i.id === editingId), { name, blocks, content });
+        else { const item = { id: Utils.uid(), name, blocks, content }; items.push(item); selected = item.id; }
+        save(); $('p5-manual-modal').classList.remove('open'); render();
+        Toast.success('Manual salvo.'); Logger.log(`Salvou manual ${route.toUpperCase()}: ${name}`);
       },
       remove(id) {
         const item = items.find(i => i.id === id); if (!item) return;
