@@ -1112,6 +1112,12 @@ body.is-master table .master-only { display: table-cell !important; }
         <span>Meu Espaço</span>
       </div>
 
+      <span class="nav-label master-only">Equipe</span>
+      <div class="nav-item master-only" data-route="colaboradores" data-sub="Banco central — nome, contato, senha e informações">
+        <i class="fa-solid fa-users"></i>
+        <span>Colaboradores</span>
+      </div>
+
       <span class="nav-label">Módulos</span>
 
       <div class="nav-item" data-route="m1" data-sub="Registros de horas, colaboradores e exportação">
@@ -1345,6 +1351,64 @@ body.is-master table .master-only { display: table-cell !important; }
         <div id="me-p5-notices"><div class="empty-state"><i class="fa-solid fa-bullhorn"></i><p>Nenhum comunicado ativo.</p></div></div>
       </div>
 
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         COLABORADORES — Banco Central de Equipe
+         ══════════════════════════════════════════════════════ -->
+    <section id="panel-colaboradores" class="module-panel">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title-lg">Colaboradores</div>
+            <div class="text-xs text-muted mt-1">Banco central — alimenta ponto, tarefas, rendimento e todos os módulos</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="text" id="colab-search" placeholder="Buscar..." style="width:150px" />
+            <button class="btn btn-primary btn-sm" id="colab-add-btn"><i class="fa-solid fa-plus"></i> Novo</button>
+          </div>
+        </div>
+        <div id="colab-list"></div>
+      </div>
+
+      <!-- Modal: dados do colaborador -->
+      <div class="modal-backdrop" id="colab-modal">
+        <div class="modal" style="max-width:460px">
+          <div class="modal-title" id="colab-modal-title">Novo Colaborador</div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div class="field"><label>Nome *</label><input type="text" id="colab-name" placeholder="Nome completo" /></div>
+            <div class="field"><label>Contato (WhatsApp)</label><input type="tel" id="colab-contact" placeholder="Ex: 11999999999" /></div>
+            <div class="field"><label>Informações / Cargo</label><textarea id="colab-info" rows="2" placeholder="Ex: Operador Máquina 01, turno manhã"></textarea></div>
+            <div class="field">
+              <label>Perfil de Acesso</label>
+              <select id="colab-profile">
+                <option value="colab">Colaborador</option>
+                <option value="master">Master (Administrador)</option>
+              </select>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" id="colab-cancel">Cancelar</button>
+            <button class="btn btn-primary" id="colab-save">Salvar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal: definir / alterar senha -->
+      <div class="modal-backdrop" id="colab-pass-modal">
+        <div class="modal" style="max-width:380px">
+          <div class="modal-title">Senha — <span id="colab-pass-name"></span></div>
+          <input type="hidden" id="colab-pass-id" />
+          <div style="display:flex;flex-direction:column;gap:12px;margin-top:4px">
+            <div class="field"><label>Nova Senha</label><input type="password" id="colab-pass-1" placeholder="Mínimo 4 caracteres" autocomplete="new-password" /></div>
+            <div class="field"><label>Confirmar Senha</label><input type="password" id="colab-pass-2" placeholder="Repita a senha" autocomplete="new-password" /></div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" id="colab-pass-cancel">Cancelar</button>
+            <button class="btn btn-primary" id="colab-pass-save"><i class="fa-solid fa-lock"></i> Salvar Senha</button>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- ══════════════════════════════════════════════════════
@@ -2209,6 +2273,12 @@ body.is-master table .master-only { display: table-cell !important; }
         <div class="modal">
           <div class="modal-title" id="m5-modal-title">Nova Tarefa</div>
           <div style="display:flex;flex-direction:column;gap:14px">
+            <div class="field master-only">
+              <label>Atribuir para</label>
+              <select id="m5-task-assignee">
+                <option value="">Geral (todos)</option>
+              </select>
+            </div>
             <div class="field">
               <label>Data</label>
               <input type="date" id="m5-task-date" />
@@ -3246,6 +3316,7 @@ const GroqAI = {
 <script src="m11-disputas.js" defer></script>
 <script src="m12-titulos.js" defer></script>
 <script src="m13-m20.js" defer></script>
+<script src="colaboradores.js" defer></script>
 
 <!-- Inicializador -->
 <script>
@@ -3264,6 +3335,7 @@ const GroqAI = {
     if (typeof M11 !== 'undefined') M11.init();
     if (typeof M12 !== 'undefined') M12.init();
     if (typeof M21 !== 'undefined') M21.init();
+    if (typeof Colaboradores !== 'undefined') Colaboradores.init();
   });
 
   document.addEventListener('DOMContentLoaded', () => {

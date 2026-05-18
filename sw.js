@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const CACHE_NAME    = `hub-pratik-${CACHE_VERSION}`;
 
 const STATIC_ASSETS = [
@@ -12,6 +12,7 @@ const STATIC_ASSETS = [
   './m4-m5.js',
   './m6-auditoria.js',
   './m7-producao.js',
+  './colaboradores.js',
   './manifest.json',
   './icon.svg',
 ];

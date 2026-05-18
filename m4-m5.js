@@ -180,12 +180,19 @@ const M5 = (() => {
   /* ── Modal ─────────────────────────────────────────────── */
   let _editId = null;
 
+  function _populateAssignee(selected) {
+    if (typeof Colaboradores !== 'undefined') {
+      Colaboradores.populateSelect('m5-task-assignee', { includeAll: true, selected: selected || '' });
+    }
+  }
+
   function openAdd() {
     _editId = null;
     document.getElementById('m5-modal-title').textContent = 'Nova Tarefa';
     document.getElementById('m5-task-date').value  = '';
     document.getElementById('m5-task-item').value  = '';
     document.getElementById('m5-task-notes').value = '';
+    _populateAssignee('');
     document.getElementById('modal-task').classList.add('open');
   }
 
@@ -197,6 +204,7 @@ const M5 = (() => {
     document.getElementById('m5-task-date').value  = task.date;
     document.getElementById('m5-task-item').value  = task.item;
     document.getElementById('m5-task-notes').value = task.notes;
+    _populateAssignee(task.owner || '');
     document.getElementById('modal-task').classList.add('open');
   }
 
@@ -213,12 +221,13 @@ const M5 = (() => {
     if (!date) { Toast.error('Selecione a data.'); return; }
     if (!item) { Toast.error('Informe o item/tarefa.'); return; }
 
-    const session = Auth.getSession();
-    const owner = session?.name || 'master';
+    const session  = Auth.getSession();
+    const assignee = document.getElementById('m5-task-assignee')?.value || '';
+    const owner    = Auth.isMaster() && assignee ? assignee : (session?.name || 'master');
 
     if (_editId) {
       const idx = tasks.findIndex(t => t.id === _editId);
-      if (idx !== -1) tasks[idx] = { ...tasks[idx], date, item, notes };
+      if (idx !== -1) tasks[idx] = { ...tasks[idx], date, item, notes, owner };
     } else {
       tasks.push({ id: Utils.uid(), date, item, notes, owner });
     }
