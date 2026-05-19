@@ -318,19 +318,31 @@ const Auth = {
       try { employees = await Storage.get(Storage.KEYS.EMPLOYEES, []); } catch { employees = []; }
     }
 
-    // ── Modo primeiro acesso ──────────────────────────────────────────
-    // Se nenhum colaborador com perfil 'master' existe ainda, o primeiro
-    // usuário Google a entrar recebe acesso master para configurar o sistema.
-    const hasMaster = employees.some(e => e.profile === 'master');
-    if (!hasMaster && !firebaseUser.email.endsWith(this.INTERNAL_DOMAIN)) {
-      const name = firebaseUser.displayName || firebaseUser.email.split('@')[0];
-      return { name, profile: 'master', _firstSetup: true };
-    }
-
     if (!firebaseUser.email.endsWith(this.INTERNAL_DOMAIN)) {
-      // Usuário Google → busca pelo Gmail cadastrado
-      const emp = employees.find(e => e.email?.toLowerCase() === firebaseUser.email.toLowerCase());
-      return emp ? { name: emp.name, profile: emp.profile || 'colab' } : null;
+      // 1. Busca exata pelo Gmail cadastrado em hub_employees
+      const empByEmail = employees.find(e =>
+        e.email?.toLowerCase() === firebaseUser.email.toLowerCase()
+      );
+      if (empByEmail) return { name: empByEmail.name, profile: empByEmail.profile || 'colab' };
+
+      // 2. Fallback de migração: compara pelo nome exibido no Google
+      if (firebaseUser.displayName) {
+        const empByName = employees.find(e =>
+          e.name.toLowerCase() === firebaseUser.displayName.toLowerCase()
+        );
+        if (empByName) return { name: empByName.name, profile: empByName.profile || 'colab' };
+      }
+
+      // 3. Nenhum colaborador tem Gmail cadastrado ainda → primeiro acesso via Google
+      const hasGoogleEmployee = employees.some(
+        e => e.email && !e.email.endsWith(this.INTERNAL_DOMAIN)
+      );
+      if (!hasGoogleEmployee) {
+        const name = firebaseUser.displayName || firebaseUser.email.split('@')[0];
+        return { name, profile: 'master', _firstSetup: true };
+      }
+
+      return null; // email não autorizado
     }
     // Usuário nome/senha → busca pelo prefixo do e-mail interno
     const prefix = firebaseUser.email.split('@')[0];
@@ -355,14 +367,15 @@ const Auth = {
       await signInWithEmailAndPassword(auth, email, pass);
     } catch (e) {
       console.error('[Auth.loginWithPassword]', e.code, email);
-      if (e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential') {
-        Toast.error('Conta não encontrada. Use "Entrar com Google" ou peça ao administrador para criar sua conta em Colaboradores.');
+      if (e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential' || e.code === 'auth/invalid-email') {
+        Toast.error('Conta não encontrada no novo sistema. Use "Entrar com Google" — é mais simples e funciona imediatamente.');
       } else if (e.code === 'auth/wrong-password') {
         Toast.error('Senha incorreta.');
       } else if (e.code === 'auth/too-many-requests') {
-        Toast.error('Muitas tentativas. Aguarde alguns minutos e tente novamente.');
+        Toast.error('Muitas tentativas. Aguarde alguns minutos.');
       } else {
-        Toast.error('Erro ao entrar (' + (e.code || 'desconhecido') + '). Tente com Google.');
+        Toast.error('Erro ao entrar. Use "Entrar com Google" ou tente novamente.');
+        console.error('[Login]', e.code, e.message);
       }
     }
   },
