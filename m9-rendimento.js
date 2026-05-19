@@ -199,9 +199,12 @@ const M9 = (() => {
     renderNotes();
     renderEmployeeCheckboxes();
 
-    document.addEventListener('route:change', e => {
+    Storage.subscribe(NOTES_KEY, () => renderNotes());
+    Storage.subscribe(Storage.KEYS.EMPLOYEES, () => { renderEmployeeCheckboxes(); populateNoteEmpSelect(); });
+
+    document.addEventListener('route:change', async e => {
       if (e.detail.route !== 'm9') return;
-      // Recarrega datas padrão ao abrir o módulo
+      await Storage.syncBatch([NOTES_KEY, Storage.KEYS.EMPLOYEES, Storage.KEYS.PRODUCTION, Storage.KEYS.TASKS]);
       const today2    = new Date().toISOString().split('T')[0];
       const firstDay2 = Utils.currentMonth() + '-01';
       if ($('m9-date-from') && !$('m9-date-from').value) $('m9-date-from').value = firstDay2;

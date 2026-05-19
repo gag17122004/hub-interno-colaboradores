@@ -237,8 +237,12 @@ const M3 = (() => {
       }
       renderPricingPanel();
     });
+    Storage.subscribe(Storage.KEYS.PRICING,   () => { load(); renderPricingPanel(); });
+    Storage.subscribe(Storage.KEYS.MKT_FEES,  () => { load(); renderFees(); });
+
     document.addEventListener('route:change', async (e) => {
       if (e.detail.route === 'm3') {
+        await Storage.syncBatch([Storage.KEYS.PRICING, Storage.KEYS.MKT_FEES]);
         load();
         variations = M2.getFlatVariations();
         renderFees();

@@ -888,12 +888,16 @@ const M2 = (() => {
 
     renderPrice(); renderProducts(); renderSalesTable(); seedIfEmpty();
 
+    Storage.subscribe(Storage.KEYS.PRODUCTS,   () => { load(); renderProducts(); renderSalesTable(); });
+    Storage.subscribe(Storage.KEYS.RAW_PRICES, () => { load(); renderPrice(); });
+
     // Canvas 2D
     initCanvas();
     updateWeightCalc();
 
     document.addEventListener('route:change', async (e) => {
       if (e.detail.route !== 'm2') return;
+      await Storage.syncBatch([Storage.KEYS.RAW_PRICES, Storage.KEYS.PRODUCTS]);
       load(); renderPrice(); renderProducts(); renderSalesTable();
       updateWeightCalc();
     });

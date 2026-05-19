@@ -230,8 +230,11 @@ const M11 = (() => {
     $('m11-tab-generator')?.addEventListener('click', () => setTab('generator'));
     $('m11-tab-manage')?.addEventListener('click',    () => setTab('manage'));
 
-    document.addEventListener('route:change', (e) => {
+    Storage.subscribe(KEY, () => { populateDropdowns(); if (activeTab === 'manage') renderScriptsManagement(); });
+
+    document.addEventListener('route:change', async (e) => {
       if (e.detail.route !== 'm11') return;
+      await Storage.syncBatch([KEY]);
       populateDropdowns();
     });
   }

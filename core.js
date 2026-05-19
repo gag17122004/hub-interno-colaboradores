@@ -47,7 +47,7 @@ const Storage = {
       'hub_mkt_fees', 'hub_debts', 'hub_audit', 'hub_dispute_scripts',
       'hub_prod_goal', 'hub_products_seeded_v1',
       // adicionados: chaves que faltavam no caminho compartilhado
-      'hub_time_records', 'hub_absences', 'hub_tasks', 'hub_passwords', 'hub_prod_goals',
+      'hub_time_records', 'hub_absences', 'hub_tasks', 'hub_passwords', 'hub_prod_goals', 'hub_m9_notes',
       'hub_size_changes', 'hub_inventory',
       'hub_m13_platform_manuals', 'hub_m14_resolution_manuals',
       'hub_m15_periodic_todos', 'hub_m16_calendar_events',
@@ -299,18 +299,22 @@ const Auth = {
   /* Converte nome em e-mail interno: "João Silva" → "joaosilva@hub-interno.app" */
   _nameToEmail(name) {
     const id = (name || '').toLowerCase()
-      .normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .normalize('NFD').replace(/[̀-ͯ]/g, '') // regex correto para acentos
       .replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
     return id + this.INTERNAL_DOMAIN;
   },
 
-  /* Mapeia um usuário Firebase para {name, profile} do app */
-  _resolveProfile(firebaseUser) {
+  /* Mapeia um usuário Firebase para {name, profile} — async para buscar Firestore se necessário */
+  async _resolveProfile(firebaseUser) {
     if (!firebaseUser) return null;
     if (firebaseUser.email === this.MASTER_EMAIL)
       return { name: this.MASTER_NAME, profile: 'master' };
 
-    const employees = Storage._getLocal(Storage.KEYS.EMPLOYEES, []);
+    // Tenta localStorage primeiro (rápido); se vazio, busca Firestore
+    let employees = Storage._getLocal(Storage.KEYS.EMPLOYEES, []);
+    if (!employees.length) {
+      try { employees = await Storage.get(Storage.KEYS.EMPLOYEES, []); } catch { employees = []; }
+    }
 
     if (!firebaseUser.email.endsWith(this.INTERNAL_DOMAIN)) {
       // Usuário Google → busca pelo Gmail cadastrado
@@ -747,7 +751,7 @@ const App = {
 
     onAuthStateChanged(auth, async firebaseUser => {
       if (firebaseUser) {
-        const profile = Auth._resolveProfile(firebaseUser);
+        const profile = await Auth._resolveProfile(firebaseUser);
         if (profile) {
           Auth._applySession(profile);
           if (!_ready) {

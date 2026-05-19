@@ -425,8 +425,12 @@ const M8 = (() => {
     $('m8-discount')?.addEventListener('input', recalcTotals);
     renderClients();
 
-    document.addEventListener('route:change', e => {
+    Storage.subscribe(CLIENTS_KEY, data => { clients = data ?? []; renderClients(); });
+    Storage.subscribe(QUOTES_KEY,  data => { quotes  = data ?? []; if (selectedClient) renderQuoteHistory(); });
+
+    document.addEventListener('route:change', async e => {
       if (e.detail.route !== 'm8') return;
+      await Storage.syncBatch([CLIENTS_KEY, QUOTES_KEY, Storage.KEYS.PRODUCTS, Storage.KEYS.RAW_PRICES]);
       load(); renderClients(); renderProductPicker();
       if (selectedClient) {
         selectedClient = clients.find(c => c.id === selectedClient.id) || null;
