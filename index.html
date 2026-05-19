@@ -1314,68 +1314,93 @@ body.is-master table .master-only { display: table-cell !important; }
     </section>
 
     <!-- ══════════════════════════════════════════════════════
-         COLABORADORES — Banco Central de Equipe
+         COLABORADORES — Banco de RH
          ══════════════════════════════════════════════════════ -->
     <section id="panel-colaboradores" class="module-panel">
-      <div class="card">
-        <div class="card-header">
-          <div>
-            <div class="card-title-lg">Colaboradores</div>
-            <div class="text-xs text-muted mt-1">Banco central — alimenta ponto, tarefas, rendimento e todos os módulos</div>
+
+      <!-- Lista de colaboradores -->
+      <div id="colab-list-panel">
+        <div class="card">
+          <div class="card-header" style="flex-wrap:wrap;gap:10px">
+            <div>
+              <div class="card-title-lg">Colaboradores</div>
+              <div class="text-xs text-muted mt-1">Banco de RH — ponto, ausências, documentação e acesso</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <div style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+                <button class="btn btn-xs active" data-colab-filter="active" style="border-radius:0;border:none">Ativos</button>
+                <button class="btn btn-xs" data-colab-filter="inactive" style="border-radius:0;border:none;border-left:1px solid var(--border)">Inativos</button>
+                <button class="btn btn-xs" data-colab-filter="all" style="border-radius:0;border:none;border-left:1px solid var(--border)">Todos</button>
+              </div>
+              <input type="text" id="colab-search" placeholder="Buscar..." style="width:130px" />
+              <button class="btn btn-primary btn-sm" id="colab-add-btn"><i class="fa-solid fa-user-plus"></i> Contratar</button>
+            </div>
           </div>
-          <div style="display:flex;gap:8px;align-items:center">
-            <input type="text" id="colab-search" placeholder="Buscar..." style="width:150px" />
-            <button class="btn btn-primary btn-sm" id="colab-add-btn"><i class="fa-solid fa-plus"></i> Novo</button>
-          </div>
+          <div id="colab-list"></div>
         </div>
-        <div id="colab-list"></div>
+      </div>
+
+      <!-- Painel de detalhes do colaborador -->
+      <div id="colab-detail-panel" class="hidden">
+        <div class="card"><div id="colab-detail-panel"></div></div>
       </div>
 
       <!-- Modal: dados do colaborador -->
       <div class="modal-backdrop" id="colab-modal">
-        <div class="modal" style="max-width:460px">
-          <div class="modal-title" id="colab-modal-title">Novo Colaborador</div>
+        <div class="modal" style="max-width:520px">
+          <div class="modal-title" id="colab-modal-title">Contratar Colaborador</div>
           <div style="display:flex;flex-direction:column;gap:12px">
-            <div class="field"><label>Nome *</label><input type="text" id="colab-name" placeholder="Nome completo" /></div>
-            <div class="field">
-              <label>Gmail (para entrar com Google)</label>
-              <input type="email" id="colab-email" placeholder="Ex: joao@gmail.com — deixe em branco se não tiver" />
-              <div class="text-xs text-muted mt-1">Se preenchido, a pessoa entra clicando em "Entrar com Google"</div>
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-sec)">Dados Pessoais</div>
+            <div class="p5-grid-2">
+              <div class="field"><label>Nome *</label><input type="text" id="colab-name" placeholder="Nome completo" /></div>
+              <div class="field"><label>Telefone</label><input type="tel" id="colab-phone" placeholder="11999999999" /></div>
+              <div class="field"><label>RG</label><input type="text" id="colab-rg" placeholder="12.345.678-9" /></div>
+              <div class="field"><label>CPF</label><input type="text" id="colab-cpf" placeholder="123.456.789-00" /></div>
             </div>
-            <div class="field"><label>Contato (WhatsApp)</label><input type="tel" id="colab-contact" placeholder="Ex: 11999999999" /></div>
-            <div class="field"><label>Informações / Cargo</label><textarea id="colab-info" rows="2" placeholder="Ex: Operador Máquina 01, turno manhã"></textarea></div>
-            <div class="field">
-              <label>Perfil de Acesso</label>
-              <select id="colab-profile">
-                <option value="colab">Colaborador</option>
-                <option value="master">Master (Administrador)</option>
-              </select>
+            <div class="field"><label>Endereço</label><input type="text" id="colab-address" placeholder="Rua, número, bairro, cidade" /></div>
+
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-sec);margin-top:4px">Acesso & Cargo</div>
+            <div class="p5-grid-2">
+              <div class="field"><label>Cargo / Informações</label><input type="text" id="colab-info" placeholder="Ex: Operador Máquina 01" /></div>
+              <div class="field"><label>Data de Contratação</label><input type="date" id="colab-hiring-date" /></div>
+              <div class="field">
+                <label>Perfil</label>
+                <select id="colab-profile">
+                  <option value="colab">Colaborador</option>
+                  <option value="master">Master</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Gmail (login com Google)</label>
+                <input type="email" id="colab-email" placeholder="Ex: joao@gmail.com" />
+              </div>
             </div>
-            <div id="colab-pass-section" class="field" style="background:var(--surface3);border-radius:8px;padding:12px">
-              <label>Senha inicial <span class="text-muted">(sem Gmail)</span></label>
-              <input type="password" id="colab-initial-pass" placeholder="Mínimo 4 caracteres" autocomplete="new-password" />
-              <div class="text-xs text-muted mt-1">A pessoa usará esta senha para entrar pelo nome/senha</div>
+            <div id="colab-pass-section" style="background:var(--surface3);border-radius:8px;padding:12px">
+              <div class="field">
+                <label>Senha inicial <span class="text-muted text-xs">(sem Gmail)</span></label>
+                <input type="password" id="colab-initial-pass" placeholder="Mínimo 4 caracteres" autocomplete="new-password" />
+              </div>
             </div>
           </div>
           <div class="modal-footer">
             <button class="btn btn-secondary" id="colab-cancel">Cancelar</button>
-            <button class="btn btn-primary" id="colab-save">Salvar</button>
+            <button class="btn btn-primary" id="colab-save"><i class="fa-solid fa-user-plus"></i> Salvar</button>
           </div>
         </div>
       </div>
 
-      <!-- Modal: definir / alterar senha -->
+      <!-- Modal: PIN de ponto -->
       <div class="modal-backdrop" id="colab-pass-modal">
         <div class="modal" style="max-width:380px">
-          <div class="modal-title">Senha — <span id="colab-pass-name"></span></div>
+          <div class="modal-title">PIN de Ponto — <span id="colab-pass-name"></span></div>
           <input type="hidden" id="colab-pass-id" />
           <div style="display:flex;flex-direction:column;gap:12px;margin-top:4px">
-            <div class="field"><label>Nova Senha</label><input type="password" id="colab-pass-1" placeholder="Mínimo 4 caracteres" autocomplete="new-password" /></div>
-            <div class="field"><label>Confirmar Senha</label><input type="password" id="colab-pass-2" placeholder="Repita a senha" autocomplete="new-password" /></div>
+            <div class="field"><label>Novo PIN</label><input type="password" id="colab-pass-1" placeholder="Mínimo 4 dígitos" autocomplete="new-password" /></div>
+            <div class="field"><label>Confirmar PIN</label><input type="password" id="colab-pass-2" placeholder="Repita o PIN" autocomplete="new-password" /></div>
           </div>
           <div class="modal-footer">
             <button class="btn btn-secondary" id="colab-pass-cancel">Cancelar</button>
-            <button class="btn btn-primary" id="colab-pass-save"><i class="fa-solid fa-lock"></i> Salvar Senha</button>
+            <button class="btn btn-primary" id="colab-pass-save"><i class="fa-solid fa-lock"></i> Salvar PIN</button>
           </div>
         </div>
       </div>
@@ -1752,36 +1777,39 @@ body.is-master table .master-only { display: table-cell !important; }
         <div class="card-header">
           <div>
             <div class="card-title-lg">Contatos</div>
-            <div class="text-xs text-muted mt-1">Acesso rápido ao WhatsApp de cada contato.</div>
+            <div class="text-xs text-muted mt-1">Grupos de contatos com acesso rápido ao WhatsApp.</div>
           </div>
-          <button class="btn btn-primary btn-sm master-only" id="m21-add-btn">
-            <i class="fa-solid fa-plus"></i> Novo Contato
+          <button class="btn btn-primary btn-sm master-only" id="m21-add-group-btn">
+            <i class="fa-solid fa-plus"></i> Novo Grupo
           </button>
         </div>
         <div id="m21-list"></div>
       </div>
 
-      <!-- Modal: novo / editar contato -->
-      <div class="modal-backdrop" id="m21-modal">
+      <!-- Modal: grupo -->
+      <div class="modal-backdrop" id="m21-group-modal">
+        <div class="modal" style="max-width:360px">
+          <div class="modal-title" id="m21-group-modal-title">Novo Grupo</div>
+          <div class="field"><label>Nome do Grupo *</label><input type="text" id="m21-group-name" placeholder="Ex: Técnicos HECE, Fornecedores" /></div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" id="m21-group-cancel">Cancelar</button>
+            <button class="btn btn-primary" id="m21-group-save">Salvar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal: contato -->
+      <div class="modal-backdrop" id="m21-contact-modal">
         <div class="modal" style="max-width:400px">
-          <div class="modal-title" id="m21-modal-title">Novo Contato</div>
+          <div class="modal-title" id="m21-contact-modal-title">Novo Contato</div>
           <div style="display:flex;flex-direction:column;gap:12px">
-            <div class="field">
-              <label>Nome *</label>
-              <input type="text" id="m21-name" placeholder="Ex: João Silva" />
-            </div>
-            <div class="field">
-              <label>Quem é</label>
-              <input type="text" id="m21-role" placeholder="Ex: Técnico HECE, Fornecedor, Transportadora" />
-            </div>
-            <div class="field">
-              <label>Número (WhatsApp)</label>
-              <input type="tel" id="m21-phone" placeholder="Ex: 11999999999 (só números)" />
-            </div>
+            <div class="field"><label>Nome *</label><input type="text" id="m21-contact-name" placeholder="Ex: João Silva" /></div>
+            <div class="field"><label>Quem é</label><input type="text" id="m21-contact-role" placeholder="Ex: Técnico, Representante" /></div>
+            <div class="field"><label>Número (WhatsApp)</label><input type="tel" id="m21-contact-phone" placeholder="Ex: 11999999999" /></div>
           </div>
           <div class="modal-footer">
-            <button class="btn btn-secondary" id="m21-cancel">Cancelar</button>
-            <button class="btn btn-primary" id="m21-save"><i class="fa-solid fa-check"></i> Salvar</button>
+            <button class="btn btn-secondary" id="m21-contact-cancel">Cancelar</button>
+            <button class="btn btn-primary" id="m21-contact-save"><i class="fa-solid fa-check"></i> Salvar</button>
           </div>
         </div>
       </div>

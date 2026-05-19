@@ -47,7 +47,7 @@ const Storage = {
       'hub_mkt_fees', 'hub_debts', 'hub_audit', 'hub_dispute_scripts',
       'hub_prod_goal', 'hub_products_seeded_v1',
       // adicionados: chaves que faltavam no caminho compartilhado
-      'hub_time_records', 'hub_absences', 'hub_tasks',
+      'hub_time_records', 'hub_absences', 'hub_tasks', 'hub_passwords', 'hub_prod_goals',
       'hub_size_changes', 'hub_inventory',
       'hub_m13_platform_manuals', 'hub_m14_resolution_manuals',
       'hub_m15_periodic_todos', 'hub_m16_calendar_events',

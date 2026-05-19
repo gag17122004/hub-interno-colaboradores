@@ -612,86 +612,132 @@
     return { init() { load(); Storage.subscribe(KEYS.inventory, data => { items = data ?? []; render(); }); $('m20-add-btn')?.addEventListener('click', () => open(null)); $('m20-save')?.addEventListener('click', saveItem); $('m20-cancel')?.addEventListener('click', () => $('m20-modal').classList.remove('open')); document.addEventListener('route:change', async e => { if (e.detail.route === 'm20') { await Storage.syncBatch([KEYS.inventory]); render(); } }); render(); }, render, edit(id) { open(items.find(i => i.id === id)); }, remove: removeItem, history(id) { const item = items.find(i => i.id === id); if (!item) return; Modal.confirm({ title: `Histórico: ${esc(item.item)}`, body: `<div style="font-size:12px;color:var(--text-sec);display:flex;flex-direction:column;gap:8px">${(item.history || []).map(h => `<div><strong>${esc(h.by)}</strong> — ${new Date(h.when).toLocaleString('pt-BR')}<br>${esc(h.what)}</div>`).join('') || 'Sem histórico.'}</div>`, confirmText: 'Fechar', confirmClass: 'btn-primary', onConfirm(){} }); } };
   })();
 
+  // ── M21: Contatos com Subgrupos ──────────────────────────────
+  // Estrutura: [ { id, name(grupo), contacts: [{id,name,role,phone}] } ]
   window.M21 = (() => {
-    let contacts = [], editId = null;
-    const KEY  = Storage.KEYS.CONTACTS;
-    const load = () => { contacts = getSync(KEY, []); };
-    const save = () => setSync(KEY, contacts);
+    const KEY = Storage.KEYS.CONTACTS;
+    let groups = [], _editGroupId = null, _editContactId = null, _editContactGroupId = null;
+
+    const load = () => { const raw = getSync(KEY, []); groups = Array.isArray(raw) && raw.length && raw[0]?.contacts !== undefined ? raw : (raw.length ? [{ id: Utils.uid(), name: 'Geral', contacts: raw }] : []); };
+    const save = () => setSync(KEY, groups);
 
     function render() {
       load();
       const el = $('m21-list'); if (!el) return;
-      if (!contacts.length) {
-        el.innerHTML = `<div class="empty-state"><i class="fa-solid fa-address-book"></i><p>Nenhum contato cadastrado.</p></div>`;
+      const isMaster = Auth.isMaster();
+      if (!groups.length) {
+        el.innerHTML = `<div class="empty-state"><i class="fa-solid fa-address-book"></i><p>Nenhum grupo criado. Clique em "Novo Grupo" para começar.</p></div>`;
         return;
       }
-      const isMaster = Auth.isMaster();
-      el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-top:4px">
-        ${contacts.map(c => {
-          const initials = (c.name || '?').split(' ').slice(0,2).map(w => w[0]).join('').toUpperCase();
-          const phone    = (c.phone || '').replace(/\D/g, '');
+      el.innerHTML = groups.map(g => {
+        const contacts = g.contacts || [];
+        const contactCards = contacts.map(c => {
+          const initials = (c.name||'?').split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+          const phone    = (c.phone||'').replace(/\D/g,'');
           const waUrl    = phone ? `https://wa.me/${phone}` : null;
-          return `
-            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:18px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center">
-              <div style="width:52px;height:52px;border-radius:50%;background:var(--accent-bg);border:2px solid var(--accent-bd);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:var(--accent)">${esc(initials)}</div>
-              <div>
-                <div style="font-size:14px;font-weight:700;color:var(--text)">${esc(c.name)}</div>
-                ${c.role ? `<div class="text-xs text-muted mt-1">${esc(c.role)}</div>` : ''}
-              </div>
-              <div style="display:flex;gap:8px;margin-top:2px">
-                ${waUrl ? `<a href="${waUrl}" target="_blank" rel="noopener" class="btn btn-primary btn-sm"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>` : `<span class="text-xs text-muted">Sem número</span>`}
-                ${isMaster ? `<button class="btn btn-xs btn-secondary" onclick="M21.edit('${c.id}')"><i class="fa-solid fa-pen"></i></button>
-                <button class="btn btn-xs btn-danger" onclick="M21.remove('${c.id}')"><i class="fa-solid fa-trash"></i></button>` : ''}
-              </div>
-            </div>`;
-        }).join('')}
-      </div>`;
+          return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;align-items:center;gap:12px">
+            <div style="width:40px;height:40px;border-radius:50%;background:var(--accent-bg);border:2px solid var(--accent-bd);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:var(--accent);flex-shrink:0">${esc(initials)}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:700;font-size:13px">${esc(c.name)}</div>
+              ${c.role ? `<div class="text-xs text-muted">${esc(c.role)}</div>` : ''}
+            </div>
+            <div style="display:flex;gap:6px;flex-shrink:0">
+              ${waUrl ? `<a href="${waUrl}" target="_blank" rel="noopener" class="btn btn-sm" style="background:rgba(37,211,102,.12);color:#25d366;border:1px solid rgba(37,211,102,.3);padding:6px 10px"><i class="fa-brands fa-whatsapp"></i></a>` : ''}
+              ${isMaster ? `<button class="btn btn-xs btn-secondary" onclick="M21.editContact('${g.id}','${c.id}')"><i class="fa-solid fa-pen"></i></button>
+              <button class="btn btn-xs btn-danger" onclick="M21.removeContact('${g.id}','${c.id}')"><i class="fa-solid fa-trash"></i></button>` : ''}
+            </div>
+          </div>`;
+        }).join('');
+        return `<div style="margin-bottom:20px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)">
+            <i class="fa-solid fa-layer-group" style="color:var(--accent);font-size:13px"></i>
+            <span style="font-size:14px;font-weight:700;color:var(--text)">${esc(g.name)}</span>
+            <span class="badge badge-muted">${contacts.length}</span>
+            ${isMaster ? `<div style="margin-left:auto;display:flex;gap:6px">
+              <button class="btn btn-xs btn-primary" onclick="M21.openContact('${g.id}',null)"><i class="fa-solid fa-plus"></i> Contato</button>
+              <button class="btn btn-xs btn-secondary" onclick="M21.editGroup('${g.id}')"><i class="fa-solid fa-pen"></i></button>
+              <button class="btn btn-xs btn-danger" onclick="M21.removeGroup('${g.id}')"><i class="fa-solid fa-trash"></i></button>
+            </div>` : ''}
+          </div>
+          ${contacts.length ? `<div style="display:flex;flex-direction:column;gap:8px">${contactCards}</div>` : `<div class="text-xs text-muted" style="padding:8px 0">Nenhum contato neste grupo.</div>`}
+        </div>`;
+      }).join('');
     }
 
-    function open(c) {
-      editId = c?.id || null;
-      $('m21-modal-title').textContent = editId ? 'Editar Contato' : 'Novo Contato';
-      $('m21-name').value  = c?.name  || '';
-      $('m21-role').value  = c?.role  || '';
-      $('m21-phone').value = c?.phone || '';
-      $('m21-modal').classList.add('open');
+    // ── Grupos ──
+    function openGroup(g) {
+      _editGroupId = g?.id || null;
+      $('m21-group-modal-title').textContent = _editGroupId ? 'Editar Grupo' : 'Novo Grupo';
+      $('m21-group-name').value = g?.name || '';
+      $('m21-group-modal').classList.add('open');
+    }
+    function saveGroup() {
+      const name = $('m21-group-name').value.trim();
+      if (!name) return Toast.error('Informe o nome do grupo.');
+      if (_editGroupId) { const g = groups.find(x => x.id === _editGroupId); if (g) g.name = name; }
+      else groups.push({ id: Utils.uid(), name, contacts: [] });
+      save(); $('m21-group-modal').classList.remove('open'); render(); Toast.success('Grupo salvo.');
+    }
+    function removeGroup(id) {
+      const g = groups.find(x => x.id === id); if (!g) return;
+      Modal.confirm({ title:'Remover Grupo', confirmText:'Remover', confirmClass:'btn-danger',
+        body:`<p>Remover o grupo <strong>${esc(g.name)}</strong> e todos os seus ${g.contacts.length} contato(s)?</p>`,
+        onConfirm() { groups = groups.filter(x => x.id !== id); save(); render(); Toast.success('Grupo removido.'); }
+      });
     }
 
+    // ── Contatos ──
+    function openContact(groupId, c) {
+      _editContactGroupId = groupId;
+      _editContactId = c?.id || null;
+      $('m21-contact-modal-title').textContent = _editContactId ? 'Editar Contato' : 'Novo Contato';
+      $('m21-contact-name').value  = c?.name  || '';
+      $('m21-contact-role').value  = c?.role  || '';
+      $('m21-contact-phone').value = c?.phone || '';
+      $('m21-contact-modal').classList.add('open');
+    }
     function saveContact() {
-      const name  = $('m21-name').value.trim();
-      const role  = $('m21-role').value.trim();
-      const phone = $('m21-phone').value.trim();
-      if (!name) return Toast.error('Informe o nome do contato.');
-      const data = { name, role, phone, updatedAt: new Date().toISOString() };
-      if (editId) Object.assign(contacts.find(c => c.id === editId), data);
-      else contacts.push({ id: Utils.uid(), ...data });
-      save();
-      $('m21-modal').classList.remove('open');
-      render();
-      Toast.success('Contato salvo.');
+      const name  = $('m21-contact-name').value.trim();
+      const role  = $('m21-contact-role').value.trim();
+      const phone = $('m21-contact-phone').value.trim();
+      if (!name) return Toast.error('Informe o nome.');
+      const g = groups.find(x => x.id === _editContactGroupId); if (!g) return;
+      if (_editContactId) Object.assign(g.contacts.find(c => c.id === _editContactId), { name, role, phone });
+      else g.contacts.push({ id: Utils.uid(), name, role, phone });
+      save(); $('m21-contact-modal').classList.remove('open'); render(); Toast.success('Contato salvo.');
     }
-
-    function remove(id) {
-      const c = contacts.find(x => x.id === id);
-      if (!c) return;
-      Modal.confirm({
-        title: 'Remover Contato', confirmText: 'Remover', confirmClass: 'btn-danger',
-        body: `<p>Remover o contato <strong>${esc(c.name)}</strong>?</p>`,
-        onConfirm() { contacts = contacts.filter(x => x.id !== id); save(); render(); Toast.success('Contato removido.'); }
+    function removeContact(groupId, contactId) {
+      const g = groups.find(x => x.id === groupId); if (!g) return;
+      const c = g.contacts.find(x => x.id === contactId); if (!c) return;
+      Modal.confirm({ title:'Remover Contato', confirmText:'Remover', confirmClass:'btn-danger',
+        body:`<p>Remover <strong>${esc(c.name)}</strong>?</p>`,
+        onConfirm() { g.contacts = g.contacts.filter(x => x.id !== contactId); save(); render(); Toast.success('Contato removido.'); }
       });
     }
 
     return {
       init() {
         load();
-        Storage.subscribe(KEY, data => { contacts = data ?? []; render(); });
-        $('m21-add-btn')?.addEventListener('click', () => open(null));
-        $('m21-save')?.addEventListener('click', saveContact);
-        $('m21-cancel')?.addEventListener('click', () => $('m21-modal').classList.remove('open'));
+        Storage.subscribe(KEY, data => {
+          if (Array.isArray(data)) {
+            groups = data.length && data[0]?.contacts !== undefined ? data : (data.length ? [{ id: Utils.uid(), name:'Geral', contacts: data }] : []);
+          }
+          render();
+        });
+        $('m21-add-group-btn')?.addEventListener('click', () => openGroup(null));
+        $('m21-group-save')?.addEventListener('click', saveGroup);
+        $('m21-group-cancel')?.addEventListener('click', () => $('m21-group-modal').classList.remove('open'));
+        $('m21-contact-save')?.addEventListener('click', saveContact);
+        $('m21-contact-cancel')?.addEventListener('click', () => $('m21-contact-modal').classList.remove('open'));
         document.addEventListener('route:change', e => { if (e.detail.route === 'm21') render(); });
         render();
       },
-      render, edit(id) { open(contacts.find(c => c.id === id)); }, remove
+      render,
+      editGroup(id)   { openGroup(groups.find(g => g.id === id)); },
+      removeGroup,
+      openContact,
+      editContact(gId, cId) { const g = groups.find(x => x.id === gId); openContact(gId, g?.contacts.find(c => c.id === cId)); },
+      removeContact
     };
   })();
 

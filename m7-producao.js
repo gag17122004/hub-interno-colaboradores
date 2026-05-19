@@ -534,7 +534,11 @@ const M7 = (() => {
 
   /* ── Init ── */
   async function init() {
+    await Storage.syncBatch([Storage.KEYS.PRODUCTION, GOALS_KEY]);
     load();
+
+    Storage.subscribe(Storage.KEYS.PRODUCTION, data => { records = data ?? []; renderStats(); renderTable(); if (activeTab === 'history') renderHistory(); });
+    Storage.subscribe(GOALS_KEY, data => { prodGoals = data ?? []; if (activeTab === 'goals') renderGoalsTable(); });
 
     $('m7-add-btn')?.addEventListener('click', openAdd);
     $('m7-save-btn')?.addEventListener('click', saveRecord);
@@ -552,6 +556,7 @@ const M7 = (() => {
 
     document.addEventListener('route:change', async (e) => {
       if (e.detail.route !== 'm7') return;
+      await Storage.syncBatch([Storage.KEYS.PRODUCTION, GOALS_KEY]);
       load(); renderStats(); renderTable();
       if (activeTab === 'history') renderHistory();
       if (activeTab === 'goals')   renderGoalsTable();
