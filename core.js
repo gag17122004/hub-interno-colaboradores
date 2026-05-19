@@ -1,5 +1,6 @@
 import { doc, getDoc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
-import { db } from "./firebase-config.js";
+import { signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
+import { db, auth, apiKey as fbApiKey } from "./firebase-config.js";
 
 const USAR_FIREBASE = true;
 
@@ -46,7 +47,7 @@ const Storage = {
       'hub_mkt_fees', 'hub_debts', 'hub_audit', 'hub_dispute_scripts',
       'hub_prod_goal', 'hub_products_seeded_v1',
       // adicionados: chaves que faltavam no caminho compartilhado
-      'hub_time_records', 'hub_absences', 'hub_tasks', 'hub_passwords',
+      'hub_time_records', 'hub_absences', 'hub_tasks',
       'hub_size_changes', 'hub_inventory',
       'hub_m13_platform_manuals', 'hub_m14_resolution_manuals',
       'hub_m15_periodic_todos', 'hub_m16_calendar_events',
@@ -287,22 +288,99 @@ const Logger = {
 };
 
 /* ============================================================
-   1.2 AUTH — Sistema de Login e Permissões
+   1.2 AUTH — Firebase Authentication
    ============================================================ */
 const Auth = {
-  MASTER_NAME: 'Administrador',
-  DEFAULT_MASTER_PASS: 'master123',
+  MASTER_NAME:   'Administrador',
+  MASTER_EMAIL:  'administrador@hub-interno.app',
+  INTERNAL_DOMAIN: '@hub-interno.app',
   COLAB_BLOCKED: ['m3', 'm4', 'm6', 'm8', 'm9', 'm11', 'm12'],
-  _pendingName: null,
 
-  getPasswords() { return Storage._getLocal(Storage.KEYS.PASSWORDS, {}); },
-  savePasswords(pw) { Storage._setLocal(Storage.KEYS.PASSWORDS, pw); },
-  getPassword(name) {
-    const pw = this.getPasswords();
-    return name === this.MASTER_NAME ? (pw[this.MASTER_NAME] || this.DEFAULT_MASTER_PASS) : (pw[name] || null);
+  /* Converte nome em e-mail interno: "João Silva" → "joaosilva@hub-interno.app" */
+  _nameToEmail(name) {
+    const id = (name || '').toLowerCase()
+      .normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
+    return id + this.INTERNAL_DOMAIN;
   },
+
+  /* Mapeia um usuário Firebase para {name, profile} do app */
+  _resolveProfile(firebaseUser) {
+    if (!firebaseUser) return null;
+    if (firebaseUser.email === this.MASTER_EMAIL)
+      return { name: this.MASTER_NAME, profile: 'master' };
+
+    const employees = Storage._getLocal(Storage.KEYS.EMPLOYEES, []);
+
+    if (!firebaseUser.email.endsWith(this.INTERNAL_DOMAIN)) {
+      // Usuário Google → busca pelo Gmail cadastrado
+      const emp = employees.find(e => e.email?.toLowerCase() === firebaseUser.email.toLowerCase());
+      return emp ? { name: emp.name, profile: emp.profile || 'colab' } : null;
+    }
+    // Usuário nome/senha → busca pelo prefixo do e-mail interno
+    const prefix = firebaseUser.email.split('@')[0];
+    const emp = employees.find(e => this._nameToEmail(e.name).split('@')[0] === prefix);
+    return emp ? { name: emp.name, profile: emp.profile || 'colab' } : null;
+  },
+
+  /* Entrar com Google */
+  async loginWithGoogle() {
+    try {
+      await signInWithPopup(auth, new GoogleAuthProvider());
+    } catch (e) {
+      if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request')
+        Toast.error('Erro ao entrar com Google. Tente novamente.');
+    }
+  },
+
+  /* Entrar com nome + senha */
+  async loginWithPassword(name, pass) {
+    const email = name === this.MASTER_NAME ? this.MASTER_EMAIL : this._nameToEmail(name);
+    try {
+      await signInWithEmailAndPassword(auth, email, pass);
+    } catch {
+      Toast.error('Senha incorreta.');
+    }
+  },
+
+  /* Cria conta Firebase para usuário sem Gmail (via REST — não muda sessão atual) */
+  async createAuthUser(name, pass) {
+    const email = name === this.MASTER_NAME ? this.MASTER_EMAIL : this._nameToEmail(name);
+    const res   = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${fbApiKey}`,
+      { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ email, password: pass, returnSecureToken: false }) }
+    );
+    const data = await res.json();
+    if (!res.ok) {
+      const msg = data.error?.message || 'Erro';
+      if (msg === 'EMAIL_EXISTS') throw new Error('Usuário já existe no sistema.');
+      throw new Error('Erro ao criar conta: ' + msg);
+    }
+    return email;
+  },
+
+  logout() {
+    Modal.confirm({
+      title: 'Sair do Sistema', body: 'Deseja encerrar sua sessão?',
+      onConfirm: async () => {
+        Logger.log('Fez logout do sistema');
+        Storage._removeLocal(Storage.KEYS.SESSION);
+        await signOut(auth);
+        window.location.reload();
+      }
+    });
+  },
+
+  getSession() { return Storage._getLocal(Storage.KEYS.SESSION); },
+  isMaster()   { const s = this.getSession(); return !!(s && s.profile === 'master'); },
+
+  /* PIN de confirmação de ponto (separado do login, apenas localStorage) */
+  getPasswords()     { return Storage._getLocal(Storage.KEYS.PASSWORDS, {}); },
+  savePasswords(pw)  { Storage._setLocal(Storage.KEYS.PASSWORDS, pw); },
+  getPassword(name)  { return this.getPasswords()[name] || null; },
   setPassword(name, pass) { const pw = this.getPasswords(); pw[name] = pass; this.savePasswords(pw); },
-  hasPassword(name) { return name === this.MASTER_NAME ? true : !!this.getPasswords()[name]; },
+  hasPassword(name)  { return !!this.getPasswords()[name]; },
 
   confirmPunchPassword(cb) {
     const session = this.getSession();
@@ -339,20 +417,22 @@ const Auth = {
   },
 
   init() {
-    const session = this.getSession();
-    if (session) {
-      this._applySession(session);
-    } else {
-      this.showLogin();
-    }
-    document.getElementById('btn-login-next')?.addEventListener('click', () => this.handleSelectName());
-    document.getElementById('btn-login-finish')?.addEventListener('click', () => this.handlePassword());
-    document.getElementById('btn-login-back')?.addEventListener('click', () => this.showStep(1));
-    document.getElementById('btn-login-back3')?.addEventListener('click', () => this.showStep(1));
-    document.getElementById('btn-login-set-pass')?.addEventListener('click', () => this.handleSetPassword());
+    document.getElementById('btn-google-signin')?.addEventListener('click', () => this.loginWithGoogle());
+    document.getElementById('btn-login-finish')?.addEventListener('click', () => {
+      const name = document.getElementById('login-name-select')?.value?.trim();
+      const pass = document.getElementById('login-pass')?.value;
+      if (!name) { Toast.error('Selecione seu nome.'); return; }
+      if (!pass) { Toast.error('Digite sua senha.'); return; }
+      this.loginWithPassword(name, pass);
+    });
+    document.getElementById('login-pass')?.addEventListener('keypress', e => {
+      if (e.key === 'Enter') document.getElementById('btn-login-finish')?.click();
+    });
     document.getElementById('btn-logout')?.addEventListener('click', () => this.logout());
-    document.getElementById('login-pass')?.addEventListener('keypress', e => { if (e.key === 'Enter') this.handlePassword(); });
-    document.getElementById('login-confirm-pass')?.addEventListener('keypress', e => { if (e.key === 'Enter') this.handleSetPassword(); });
+  },
+
+  showLogin() {
+    document.getElementById('login-screen')?.classList.remove('hidden');
     this._populateNameSelect();
   },
 
@@ -360,82 +440,10 @@ const Auth = {
     const sel = document.getElementById('login-name-select');
     if (!sel) return;
     const employees = Storage._getLocal(Storage.KEYS.EMPLOYEES, []);
-    sel.innerHTML = '<option value="">Selecione seu nome...</option>' +
-      '<option value="' + Utils.esc(this.MASTER_NAME) + '">' + Utils.esc(this.MASTER_NAME) + '</option>' +
-      employees.map(e => '<option value="' + Utils.esc(e.name) + '">' + Utils.esc(e.name) + '</option>').join('');
-  },
-
-  handleSelectName() {
-    const sel = document.getElementById('login-name-select');
-    const name = sel?.value?.trim();
-    if (!name) { Toast.error('Selecione seu nome.'); return; }
-    this._pendingName = name;
-    if (!this.hasPassword(name)) {
-      this.showStep(3);
-    } else {
-      const lbl = document.getElementById('login-step2-label');
-      if (lbl) lbl.textContent = 'Ola, ' + name + '! Digite sua senha:';
-      const passEl = document.getElementById('login-pass');
-      if (passEl) passEl.value = '';
-      this.showStep(2);
-      setTimeout(() => passEl?.focus(), 80);
-    }
-  },
-
-  handlePassword() {
-    const pass = document.getElementById('login-pass')?.value;
-    const name = this._pendingName;
-    if (!name) { this.showStep(1); return; }
-    if (pass !== this.getPassword(name)) { Toast.error('Senha incorreta.'); return; }
-    this.login(name === this.MASTER_NAME ? 'master' : 'colab', name);
-  },
-
-  handleSetPassword() {
-    const p1 = document.getElementById('login-new-pass')?.value;
-    const p2 = document.getElementById('login-confirm-pass')?.value;
-    const name = this._pendingName;
-    if (!name) { this.showStep(1); return; }
-    if (p1.length < 4) { Toast.error('Senha deve ter no minimo 4 caracteres.'); return; }
-    if (p1 !== p2) { Toast.error('As senhas nao coincidem.'); return; }
-    this.setPassword(name, p1);
-    Logger.log('Definiu senha no primeiro acesso: ' + name);
-    this.login('colab', name);
-  },
-
-  login(profile, name) {
-    const session = { profile, name };
-    Storage._setLocal(Storage.KEYS.SESSION, session);
-    this._applySession(session);
-    Logger.log('Fez login no sistema');
-    Toast.success('Bem-vindo, ' + name + '!');
-  },
-
-  logout() {
-    Modal.confirm({
-      title: 'Sair do Sistema',
-      body: 'Deseja realmente encerrar sua sessao?',
-      onConfirm: () => {
-        Logger.log('Fez logout do sistema');
-        Storage._removeLocal(Storage.KEYS.SESSION);
-        window.location.reload();
-      }
-    });
-  },
-
-  getSession() { return Storage._getLocal(Storage.KEYS.SESSION); },
-  isMaster()   { const s = this.getSession(); return !!(s && s.profile === 'master'); },
-
-  showLogin() {
-    document.getElementById('login-screen')?.classList.remove('hidden');
-    this._populateNameSelect();
-    this.showStep(1);
-  },
-
-  showStep(n) {
-    [1, 2, 3].forEach(i => {
-      const el = document.getElementById('login-step-' + i);
-      if (el) el.classList.toggle('hidden', i !== n);
-    });
+    const passUsers = employees.filter(e => !e.email || e.email.endsWith(this.INTERNAL_DOMAIN));
+    sel.innerHTML = `<option value="">Selecione seu nome...</option>
+      <option value="${Utils.esc(this.MASTER_NAME)}">${Utils.esc(this.MASTER_NAME)}</option>` +
+      passUsers.map(e => `<option value="${Utils.esc(e.name)}">${Utils.esc(e.name)}</option>`).join('');
   },
 
   _applySession(session) {
@@ -734,8 +742,35 @@ const App = {
   async init() {
     Theme.init();
     Auth.init();
-    document.dispatchEvent(new CustomEvent('hub:ready'));
-    console.info('[Hub Interno] Aplicação iniciada com sucesso.');
+
+    let _ready = false;
+
+    onAuthStateChanged(auth, async firebaseUser => {
+      if (firebaseUser) {
+        const profile = Auth._resolveProfile(firebaseUser);
+        if (profile) {
+          Auth._applySession(profile);
+          if (!_ready) {
+            _ready = true;
+            document.dispatchEvent(new CustomEvent('hub:ready'));
+            Logger.log('Fez login no sistema');
+            Toast.success('Bem-vindo, ' + profile.name + '!');
+          }
+        } else {
+          await signOut(auth);
+          Auth.showLogin();
+          Toast.error('Acesso não autorizado. Peça ao administrador para cadastrá-lo.');
+        }
+      } else {
+        if (_ready) {
+          window.location.reload(); // sessão encerrada → recarrega
+        } else {
+          Auth.showLogin();
+        }
+      }
+    });
+
+    console.info('[Hub Interno] Inicializado.');
   }
 };
 

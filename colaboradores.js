@@ -73,26 +73,42 @@ const Colaboradores = (() => {
     editId = emp?.id || null;
     $('colab-modal-title').textContent = editId ? 'Editar Colaborador' : 'Novo Colaborador';
     $('colab-name').value    = emp?.name    || '';
+    $('colab-email').value   = emp?.email   || '';
     $('colab-contact').value = emp?.contact || '';
     $('colab-info').value    = emp?.info    || '';
     $('colab-profile').value = emp?.profile || 'colab';
+    // Só mostra campo de senha em novos usuários sem Gmail
+    const passSection = $('colab-pass-section');
+    if (passSection) passSection.classList.toggle('hidden', !!editId);
+    $('colab-initial-pass').value = '';
     $('colab-modal').classList.add('open');
   }
 
-  function saveColab() {
+  async function saveColab() {
     const name    = $('colab-name').value.trim();
+    const email   = $('colab-email').value.trim().toLowerCase();
     const contact = $('colab-contact').value.trim();
     const info    = $('colab-info').value.trim();
     const profile = $('colab-profile').value;
+    const initPass= $('colab-initial-pass')?.value?.trim();
 
     if (!name) { Toast.error('Informe o nome.'); return; }
+
+    const isGoogleUser = email && !email.endsWith('@hub-interno.app');
+
+    // Novo usuário sem Gmail precisa de senha inicial
+    if (!editId && !isGoogleUser && !initPass) {
+      Toast.error('Informe uma senha inicial para o colaborador.'); return;
+    }
+    if (!editId && !isGoogleUser && initPass.length < 4) {
+      Toast.error('Senha deve ter mínimo 4 caracteres.'); return;
+    }
 
     if (editId) {
       const emp = employees.find(e => e.id === editId);
       if (!emp) return;
       const oldName = emp.name;
-      Object.assign(emp, { name, contact, info, profile });
-      // migra senha se o nome mudou
+      Object.assign(emp, { name, email, contact, info, profile });
       if (oldName !== name) {
         const pw = Auth.getPasswords();
         if (pw[oldName]) { pw[name] = pw[oldName]; delete pw[oldName]; Auth.savePasswords(pw); }
@@ -101,7 +117,15 @@ const Colaboradores = (() => {
       if (employees.find(e => e.name.toLowerCase() === name.toLowerCase())) {
         Toast.error('Já existe um colaborador com este nome.'); return;
       }
-      employees.push({ id: Utils.uid(), name, contact, info, profile });
+      // Cria conta Firebase se não tiver Gmail
+      if (!isGoogleUser) {
+        try {
+          await Auth.createAuthUser(name, initPass);
+        } catch (e) {
+          Toast.error(e.message); return;
+        }
+      }
+      employees.push({ id: Utils.uid(), name, email: isGoogleUser ? email : '', contact, info, profile });
     }
 
     save();
