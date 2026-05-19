@@ -307,13 +307,24 @@ const Auth = {
   /* Mapeia um usuário Firebase para {name, profile} — async para buscar Firestore se necessário */
   async _resolveProfile(firebaseUser) {
     if (!firebaseUser) return null;
+
+    // Conta administrador interna sempre é master
     if (firebaseUser.email === this.MASTER_EMAIL)
       return { name: this.MASTER_NAME, profile: 'master' };
 
-    // Tenta localStorage primeiro (rápido); se vazio, busca Firestore
+    // Busca lista de colaboradores (localStorage → Firestore)
     let employees = Storage._getLocal(Storage.KEYS.EMPLOYEES, []);
     if (!employees.length) {
       try { employees = await Storage.get(Storage.KEYS.EMPLOYEES, []); } catch { employees = []; }
+    }
+
+    // ── Modo primeiro acesso ──────────────────────────────────────────
+    // Se nenhum colaborador com perfil 'master' existe ainda, o primeiro
+    // usuário Google a entrar recebe acesso master para configurar o sistema.
+    const hasMaster = employees.some(e => e.profile === 'master');
+    if (!hasMaster && !firebaseUser.email.endsWith(this.INTERNAL_DOMAIN)) {
+      const name = firebaseUser.displayName || firebaseUser.email.split('@')[0];
+      return { name, profile: 'master', _firstSetup: true };
     }
 
     if (!firebaseUser.email.endsWith(this.INTERNAL_DOMAIN)) {
@@ -342,8 +353,17 @@ const Auth = {
     const email = name === this.MASTER_NAME ? this.MASTER_EMAIL : this._nameToEmail(name);
     try {
       await signInWithEmailAndPassword(auth, email, pass);
-    } catch {
-      Toast.error('Senha incorreta.');
+    } catch (e) {
+      console.error('[Auth.loginWithPassword]', e.code, email);
+      if (e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential') {
+        Toast.error('Conta não encontrada. Use "Entrar com Google" ou peça ao administrador para criar sua conta em Colaboradores.');
+      } else if (e.code === 'auth/wrong-password') {
+        Toast.error('Senha incorreta.');
+      } else if (e.code === 'auth/too-many-requests') {
+        Toast.error('Muitas tentativas. Aguarde alguns minutos e tente novamente.');
+      } else {
+        Toast.error('Erro ao entrar (' + (e.code || 'desconhecido') + '). Tente com Google.');
+      }
     }
   },
 
@@ -468,6 +488,13 @@ const Auth = {
       }
     });
     Router.init();
+
+    // Avisa se entrou pelo modo de primeiro acesso
+    if (session._firstSetup) {
+      setTimeout(() => Toast.info(
+        'Primeiro acesso detectado. Vá em Colaboradores → Contratar e cadastre-se com seu Gmail para garantir acesso permanente.'
+      ), 1200);
+    }
   }
 };
 /* ============================================================
