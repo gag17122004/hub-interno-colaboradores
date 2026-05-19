@@ -92,6 +92,92 @@ const M7 = (() => {
     return Object.values(byWeek).sort((a, b) => b.weekStart.localeCompare(a.weekStart));
   }
 
+  /* Médias por máquina e por tamanho dentro de cada máquina */
+  function getMachineAverages() {
+    const byMachine = {};
+    records.forEach(r => {
+      const machine = (r.machine || 'Desconhecida').trim();
+      const size    = (r.size || '').trim() || '—';
+      if (!byMachine[machine]) byMachine[machine] = { totalKg: 0, days: new Set(), bySizes: {} };
+      const m = byMachine[machine];
+      m.totalKg += Number(r.weight) || 0;
+      m.days.add(r.date);
+      if (!m.bySizes[size]) m.bySizes[size] = { totalKg: 0, days: new Set() };
+      m.bySizes[size].totalKg += Number(r.weight) || 0;
+      m.bySizes[size].days.add(r.date);
+    });
+    return Object.entries(byMachine)
+      .map(([machine, m]) => ({
+        machine,
+        totalKg: m.totalKg,
+        days:    m.days.size,
+        avgKg:   m.days.size ? m.totalKg / m.days.size : 0,
+        sizes:   Object.entries(m.bySizes)
+          .map(([size, s]) => ({
+            size,
+            totalKg: s.totalKg,
+            days:    s.days.size,
+            avgKg:   s.days.size ? s.totalKg / s.days.size : 0,
+          }))
+          .sort((a, b) => b.avgKg - a.avgKg),
+      }))
+      .sort((a, b) => a.machine.localeCompare(b.machine));
+  }
+
+  function renderMachineAverages() {
+    const el = $('m7-machine-averages');
+    if (!el) return;
+    const machineAvgs = getMachineAverages();
+    if (!machineAvgs.length) { el.innerHTML = ''; return; }
+
+    // Média geral diária (todos os dias com pelo menos 1 registro)
+    const allDays  = new Set(records.map(r => r.date));
+    const totalKg  = records.reduce((s, r) => s + (Number(r.weight) || 0), 0);
+    const avgGeral = allDays.size ? totalKg / allDays.size : 0;
+
+    el.innerHTML = `
+      <!-- Média geral -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <i class="fa-solid fa-chart-line" style="color:var(--accent);font-size:13px"></i>
+        <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-sec)">Médias de Produção</span>
+        <span class="badge badge-info" style="margin-left:auto">Geral: ${Utils.num(avgGeral, 1)} kg/dia</span>
+      </div>
+
+      <!-- Cards por máquina -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">
+        ${machineAvgs.map(m => `
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px">
+            <!-- Cabeçalho da máquina -->
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+              <div>
+                <div style="font-size:13px;font-weight:700;color:var(--text)">
+                  <i class="fa-solid fa-gears" style="color:var(--accent);font-size:11px;margin-right:5px"></i>
+                  Máquina ${Utils.esc(m.machine)}
+                </div>
+                <div class="text-xs text-muted mt-1">${m.days} dia(s) com registro</div>
+              </div>
+              <div style="text-align:right">
+                <div style="font-size:16px;font-weight:700;font-family:'DM Mono',monospace;color:var(--accent)">${Utils.num(m.avgKg, 1)}</div>
+                <div class="text-xs text-muted">kg/dia</div>
+              </div>
+            </div>
+            <!-- Breakdown por tamanho -->
+            ${m.sizes.length > 1 ? `
+            <div style="border-top:1px solid var(--border);padding-top:8px;display:flex;flex-direction:column;gap:5px">
+              <div class="text-xs font-bold" style="color:var(--text-sec);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px">Por Tamanho</div>
+              ${m.sizes.map(sz => `
+                <div style="display:flex;align-items:center;justify-content:space-between;font-size:12px">
+                  <span style="color:var(--text-sec)">${Utils.esc(sz.size)}</span>
+                  <span class="font-mono font-bold">${Utils.num(sz.avgKg, 1)} <span style="font-weight:400;color:var(--text-sec)">kg/dia</span></span>
+                </div>`).join('')}
+            </div>` : m.sizes.length === 1 ? `
+            <div style="border-top:1px solid var(--border);padding-top:6px">
+              <div style="font-size:11px;color:var(--text-sec)">Tamanho: <strong>${Utils.esc(m.sizes[0].size)}</strong></div>
+            </div>` : ''}
+          </div>`).join('')}
+      </div>`;
+  }
+
   function getGoalForDay(date, prodType, size) {
     const g = prodGoals.find(g =>
       g.prodType === prodType &&
@@ -144,6 +230,7 @@ const M7 = (() => {
     }
 
     renderAlertBanner(s);
+    renderMachineAverages();
   }
 
   function renderAlertBanner(s) {
