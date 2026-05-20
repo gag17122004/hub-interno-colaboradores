@@ -770,13 +770,16 @@ const App = {
       // Sessão Firebase ativa — verifica se tem sessão de app salva
       const session = Auth.getSession();
       if (session) {
-        // Auto-login com sessão existente
         Auth._applySession(session);
         fireReady();
       } else {
-        // Sem sessão → mostra tela de login
+        // Sem sessão → sincroniza lista de colaboradores do Firestore
+        // para que o dropdown de login mostre todos os nomes cadastrados
+        Storage.get(Storage.KEYS.EMPLOYEES, []).then(() => {
+          Auth._populateNameSelect();
+        }).catch(() => {});
         Auth.showLogin();
-        fireReady(); // módulos inicicam em segundo plano
+        fireReady();
       }
     });
 
