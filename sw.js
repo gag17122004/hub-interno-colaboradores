@@ -1,10 +1,13 @@
 'use strict';
 
-const CACHE_VERSION = 'v6';
+const CACHE_VERSION = 'v7';
 const CACHE_NAME    = `hub-pratik-${CACHE_VERSION}`;
 
+/* Assets pré-cacheados na instalação (fallback offline) */
 const STATIC_ASSETS = [
+  './index.html',
   './core.js',
+  './firebase-config.js',
   './meu-espaco.js',
   './m1-horas.js',
   './m2-custos.js',
@@ -12,12 +15,18 @@ const STATIC_ASSETS = [
   './m4-m5.js',
   './m6-auditoria.js',
   './m7-producao.js',
+  './m8-orcamentos.js',
+  './m9-rendimento.js',
+  './m10-manutencao.js',
+  './m11-disputas.js',
+  './m12-titulos.js',
+  './m13-m20.js',
   './colaboradores.js',
   './manifest.json',
   './icon.svg',
 ];
 
-/* ── Instalação: pré-cache de assets estáticos (NÃO incluí index.html) ── */
+/* ── Instalação ── */
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -37,7 +46,8 @@ self.addEventListener('activate', event => {
   );
 });
 
-/* ── Fetch ── */
+/* ── Fetch: Network-first para tudo (sempre código atualizado) ──
+   Fallback para cache apenas se offline.                         */
 self.addEventListener('fetch', event => {
   const { request } = event;
   if (request.method !== 'GET') return;
@@ -45,47 +55,24 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
   if (url.protocol === 'chrome-extension:') return;
 
-  const isLocal = url.origin === self.location.origin;
-  const isHTML  = url.pathname.endsWith('.html') || url.pathname === '/' || url.pathname.endsWith('/');
+  /* Ignora requests externos que não devem ser cacheados */
+  const isCacheable = url.origin === self.location.origin ||
+    url.hostname.includes('fonts.googleapis.com') ||
+    url.hostname.includes('fonts.gstatic.com') ||
+    url.hostname.includes('cdnjs.cloudflare.com');
 
-  if (isLocal && isHTML) {
-    /* Network-first para HTML: sempre busca versão atualizada */
-    event.respondWith(
-      fetch(request)
-        .then(res => {
-          if (res.ok) {
-            caches.open(CACHE_NAME).then(c => c.put(request, res.clone()));
-          }
-          return res;
-        })
-        .catch(() => caches.match(request))
-    );
-  } else if (isLocal) {
-    /* Cache-first para JS/CSS/imagens: retorna cache imediato, atualiza em segundo plano */
-    event.respondWith(
-      caches.match(request).then(cached => {
-        const network = fetch(request).then(res => {
-          if (res.ok) {
-            const clone = res.clone();
-            caches.open(CACHE_NAME).then(c => c.put(request, clone));
-          }
-          return res;
-        }).catch(() => null);
-        return cached || network;
+  if (!isCacheable) return; /* Firebase SDK, Analytics — sem cache */
+
+  event.respondWith(
+    fetch(request)
+      .then(res => {
+        if (res.ok) {
+          /* Clona ANTES de usar — body só pode ser lido uma vez */
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then(c => c.put(request, clone));
+        }
+        return res;
       })
-    );
-  } else {
-    /* Network-first para CDN (FontAwesome, Google Fonts, Firebase) */
-    event.respondWith(
-      fetch(request)
-        .then(res => {
-          if (res.ok) {
-            const clone = res.clone();
-            caches.open(CACHE_NAME).then(c => c.put(request, clone));
-          }
-          return res;
-        })
-        .catch(() => caches.match(request))
-    );
-  }
+      .catch(() => caches.match(request))
+  );
 });
