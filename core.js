@@ -370,14 +370,14 @@ const Auth = {
     }
   },
 
-  login(profile, name) {
+  async login(profile, name) {
     const session = { profile, name };
     Storage._setLocal(Storage.KEYS.SESSION, session);
-    this._applySession(session);
     Logger.log('Fez login no sistema');
+    // Sincroniza TODOS os dados do Firestore antes de exibir o app
+    try { await Storage.syncAll(); } catch {}
+    this._applySession(session);
     Toast.success('Bem-vindo, ' + name + '!');
-    // Sincroniza todos os dados do Firestore em segundo plano
-    Storage.syncAll().catch(() => {});
   },
 
   logout() {
@@ -780,11 +780,12 @@ const App = {
       // Sessão Firebase ativa — verifica se tem sessão de app salva
       const session = Auth.getSession();
       if (session) {
+        // Sincroniza Firestore → localStorage ANTES de exibir os módulos
+        try { await Storage.syncAll(); } catch {}
         Auth._applySession(session);
         fireReady();
       } else {
-        // Sem sessão → sincroniza lista de colaboradores do Firestore
-        // para que o dropdown de login mostre todos os nomes cadastrados
+        // Sem sessão → sincroniza lista de colaboradores para o dropdown
         Storage.get(Storage.KEYS.EMPLOYEES, []).then(() => {
           Auth._populateNameSelect();
         }).catch(() => {});
