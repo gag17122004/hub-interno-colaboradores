@@ -741,6 +741,88 @@
     };
   })();
 
+  // ── Módulo Ajuda ─────────────────────────────────────────────
+  window.MAjuda = (() => {
+    const KEY          = 'hub_help_config';
+    const DEFAULT_PHONE   = '5514996783496';
+    const DEFAULT_MESSAGE = 'Olá! Sou [SEU NOME] da Pratik Distribuidora e preciso de ajuda com o Hub Interno. Minha dúvida é: ';
+
+    function getConfig() {
+      const cfg = getSync(KEY, null);
+      return cfg || { phone: DEFAULT_PHONE, message: DEFAULT_MESSAGE };
+    }
+
+    function render() {
+      const el = $('ajuda-panel-content'); if (!el) return;
+      const cfg = getConfig();
+      const session = Auth.getSession();
+      const userName = session?.name || '';
+      const msg = cfg.message.replace('[SEU NOME]', userName);
+      const waUrl = `https://wa.me/${cfg.phone}?text=${encodeURIComponent(msg)}`;
+
+      el.innerHTML = `
+        <div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:32px 16px;gap:20px">
+          <div style="width:72px;height:72px;border-radius:50%;background:rgba(37,211,102,.15);border:2px solid rgba(37,211,102,.4);display:flex;align-items:center;justify-content:center">
+            <i class="fa-brands fa-whatsapp" style="font-size:34px;color:#25d366"></i>
+          </div>
+          <div>
+            <div style="font-size:18px;font-weight:700;color:var(--text)">Precisa de ajuda?</div>
+            <div class="text-sm text-muted mt-2" style="max-width:340px">
+              Clique no botão abaixo para falar diretamente com o administrador via WhatsApp.
+              Uma mensagem já estará pronta — é só enviar.
+            </div>
+          </div>
+          <a href="${waUrl}" target="_blank" rel="noopener"
+            class="btn btn-primary" style="font-size:15px;padding:14px 28px;gap:10px;background:#25d366;border-color:#25d366">
+            <i class="fa-brands fa-whatsapp"></i> Falar com Suporte
+          </a>
+          <div class="text-xs text-muted" style="max-width:320px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:left">
+            <div style="font-weight:600;margin-bottom:4px">Mensagem que será enviada:</div>
+            <div style="font-style:italic;line-height:1.5">${esc(msg)}</div>
+          </div>
+        </div>
+        ${Auth.isMaster() ? `
+        <div style="border-top:1px solid var(--border);padding:16px">
+          <div class="text-xs font-bold" style="text-transform:uppercase;letter-spacing:.06em;color:var(--text-sec);margin-bottom:10px">
+            <i class="fa-solid fa-gear" style="margin-right:4px"></i> Configurações (master)
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div class="field">
+              <label>Número WhatsApp (com DDI/DDD)</label>
+              <input type="tel" id="ajuda-phone" value="${esc(cfg.phone)}" placeholder="5514999999999" style="max-width:220px" />
+            </div>
+            <div class="field">
+              <label>Mensagem automática</label>
+              <textarea id="ajuda-message" rows="3" style="font-size:13px">${esc(cfg.message)}</textarea>
+              <div class="text-xs text-muted mt-1">Use <strong>[SEU NOME]</strong> para inserir o nome do colaborador automaticamente.</div>
+            </div>
+            <button class="btn btn-secondary btn-sm" style="align-self:flex-start" onclick="MAjuda.saveConfig()">
+              <i class="fa-solid fa-check"></i> Salvar configuração
+            </button>
+          </div>
+        </div>` : ''}
+      `;
+    }
+
+    function saveConfig() {
+      const phone   = $('ajuda-phone')?.value.trim().replace(/\D/g, '');
+      const message = $('ajuda-message')?.value.trim();
+      if (!phone) return Toast.error('Informe o número do WhatsApp.');
+      setSync(KEY, { phone, message: message || DEFAULT_MESSAGE });
+      render();
+      Toast.success('Configuração salva.');
+    }
+
+    return {
+      init() {
+        Storage.subscribe(KEY, () => render());
+        document.addEventListener('route:change', e => { if (e.detail.route === 'ajuda') render(); });
+        render();
+      },
+      render, saveConfig
+    };
+  })();
+
   // Listeners dos botoes do modal — DOM ja parsed (script defer)
   document.getElementById('p5-manual-save')?.addEventListener('click', () => {
     const route = document.getElementById('p5-manual-save')?.dataset?.route;

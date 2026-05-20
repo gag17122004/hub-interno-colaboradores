@@ -1166,6 +1166,11 @@ body.is-master table .master-only { display: table-cell !important; }
         <span>Contatos</span>
       </div>
 
+      <div class="nav-item" data-route="ajuda" data-sub="Fale com o suporte via WhatsApp">
+        <i class="fa-solid fa-circle-question"></i>
+        <span>Ajuda</span>
+      </div>
+
       <span class="nav-label master-only">Master</span>
 
       <div class="nav-item master-only" data-route="m8" data-sub="Clientes, orçamentos e geração de PDF">
@@ -1766,6 +1771,15 @@ body.is-master table .master-only { display: table-cell !important; }
             <tbody id="m20-tbody"><tr><td colspan="6" class="empty-state"><p>Nenhum item cadastrado.</p></td></tr></tbody>
           </table>
         </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         AJUDA — WhatsApp Suporte
+         ══════════════════════════════════════════════════════ -->
+    <section id="panel-ajuda" class="module-panel">
+      <div class="card" style="padding:0;overflow:hidden">
+        <div id="ajuda-panel-content"></div>
       </div>
     </section>
 
@@ -3337,6 +3351,7 @@ const GroqAI = {
     if (typeof M12 !== 'undefined') M12.init();
     if (typeof M21 !== 'undefined') M21.init();
     if (typeof Colaboradores !== 'undefined') Colaboradores.init();
+    if (typeof MAjuda !== 'undefined') MAjuda.init();
   });
 
   document.addEventListener('DOMContentLoaded', () => {
