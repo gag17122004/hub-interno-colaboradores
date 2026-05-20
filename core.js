@@ -192,10 +192,18 @@ const Storage = {
   },
 
   // Sincroniza um conjunto de chaves do Firestore para o localStorage em paralelo.
+  // Sincroniza TODAS as chaves conhecidas do Firestore → localStorage.
+  // Chamado após login para restaurar dados em dispositivo novo/limpo.
+  async syncAll() {
+    if (!USAR_FIREBASE) return;
+    const allKeys = Object.values(this.KEYS).filter(k => k !== 'hub_session' && k !== 'hub_theme');
+    await this.syncBatch(allKeys);
+  },
+
   // Não exibe loading global — uso interno nos módulos ao abrir uma rota.
   async syncBatch(keys) {
     if (!USAR_FIREBASE) return;
-    if (!this._getLocal('hub_session')) return;
+    // Permite sync mesmo sem sessão de app (auth anônima Firebase já garante acesso)
     await Promise.all((keys || []).map(key => {
       if (key === 'hub_session' || key === 'hub_theme') return Promise.resolve();
       return (async () => {
@@ -368,6 +376,8 @@ const Auth = {
     this._applySession(session);
     Logger.log('Fez login no sistema');
     Toast.success('Bem-vindo, ' + name + '!');
+    // Sincroniza todos os dados do Firestore em segundo plano
+    Storage.syncAll().catch(() => {});
   },
 
   logout() {
