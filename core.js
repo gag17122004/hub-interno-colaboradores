@@ -1,5 +1,5 @@
 import { doc, getDoc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
-import { signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
+import { signInWithPopup, GoogleAuthProvider, signInAnonymously, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
 import { db, auth, apiKey as fbApiKey } from "./firebase-config.js";
 
 const USAR_FIREBASE = true;
@@ -288,122 +288,95 @@ const Logger = {
 };
 
 /* ============================================================
-   1.2 AUTH — Firebase Authentication
+   1.2 AUTH — Sistema de Login
+   Estratégia: auth anônima Firebase (Firestore) + senha local (UI)
+   - Senhas ficam em hub_passwords (localStorage + Firestore)
+   - Firebase anônimo garante acesso ao Firestore sem contas por usuário
+   - Google Sign-In opcional: se Gmail cadastrado em hub_employees, faz login
    ============================================================ */
 const Auth = {
-  MASTER_NAME:   'Administrador',
-  MASTER_EMAIL:  'administrador@hub-interno.app',
-  INTERNAL_DOMAIN: '@hub-interno.app',
+  MASTER_NAME:        'Administrador',
+  DEFAULT_MASTER_PASS:'master123',
   COLAB_BLOCKED: ['m3', 'm4', 'm6', 'm8', 'm9', 'm11', 'm12'],
 
-  /* Converte nome em e-mail interno: "João Silva" → "joaosilva@hub-interno.app" */
-  _nameToEmail(name) {
-    const id = (name || '').toLowerCase()
-      .normalize('NFD').replace(/[̀-ͯ]/g, '') // regex correto para acentos
-      .replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
-    return id + this.INTERNAL_DOMAIN;
+  /* ── Senhas (hub_passwords) ─────────────────────────────── */
+  getPasswords()    { return Storage._getLocal(Storage.KEYS.PASSWORDS, {}); },
+  savePasswords(pw) {
+    Storage._setLocal(Storage.KEYS.PASSWORDS, pw);
+    Storage.set(Storage.KEYS.PASSWORDS, pw).catch(() => {});
+  },
+  getPassword(name) {
+    const pw = this.getPasswords();
+    return name === this.MASTER_NAME
+      ? (pw[this.MASTER_NAME] || this.DEFAULT_MASTER_PASS)
+      : (pw[name] || null);
+  },
+  setPassword(name, pass) {
+    const pw = this.getPasswords();
+    pw[name] = pass;
+    this.savePasswords(pw);
+  },
+  hasPassword(name) {
+    return name === this.MASTER_NAME ? true : !!this.getPasswords()[name];
   },
 
-  /* Mapeia um usuário Firebase para {name, profile} — async para buscar Firestore se necessário */
-  async _resolveProfile(firebaseUser) {
-    if (!firebaseUser) return null;
-
-    // Conta administrador interna sempre é master
-    if (firebaseUser.email === this.MASTER_EMAIL)
-      return { name: this.MASTER_NAME, profile: 'master' };
-
-    // Busca lista de colaboradores (localStorage → Firestore)
-    let employees = Storage._getLocal(Storage.KEYS.EMPLOYEES, []);
-    if (!employees.length) {
-      try { employees = await Storage.get(Storage.KEYS.EMPLOYEES, []); } catch { employees = []; }
-    }
-
-    if (!firebaseUser.email.endsWith(this.INTERNAL_DOMAIN)) {
-      // 1. Busca exata pelo Gmail cadastrado em hub_employees
-      const empByEmail = employees.find(e =>
-        e.email?.toLowerCase() === firebaseUser.email.toLowerCase()
-      );
-      if (empByEmail) return { name: empByEmail.name, profile: empByEmail.profile || 'colab' };
-
-      // 2. Fallback de migração: compara pelo nome exibido no Google
-      if (firebaseUser.displayName) {
-        const empByName = employees.find(e =>
-          e.name.toLowerCase() === firebaseUser.displayName.toLowerCase()
-        );
-        if (empByName) return { name: empByName.name, profile: empByName.profile || 'colab' };
-      }
-
-      // 3. Nenhum colaborador tem Gmail cadastrado ainda → primeiro acesso via Google
-      const hasGoogleEmployee = employees.some(
-        e => e.email && !e.email.endsWith(this.INTERNAL_DOMAIN)
-      );
-      if (!hasGoogleEmployee) {
-        const name = firebaseUser.displayName || firebaseUser.email.split('@')[0];
-        return { name, profile: 'master', _firstSetup: true };
-      }
-
-      return null; // email não autorizado
-    }
-    // Usuário nome/senha → busca pelo prefixo do e-mail interno
-    const prefix = firebaseUser.email.split('@')[0];
-    const emp = employees.find(e => this._nameToEmail(e.name).split('@')[0] === prefix);
-    return emp ? { name: emp.name, profile: emp.profile || 'colab' } : null;
+  /* ── Login com nome + senha (sistema local) ─────────────── */
+  loginWithPassword(name, pass) {
+    if (!name) { Toast.error('Selecione seu nome.'); return; }
+    if (!pass)  { Toast.error('Digite sua senha.'); return; }
+    const expected = this.getPassword(name);
+    if (!expected) { Toast.error('Usuário não encontrado na lista de colaboradores.'); return; }
+    if (pass !== expected) { Toast.error('Senha incorreta.'); return; }
+    const employees = Storage._getLocal(Storage.KEYS.EMPLOYEES, []);
+    const emp = employees.find(e => e.name === name);
+    const profile = name === this.MASTER_NAME ? 'master' : (emp?.profile || 'colab');
+    this.login(profile, name);
   },
 
-  /* Entrar com Google */
+  /* ── Login com Google (opcional, requer Gmail em hub_employees) ─ */
   async loginWithGoogle() {
     try {
-      await signInWithPopup(auth, new GoogleAuthProvider());
+      const result = await signInWithPopup(auth, new GoogleAuthProvider());
+      const user   = result.user;
+      let employees = Storage._getLocal(Storage.KEYS.EMPLOYEES, []);
+      if (!employees.length) {
+        try { employees = await Storage.get(Storage.KEYS.EMPLOYEES, []); } catch {}
+      }
+      // Busca por email ou nome do Google
+      let emp = employees.find(e => e.email?.toLowerCase() === user.email?.toLowerCase());
+      if (!emp && user.displayName) {
+        emp = employees.find(e => e.name.toLowerCase() === user.displayName.toLowerCase());
+      }
+      if (emp) {
+        this.login(emp.profile || 'colab', emp.name);
+      } else if (!employees.some(e => e.email)) {
+        // Nenhum colaborador tem Gmail → primeiro acesso, vira master
+        this.login('master', user.displayName || user.email.split('@')[0]);
+      } else {
+        await signOut(auth).catch(() => {});
+        Toast.error('Gmail não cadastrado. Peça ao administrador para adicioná-lo em Colaboradores.');
+      }
     } catch (e) {
       if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request')
-        Toast.error('Erro ao entrar com Google. Tente novamente.');
+        Toast.error('Erro ao entrar com Google.');
     }
   },
 
-  /* Entrar com nome + senha */
-  async loginWithPassword(name, pass) {
-    const email = name === this.MASTER_NAME ? this.MASTER_EMAIL : this._nameToEmail(name);
-    try {
-      await signInWithEmailAndPassword(auth, email, pass);
-    } catch (e) {
-      console.error('[Auth.loginWithPassword]', e.code, email);
-      if (e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential' || e.code === 'auth/invalid-email') {
-        Toast.error('Conta não encontrada no novo sistema. Use "Entrar com Google" — é mais simples e funciona imediatamente.');
-      } else if (e.code === 'auth/wrong-password') {
-        Toast.error('Senha incorreta.');
-      } else if (e.code === 'auth/too-many-requests') {
-        Toast.error('Muitas tentativas. Aguarde alguns minutos.');
-      } else {
-        Toast.error('Erro ao entrar. Use "Entrar com Google" ou tente novamente.');
-        console.error('[Login]', e.code, e.message);
-      }
-    }
-  },
-
-  /* Cria conta Firebase para usuário sem Gmail (via REST — não muda sessão atual) */
-  async createAuthUser(name, pass) {
-    const email = name === this.MASTER_NAME ? this.MASTER_EMAIL : this._nameToEmail(name);
-    const res   = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${fbApiKey}`,
-      { method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ email, password: pass, returnSecureToken: false }) }
-    );
-    const data = await res.json();
-    if (!res.ok) {
-      const msg = data.error?.message || 'Erro';
-      if (msg === 'EMAIL_EXISTS') throw new Error('Usuário já existe no sistema.');
-      throw new Error('Erro ao criar conta: ' + msg);
-    }
-    return email;
+  login(profile, name) {
+    const session = { profile, name };
+    Storage._setLocal(Storage.KEYS.SESSION, session);
+    this._applySession(session);
+    Logger.log('Fez login no sistema');
+    Toast.success('Bem-vindo, ' + name + '!');
   },
 
   logout() {
     Modal.confirm({
       title: 'Sair do Sistema', body: 'Deseja encerrar sua sessão?',
-      onConfirm: async () => {
+      onConfirm: () => {
         Logger.log('Fez logout do sistema');
         Storage._removeLocal(Storage.KEYS.SESSION);
-        await signOut(auth);
+        signOut(auth).catch(() => {});
         window.location.reload();
       }
     });
@@ -412,13 +385,7 @@ const Auth = {
   getSession() { return Storage._getLocal(Storage.KEYS.SESSION); },
   isMaster()   { const s = this.getSession(); return !!(s && s.profile === 'master'); },
 
-  /* PIN de confirmação de ponto (separado do login, apenas localStorage) */
-  getPasswords()     { return Storage._getLocal(Storage.KEYS.PASSWORDS, {}); },
-  savePasswords(pw)  { Storage._setLocal(Storage.KEYS.PASSWORDS, pw); },
-  getPassword(name)  { return this.getPasswords()[name] || null; },
-  setPassword(name, pass) { const pw = this.getPasswords(); pw[name] = pass; this.savePasswords(pw); },
-  hasPassword(name)  { return !!this.getPasswords()[name]; },
-
+  /* ── PIN de confirmação de ponto ────────────────────────── */
   confirmPunchPassword(cb) {
     const session = this.getSession();
     if (!session) return;
@@ -428,45 +395,32 @@ const Auth = {
     document.getElementById('punch-pass-input').value = '';
     modal.classList.add('open');
     const confirm = () => {
-      const val = document.getElementById('punch-pass-input').value;
+      const val      = document.getElementById('punch-pass-input').value;
       const expected = this.getPassword(session.name);
       if (!expected || val === expected) {
-        modal.classList.remove('open');
-        cb();
+        modal.classList.remove('open'); cb();
       } else {
-        Toast.error('Senha incorreta. Nao e possivel bater ponto.');
+        Toast.error('Senha incorreta. Não é possível bater ponto.');
         document.getElementById('punch-pass-input').value = '';
       }
     };
     document.getElementById('btn-punch-pass-confirm').onclick = confirm;
-    document.getElementById('btn-punch-pass-cancel').onclick = () => modal.classList.remove('open');
+    document.getElementById('btn-punch-pass-cancel').onclick  = () => modal.classList.remove('open');
     document.getElementById('punch-pass-input').onkeydown = e => { if (e.key === 'Enter') confirm(); };
-    setTimeout(() => document.getElementById('punch-pass-input').focus(), 100);
+    setTimeout(() => document.getElementById('punch-pass-input')?.focus(), 100);
   },
 
   resetColabPassword(name) {
     const newPass = prompt('Nova senha para "' + name + '":');
-    if (!newPass || newPass.length < 4) { Toast.error('Senha muito curta (minimo 4 caracteres).'); return; }
+    if (!newPass || newPass.length < 4) { Toast.error('Senha muito curta (mínimo 4 caracteres).'); return; }
     this.setPassword(name, newPass);
     Logger.log('Master redefiniu senha de: ' + name);
     Toast.success('Senha de "' + name + '" redefinida.');
     if (typeof renderPasswordPanel === 'function') renderPasswordPanel();
   },
 
-  init() {
-    document.getElementById('btn-google-signin')?.addEventListener('click', () => this.loginWithGoogle());
-    document.getElementById('btn-login-finish')?.addEventListener('click', () => {
-      const name = document.getElementById('login-name-select')?.value?.trim();
-      const pass = document.getElementById('login-pass')?.value;
-      if (!name) { Toast.error('Selecione seu nome.'); return; }
-      if (!pass) { Toast.error('Digite sua senha.'); return; }
-      this.loginWithPassword(name, pass);
-    });
-    document.getElementById('login-pass')?.addEventListener('keypress', e => {
-      if (e.key === 'Enter') document.getElementById('btn-login-finish')?.click();
-    });
-    document.getElementById('btn-logout')?.addEventListener('click', () => this.logout());
-  },
+  /* Mantido para compatibilidade com módulo Colaboradores */
+  async createAuthUser() { /* não necessário com auth anônima */ },
 
   showLogin() {
     document.getElementById('login-screen')?.classList.remove('hidden');
@@ -477,13 +431,27 @@ const Auth = {
     const sel = document.getElementById('login-name-select');
     if (!sel) return;
     const employees = Storage._getLocal(Storage.KEYS.EMPLOYEES, []);
-    const passUsers = employees.filter(e => !e.email || e.email.endsWith(this.INTERNAL_DOMAIN));
     sel.innerHTML = `<option value="">Selecione seu nome...</option>
       <option value="${Utils.esc(this.MASTER_NAME)}">${Utils.esc(this.MASTER_NAME)}</option>` +
-      passUsers.map(e => `<option value="${Utils.esc(e.name)}">${Utils.esc(e.name)}</option>`).join('');
+      employees.map(e => `<option value="${Utils.esc(e.name)}">${Utils.esc(e.name)}</option>`).join('');
+  },
+
+  init() {
+    document.getElementById('btn-google-signin')?.addEventListener('click', () => this.loginWithGoogle());
+    document.getElementById('btn-login-finish')?.addEventListener('click', () => {
+      this.loginWithPassword(
+        document.getElementById('login-name-select')?.value?.trim(),
+        document.getElementById('login-pass')?.value
+      );
+    });
+    document.getElementById('login-pass')?.addEventListener('keypress', e => {
+      if (e.key === 'Enter') document.getElementById('btn-login-finish')?.click();
+    });
+    document.getElementById('btn-logout')?.addEventListener('click', () => this.logout());
   },
 
   _applySession(session) {
+    Storage._setLocal(Storage.KEYS.SESSION, session);
     document.getElementById('login-screen')?.classList.add('hidden');
     document.getElementById('user-info')?.classList.remove('hidden');
     const nameEl = document.getElementById('user-display-name');
@@ -491,7 +459,7 @@ const Auth = {
     document.body.classList.remove('is-master', 'is-colab');
     document.body.classList.add(session.profile === 'master' ? 'is-master' : 'is-colab');
     document.querySelectorAll('[data-route]').forEach(el => {
-      const route = el.dataset.route;
+      const route     = el.dataset.route;
       const masterOnly = el.classList.contains('master-only');
       const colabOnly  = el.classList.contains('colab-only');
       if (session.profile === 'colab') {
@@ -501,13 +469,6 @@ const Auth = {
       }
     });
     Router.init();
-
-    // Avisa se entrou pelo modo de primeiro acesso
-    if (session._firstSetup) {
-      setTimeout(() => Toast.info(
-        'Primeiro acesso detectado. Vá em Colaboradores → Contratar e cadastre-se com seu Gmail para garantir acesso permanente.'
-      ), 1200);
-    }
   }
 };
 /* ============================================================
@@ -789,32 +750,34 @@ const App = {
 
     let _ready = false;
 
+    const fireReady = () => {
+      if (_ready) return;
+      _ready = true;
+      document.dispatchEvent(new CustomEvent('hub:ready'));
+    };
+
+    // Garante sessão Firebase anônima (necessária para Firestore)
     onAuthStateChanged(auth, async firebaseUser => {
-      if (firebaseUser) {
-        const profile = await Auth._resolveProfile(firebaseUser);
-        if (profile) {
-          Auth._applySession(profile);
-          if (!_ready) {
-            _ready = true;
-            document.dispatchEvent(new CustomEvent('hub:ready'));
-            Logger.log('Fez login no sistema');
-            Toast.success('Bem-vindo, ' + profile.name + '!');
-          }
-        } else {
-          await signOut(auth);
-          Auth.showLogin();
-          Toast.error('Acesso não autorizado. Peça ao administrador para cadastrá-lo.');
-        }
+      if (!firebaseUser) {
+        // Sem sessão Firebase → cria anônima para permitir Firestore
+        try { await signInAnonymously(auth); } catch {}
+        return;
+      }
+
+      // Sessão Firebase ativa — verifica se tem sessão de app salva
+      const session = Auth.getSession();
+      if (session) {
+        // Auto-login com sessão existente
+        Auth._applySession(session);
+        fireReady();
       } else {
-        if (_ready) {
-          window.location.reload(); // sessão encerrada → recarrega
-        } else {
-          Auth.showLogin();
-        }
+        // Sem sessão → mostra tela de login
+        Auth.showLogin();
+        fireReady(); // módulos inicicam em segundo plano
       }
     });
 
-    console.info('[Hub Interno] Inicializado.');
+    console.info('[Hub Interno] v2 — pronto.');
   }
 };
 

@@ -202,8 +202,7 @@ const Colaboradores = (() => {
 
     const isGoogleUser = email && !email.endsWith('@hub-interno.app');
 
-    if (!editId && !isGoogleUser && !initPass) { Toast.error('Informe uma senha inicial para o colaborador.'); return; }
-    if (!editId && !isGoogleUser && initPass.length < 4) { Toast.error('Senha deve ter mínimo 4 caracteres.'); return; }
+    if (!editId && !isGoogleUser && initPass && initPass.length < 4) { Toast.error('Senha deve ter mínimo 4 caracteres.'); return; }
 
     if (editId) {
       const emp = employees.find(e => e.id === editId);
@@ -216,8 +215,9 @@ const Colaboradores = (() => {
       }
     } else {
       if (employees.find(e => e.name.toLowerCase() === name.toLowerCase())) { Toast.error('Já existe um colaborador com este nome.'); return; }
-      if (!isGoogleUser) {
-        try { await Auth.createAuthUser(name, initPass); } catch (e) { Toast.error(e.message); return; }
+      // Se informou senha inicial, salva em hub_passwords
+      if (!isGoogleUser && initPass) {
+        Auth.setPassword(name, initPass);
       }
       employees.push({ id: Utils.uid(), name, email: isGoogleUser ? email : '', phone, address, rg, cpf, info, profile, hiringDate, status: 'active' });
     }
