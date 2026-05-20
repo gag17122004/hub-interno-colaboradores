@@ -437,6 +437,9 @@ const Auth = {
   },
 
   init() {
+    // Popula select imediatamente — sem esperar Firebase
+    this._populateNameSelect();
+
     document.getElementById('btn-google-signin')?.addEventListener('click', () => this.loginWithGoogle());
     document.getElementById('btn-login-finish')?.addEventListener('click', () => {
       this.loginWithPassword(
