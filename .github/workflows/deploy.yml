@@ -1,4 +1,4 @@
-name: Deploy to Firebase Hosting
+name: Deploy to Firebase
 
 on:
   push:
@@ -12,12 +12,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Deploy to Firebase Hosting
+      - name: Deploy Hosting + Firestore Rules
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_HUB_INTERNO_COLABORADORES }}
           channelId: live
           projectId: hub-interno-colaboradores
+          entryPoint: "."
         env:
           FIREBASE_CLI_PREVIEWS: hostingchannels

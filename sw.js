@@ -1,11 +1,10 @@
 'use strict';
 
-const CACHE_VERSION = 'v7';
+const CACHE_VERSION = 'v8';
 const CACHE_NAME    = `hub-pratik-${CACHE_VERSION}`;
 
 /* Assets pré-cacheados na instalação (fallback offline) */
 const STATIC_ASSETS = [
-  './index.html',
   './core.js',
   './firebase-config.js',
   './meu-espaco.js',
