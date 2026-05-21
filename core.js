@@ -370,14 +370,14 @@ const Auth = {
     }
   },
 
-  async login(profile, name) {
+  login(profile, name) {
     const session = { profile, name };
     Storage._setLocal(Storage.KEYS.SESSION, session);
-    Logger.log('Fez login no sistema');
-    // Sincroniza TODOS os dados do Firestore antes de exibir o app
-    try { await Storage.syncAll(); } catch {}
     this._applySession(session);
+    Logger.log('Fez login no sistema');
     Toast.success('Bem-vindo, ' + name + '!');
+    // Sync em segundo plano — não bloqueia o app
+    Storage.syncAll().catch(() => {});
   },
 
   logout() {
@@ -757,44 +757,25 @@ const Router = {
    7. APP — Inicialização global
    ============================================================ */
 const App = {
-  async init() {
+  init() {
     Theme.init();
     Auth.init();
 
-    let _ready = false;
+    // Mostra o app OU o login imediatamente — sem esperar Firebase
+    const session = Auth.getSession();
+    if (session) {
+      Auth._applySession(session);
+    } else {
+      Auth.showLogin();
+    }
 
-    const fireReady = () => {
-      if (_ready) return;
-      _ready = true;
-      document.dispatchEvent(new CustomEvent('hub:ready'));
-    };
+    // hub:ready dispara imediatamente para módulos iniciarem
+    document.dispatchEvent(new CustomEvent('hub:ready'));
 
-    // Garante sessão Firebase anônima (necessária para Firestore)
-    onAuthStateChanged(auth, async firebaseUser => {
-      if (!firebaseUser) {
-        // Sem sessão Firebase → cria anônima para permitir Firestore
-        try { await signInAnonymously(auth); } catch {}
-        return;
-      }
+    // Firebase anônimo em segundo plano (apenas para Firestore)
+    signInAnonymously(auth).catch(() => {});
 
-      // Sessão Firebase ativa — verifica se tem sessão de app salva
-      const session = Auth.getSession();
-      if (session) {
-        // Sincroniza Firestore → localStorage ANTES de exibir os módulos
-        try { await Storage.syncAll(); } catch {}
-        Auth._applySession(session);
-        fireReady();
-      } else {
-        // Sem sessão → sincroniza lista de colaboradores para o dropdown
-        Storage.get(Storage.KEYS.EMPLOYEES, []).then(() => {
-          Auth._populateNameSelect();
-        }).catch(() => {});
-        Auth.showLogin();
-        fireReady();
-      }
-    });
-
-    console.info('[Hub Interno] v2 — pronto.');
+    console.info('[Hub Interno] pronto.');
   }
 };
 
