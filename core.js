@@ -51,7 +51,7 @@ const Storage = {
       'hub_size_changes', 'hub_inventory',
       'hub_m13_platform_manuals', 'hub_m14_resolution_manuals',
       'hub_m15_periodic_todos', 'hub_m16_calendar_events',
-      'hub_m17_announcements', 'hub_m18_machines', 'hub_contacts'
+      'hub_m17_announcements', 'hub_m18_machines', 'hub_contacts', 'hub_help_config'
     ];
 
     // hub_session é especial — sempre localStorage
