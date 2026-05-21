@@ -1416,24 +1416,25 @@ body.is-master table .master-only { display: table-cell !important; }
          MÓDULO 1 — PONTO & HORAS EXTRAS
          ══════════════════════════════════════════════════════ -->
     <section id="panel-m1" class="module-panel active">
-
       <div class="m1-layout">
 
         <!-- Coluna esquerda -->
         <div class="m1-emp-sidebar">
-
           <!-- Adicionar colaborador (master) -->
           <div class="card master-only" style="flex:0">
-            <div class="card-title">Equipa</div>
-            <div class="field-group" style="flex-direction:column">
-              <div class="field">
-                <label>Novo Colaborador</label>
-                <input type="text" id="m1-new-employee" placeholder="Nome completo" />
-              </div>
-              <button class="btn btn-primary w-full" id="m1-add-employee-btn">
-                <i class="fa-solid fa-user-plus"></i> Adicionar
-              </button>
+            <div class="card-title">NOVO COLABORADOR</div>
+            <div class="field">
+              <input type="text" id="m1-new-employee" placeholder="Nome completo" />
             </div>
+            <button class="btn btn-primary w-full mt-2" id="m1-add-employee-btn">
+              <i class="fa-solid fa-user-plus"></i> Adicionar
+            </button>
+          </div>
+
+          <!-- Senhas (master) -->
+          <div class="card master-only" style="flex:0">
+            <div class="card-title">SENHAS</div>
+            <div id="m1-password-panel" style="display:flex;flex-direction:column;gap:8px"></div>
           </div>
 
           <div class="card master-only" style="flex:0">
@@ -1441,19 +1442,9 @@ body.is-master table .master-only { display: table-cell !important; }
             <div id="m1-password-panel" style="display:flex;flex-direction:column;gap:8px"></div>
           </div>
 
-          <!-- Painel de ponto hoje -->
-          <div class="card" id="m1-punch-card" style="flex:0">
-            <div class="card-title" style="margin-bottom:12px">
-              <i class="fa-solid fa-fingerprint"></i> Ponto de Hoje
-            </div>
-            <div class="m1-punch-grid" id="m1-punch-container">
-              <!-- Renderizado por JS -->
-            </div>
-          </div>
-
           <!-- Lista de colaboradores -->
           <div class="card" style="flex:1;overflow:hidden">
-            <div class="card-title">Colaboradores</div>
+            <div class="card-title">COLABORADORES</div>
             <div class="m1-emp-list" id="m1-employee-list">
               <div class="empty-state"><i class="fa-solid fa-users"></i><p>Nenhum colaborador</p></div>
             </div>
@@ -1470,271 +1461,82 @@ body.is-master table .master-only { display: table-cell !important; }
           </div>
 
           <div id="m1-hours-panel" class="hidden" style="display:flex;flex-direction:column;gap:16px">
-
-            <!-- Cabeçalho -->
+            <!-- Cabeçalho + stats -->
             <div class="card">
               <div class="card-header">
                 <div class="card-title-lg" id="m1-panel-name">—</div>
-                <div class="flex gap-2">
-                  <input type="month" id="m1-month-filter" style="width:160px" />
-                  <button class="btn btn-secondary btn-sm master-only" id="m1-manual-record-btn">
-                    <i class="fa-solid fa-plus"></i> Lançar Manual
-                  </button>
-                  <button class="btn btn-secondary btn-sm" id="m1-print-btn">
-                    <i class="fa-solid fa-print"></i> Exportar
-                  </button>
-                </div>
+                <button class="btn btn-primary btn-sm master-only" id="m1-add-record-btn">
+                  <i class="fa-solid fa-plus"></i> Lançar Horas
+                </button>
               </div>
-              <!-- Stats -->
-              <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-top:12px">
+              <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-top:4px">
                 <div class="stat-card">
-                  <div class="stat-label">Horas Extras Aprovadas</div>
-                  <div class="stat-value font-mono" id="m1-stat-ot">0.00h</div>
-                  <div class="stat-sub">no mês filtrado</div>
+                  <div class="stat-label">Horas Extras</div>
+                  <div class="stat-value font-mono text-success" id="m1-stat-extras">0h</div>
                 </div>
-                <div class="stat-card danger">
+                <div class="stat-card">
                   <div class="stat-label">Horas Devedoras</div>
-                  <div class="stat-value font-mono" id="m1-stat-debt">0.00h</div>
+                  <div class="stat-value font-mono text-danger" id="m1-stat-devidas">0h</div>
                 </div>
-                <div class="stat-card" id="m1-stat-balance-card">
-                  <div class="stat-label">Saldo Líquido</div>
-                  <div class="stat-value font-mono" id="m1-stat-balance">0.00h</div>
+                <div class="stat-card">
+                  <div class="stat-label">Saldo</div>
+                  <div class="stat-value font-mono" id="m1-stat-saldo">0h</div>
                 </div>
-              </div>
-              <!-- Horas devedoras (master) -->
-              <div class="master-only" style="margin-top:12px;display:flex;align-items:flex-end;gap:10px">
-                <div class="field" style="max-width:160px;margin:0">
-                  <label>Horas devedoras (h)</label>
-                  <input type="number" id="m1-debt-input" min="0" step="0.5" placeholder="0.0" />
-                </div>
-                <button class="btn btn-secondary btn-sm" id="m1-save-debt-btn">
-                  <i class="fa-solid fa-floppy-disk"></i> Salvar
-                </button>
               </div>
             </div>
 
-            <!-- Abas -->
-            <div class="card" style="padding:0;overflow:hidden">
-              <div style="display:flex;border-bottom:1px solid var(--border)">
-                <button class="m1-tab-btn active" id="m1-tab-records">
-                  <i class="fa-solid fa-list"></i> Histórico
-                </button>
-                <button class="m1-tab-btn master-tab" id="m1-tab-pending">
-                  <i class="fa-solid fa-clock"></i> Pendentes
-                  <span class="nav-badge" id="m1-tab-pending-badge"></span>
-                </button>
-                <button class="m1-tab-btn master-tab" id="m1-tab-absences">
-                  <i class="fa-solid fa-user-xmark"></i> Ausências
-                </button>
-              </div>
-
-              <!-- Histórico -->
-              <div id="m1-tabpanel-records">
-                <div class="table-wrap">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Data</th>
-                        <th>Entrada</th>
-                        <th>S.Almoço</th>
-                        <th>R.Almoço</th>
-                        <th>Saída</th>
-                        <th>Trabalhado</th>
-                        <th>Extra</th>
-                        <th>Status</th>
-                        <th class="master-only">Local.</th>
-                        <th class="master-only">Ações</th>
-                      </tr>
-                    </thead>
-                    <tbody id="m1-records-tbody">
-                      <tr><td colspan="10" class="empty-state"><i class="fa-regular fa-calendar-xmark"></i><p>Nenhum registro.</p></td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <!-- Pendentes (master) -->
-              <div id="m1-tabpanel-pending" class="hidden">
-                <div class="table-wrap">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Data</th>
-                        <th>Batidas</th>
-                        <th>Trabalhado</th>
-                        <th>Extra</th>
-                        <th>Ações</th>
-                      </tr>
-                    </thead>
-                    <tbody id="m1-pending-tbody">
-                      <tr><td colspan="5" class="empty-state"><i class="fa-solid fa-circle-check"></i><p>Nenhum pendente.</p></td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <!-- Ausências (master) -->
-              <div id="m1-tabpanel-absences" class="hidden">
-                <div style="padding:12px 16px;border-bottom:1px solid var(--border)">
-                  <button class="btn btn-primary btn-sm" id="m1-add-absence-btn">
-                    <i class="fa-solid fa-plus"></i> Marcar Ausência
-                  </button>
-                </div>
-                <div class="table-wrap">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Data</th>
-                        <th>Motivo</th>
-                        <th>Observação</th>
-                        <th>Anexo</th>
-                        <th>Ações</th>
-                      </tr>
-                    </thead>
-                    <tbody id="m1-absences-tbody">
-                      <tr><td colspan="5" class="empty-state"><p>Nenhuma ausência.</p></td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-            </div><!-- /.card abas -->
-          </div><!-- /#m1-hours-panel -->
-        </div><!-- coluna direita -->
-      </div><!-- .m1-layout -->
-
-      <!-- Modal: editar/aprovar registro -->
-      <div class="modal-backdrop" id="modal-edit-record">
-        <div class="modal" style="max-width:440px">
-          <div class="modal-title">Editar Registro de Ponto</div>
-          <div style="display:flex;flex-direction:column;gap:12px">
-            <div class="field">
-              <label>Data</label>
-              <input type="date" id="m1-edit-date" />
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-              <div class="field">
-                <label>Entrada</label>
-                <input type="time" id="m1-edit-p1" />
-              </div>
-              <div class="field">
-                <label>Saída Almoço</label>
-                <input type="time" id="m1-edit-p2" />
-              </div>
-              <div class="field">
-                <label>Retorno Almoço</label>
-                <input type="time" id="m1-edit-p3" />
-              </div>
-              <div class="field">
-                <label>Saída</label>
-                <input type="time" id="m1-edit-p4" />
+            <!-- Tabela de lançamentos -->
+            <div class="card">
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Data</th>
+                      <th>Tipo</th>
+                      <th>Horas</th>
+                      <th>Observação</th>
+                      <th>Lançado por</th>
+                      <th class="master-only"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="m1-records-tbody">
+                    <tr><td colspan="6" class="empty-state"><i class="fa-solid fa-clock"></i><p>Nenhum lançamento.</p></td></tr>
+                  </tbody>
+                </table>
               </div>
             </div>
-            <div class="field">
-              <label>Justificativa da correção manual</label>
-              <input type="text" id="m1-edit-note" placeholder="Obrigatória para inserir ou alterar batidas" />
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button class="btn btn-secondary" id="m1-cancel-edit-btn">Cancelar</button>
-            <button class="btn btn-primary" id="m1-save-edit-btn">
-              <i class="fa-solid fa-check"></i> Salvar & Aprovar
-            </button>
           </div>
         </div>
       </div>
 
-      <!-- Modal: escolha tipo de lançamento manual -->
-      <div class="modal-backdrop" id="modal-manual-type">
-        <div class="modal" style="max-width:360px">
-          <div class="modal-title">Lançar Manual</div>
-          <p class="text-sm text-muted" style="margin-bottom:16px">Selecione o tipo de lançamento:</p>
-          <div style="display:flex;flex-direction:column;gap:10px">
-            <button class="btn btn-primary" style="flex-direction:column;align-items:flex-start;height:auto;padding:14px 16px;text-align:left" onclick="M1.openOvertimeRecord()">
-              <div style="display:flex;align-items:center;gap:8px;font-weight:700"><i class="fa-solid fa-clock"></i> Apenas Horas Extras</div>
-              <div style="font-size:11px;font-weight:400;margin-top:4px;opacity:.85">Informe diretamente quantas horas extras foram feitas, sem registrar o dia completo</div>
-            </button>
-            <button class="btn btn-secondary" style="flex-direction:column;align-items:flex-start;height:auto;padding:14px 16px;text-align:left" onclick="M1.openDayRecord()">
-              <div style="display:flex;align-items:center;gap:8px;font-weight:700"><i class="fa-solid fa-calendar-day"></i> Dia de Trabalho</div>
-              <div style="font-size:11px;font-weight:400;margin-top:4px;opacity:.85">Registre o dia completo com horários de entrada e saída</div>
-            </button>
-          </div>
-          <div class="modal-footer">
-            <button class="btn btn-ghost" onclick="document.getElementById('modal-manual-type').classList.remove('open')">Cancelar</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Modal: lançar apenas horas extras -->
-      <div class="modal-backdrop" id="modal-overtime-only">
+      <!-- Modal: lançar horas -->
+      <div class="modal-backdrop" id="modal-m1-record">
         <div class="modal" style="max-width:400px">
-          <div class="modal-title">Lançar Horas Extras</div>
+          <div class="modal-title">Lançar Horas — <span id="m1-rec-emp-name"></span></div>
           <div style="display:flex;flex-direction:column;gap:12px">
             <div class="field">
-              <label>Colaborador</label>
-              <select id="ot-employee-select"></select>
-            </div>
-            <div class="field">
-              <label>Data</label>
-              <input type="date" id="ot-date" />
-            </div>
-            <div class="field">
-              <label>Horas Extras</label>
-              <div style="display:flex;gap:8px;align-items:center">
-                <input type="number" id="ot-hours" min="0" max="23" step="1" placeholder="0" style="width:76px" />
-                <span class="text-muted text-sm">h</span>
-                <input type="number" id="ot-minutes" min="0" max="59" step="5" placeholder="0" style="width:76px" />
-                <span class="text-muted text-sm">min</span>
-              </div>
-            </div>
-            <div class="field">
-              <label>Justificativa</label>
-              <input type="text" id="ot-note" placeholder="Ex: Reunião fora do horário" />
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button class="btn btn-secondary" id="ot-cancel-btn">Cancelar</button>
-            <button class="btn btn-primary" id="ot-save-btn"><i class="fa-solid fa-check"></i> Salvar</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Modal: ausência -->
-      <div class="modal-backdrop" id="modal-absence">
-        <div class="modal" style="max-width:420px">
-          <div class="modal-title">Marcar Ausência</div>
-          <div style="display:flex;flex-direction:column;gap:12px">
-            <div class="field">
-              <label>Data</label>
-              <input type="date" id="m1-abs-date" />
-            </div>
-            <div class="field">
-              <label>Motivo</label>
-              <select id="m1-abs-reason">
-                <option value="justified">Falta Justificada</option>
-                <option value="medical">Atestado Médico</option>
-                <option value="unjustified">Falta Injustificada</option>
-                <option value="dayoff">Folga</option>
+              <label>Tipo</label>
+              <select id="m1-rec-type">
+                <option value="extra">Horas Extras (trabalhadas a mais)</option>
+                <option value="devida">Horas Devedoras (deve à empresa)</option>
               </select>
             </div>
             <div class="field">
-              <label>Observação</label>
-              <textarea id="m1-abs-obs" rows="2" placeholder="Detalhes..."></textarea>
+              <label>Data</label>
+              <input type="date" id="m1-rec-date" />
             </div>
             <div class="field">
-              <label>Anexo (opcional)</label>
-              <div style="display:flex;align-items:center;gap:8px">
-                <button class="btn btn-secondary btn-sm" id="m1-abs-attach-btn">
-                  <i class="fa-solid fa-paperclip"></i> Selecionar
-                </button>
-                <span class="text-xs text-muted" id="m1-abs-attach-name">Nenhum arquivo</span>
-              </div>
-              <input type="file" id="m1-abs-attach-input" class="hidden" accept=".pdf,.png,.jpg,.jpeg" />
+              <label>Quantidade de Horas</label>
+              <input type="number" id="m1-rec-hours" min="0.25" step="0.25" placeholder="Ex: 2.5" />
+            </div>
+            <div class="field">
+              <label>Observação</label>
+              <input type="text" id="m1-rec-note" placeholder="Ex: Reunião fora do horário" />
             </div>
           </div>
           <div class="modal-footer">
-            <button class="btn btn-secondary" id="m1-cancel-absence-btn">Cancelar</button>
-            <button class="btn btn-primary" id="m1-save-absence-btn">Salvar</button>
+            <button class="btn btn-secondary" id="m1-cancel-record-btn">Cancelar</button>
+            <button class="btn btn-primary" id="m1-save-record-btn"><i class="fa-solid fa-check"></i> Salvar</button>
           </div>
         </div>
       </div>
@@ -3273,17 +3075,6 @@ body.is-master table .master-only { display: table-cell !important; }
 <!-- Toast container -->
 <div id="toast-container"></div>
 
-<div class="modal-backdrop" id="modal-punch-pass">
-  <div class="modal" style="max-width:360px">
-    <div class="modal-title">Confirmar Ponto</div>
-    <div class="text-sm text-muted mb-3">Digite a senha de <strong id="punch-pass-name"></strong> para registrar a batida.</div>
-    <div class="field"><label>Senha</label><input type="password" id="punch-pass-input" autocomplete="current-password" /></div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" id="btn-punch-pass-cancel">Cancelar</button>
-      <button class="btn btn-primary" id="btn-punch-pass-confirm">Confirmar</button>
-    </div>
-  </div>
-</div>
 
 <!-- Modal de confirmação global -->
 <div class="modal-backdrop" id="global-modal">
