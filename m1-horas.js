@@ -208,6 +208,52 @@ const M1 = (() => {
     });
   }
 
+  /* ── Exportar ── */
+  function exportHours() {
+    if (!activeEmployee) return;
+    const emp  = employees.find(e => e.id === activeEmployee);
+    const recs = (timeRecords[activeEmployee] || []).sort((a, b) => b.date.localeCompare(a.date));
+    const { extras, devidas, saldo } = calcTotals(activeEmployee);
+
+    const rows = recs.map(r => `
+      <tr>
+        <td>${Utils.fmtDate(r.date)}</td>
+        <td style="color:${r.type === 'extra' ? '#16a34a' : '#dc2626'}">${r.type === 'extra' ? 'Extra' : 'Devedora'}</td>
+        <td style="font-family:monospace">${Utils.num(Number(r.hours) || 0, 2)}h</td>
+        <td>${Utils.esc(r.note || '—')}</td>
+        <td style="color:#6b7280;font-size:11px">${Utils.esc(r.createdBy || '—')}</td>
+      </tr>`).join('');
+
+    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+      <title>Horas — ${Utils.esc(emp?.name || '')}</title>
+      <style>
+        body { font-family: Arial, sans-serif; padding: 32px; color: #111; }
+        h1   { font-size: 20px; margin-bottom: 4px; }
+        .sub { color: #6b7280; font-size: 13px; margin-bottom: 24px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th { background: #f3f4f6; text-align: left; padding: 8px 12px; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
+        td { padding: 8px 12px; border-bottom: 1px solid #e5e7eb; font-size: 13px; }
+        .stats { display: flex; gap: 32px; background: #f9fafb; padding: 16px 20px; border-radius: 8px; margin-bottom: 24px; }
+        .stat-label { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: .05em; }
+        .stat-value { font-size: 22px; font-weight: 700; font-family: monospace; }
+        @media print { body { padding: 16px; } }
+      </style></head><body>
+      <h1>${Utils.esc(emp?.name || '—')}</h1>
+      <div class="sub">Relatório de Horas Extras — gerado em ${new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'long', year:'numeric' })}</div>
+      <div class="stats">
+        <div><div class="stat-label">Horas Extras</div><div class="stat-value" style="color:#16a34a">+${Utils.num(extras,2)}h</div></div>
+        <div><div class="stat-label">Horas Devedoras</div><div class="stat-value" style="color:#dc2626">-${Utils.num(devidas,2)}h</div></div>
+        <div><div class="stat-label">Saldo</div><div class="stat-value" style="color:${saldo>=0?'#16a34a':'#dc2626'}">${saldo>=0?'+':''}${Utils.num(saldo,2)}h</div></div>
+      </div>
+      <table><thead><tr><th>Data</th><th>Tipo</th><th>Horas</th><th>Observação</th><th>Lançado por</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="5" style="text-align:center;color:#9ca3af;padding:24px">Nenhum lançamento.</td></tr>'}</tbody></table>
+      <script>window.print();window.onafterprint=()=>window.close();<\/script>
+      </body></html>`;
+
+    const w = window.open('', '_blank');
+    if (w) { w.document.write(html); w.document.close(); }
+  }
+
   /* ── Init ── */
   async function init() {
     await load();
@@ -224,6 +270,7 @@ const M1 = (() => {
     });
 
     $('m1-add-employee-btn')?.addEventListener('click', addEmployee);
+    $('m1-export-btn')?.addEventListener('click', exportHours);
     $('m1-new-employee')?.addEventListener('keydown', e => { if (e.key === 'Enter') addEmployee(); });
     $('m1-add-record-btn')?.addEventListener('click', openAddRecord);
     $('m1-save-record-btn')?.addEventListener('click', saveRecord);
@@ -249,7 +296,7 @@ const M1 = (() => {
   return {
     init, addEmployee, removeEmployee, selectEmployee,
     openAddRecord, saveRecord, removeRecord,
-    renderPasswordPanel
+    renderPasswordPanel, exportHours
   };
 })();
 window.M1 = M1;
