@@ -109,9 +109,8 @@ const M5 = (() => {
 
   let tasks = [];
 
-  async function save() {
-    Storage._setLocal(Storage.KEYS.TASKS, tasks);  // síncrono, imediato
-    Storage.set(Storage.KEYS.TASKS, tasks).catch(() => {}); // Firebase em background
+  function save() {
+    Storage.setSync(Storage.KEYS.TASKS, tasks);
   }
 
   async function load() {

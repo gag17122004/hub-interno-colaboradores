@@ -322,8 +322,10 @@ const Colaboradores = (() => {
       });
     });
 
-    document.addEventListener('route:change', e => {
+    document.addEventListener('route:change', async e => {
       if (e.detail.route === 'colaboradores') {
+        await Storage.syncBatch([KEY]);
+        load();
         closeDetail();
         render();
       }

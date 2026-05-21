@@ -154,7 +154,7 @@
       $('p5-manual-modal').classList.add('open');
     };
     return {
-      async init() { await load(); Storage.subscribe(key, data => { items = data ?? []; render(); }); $(`${route}-add-btn`)?.addEventListener('click', () => open(null)); document.addEventListener('route:change', async e => { if (e.detail.route === route) render(); }); render(); },
+      async init() { await load(); Storage.subscribe(key, data => { items = data ?? []; render(); }); $(`${route}-add-btn`)?.addEventListener('click', () => open(null)); document.addEventListener('route:change', async e => { if (e.detail.route === route) { await load(); render(); } }); render(); },
       render, select(id) { selected = id; render(); }, edit(id) { open(items.find(i => i.id === id)); },
       saveModal() {
         const name   = $('p5-manual-name').value.trim();
