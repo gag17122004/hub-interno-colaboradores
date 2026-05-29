@@ -3,7 +3,7 @@
  * Coloque sua chave abaixo antes de usar.
  */
 
-const GROQ_API_KEY = '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'; // gsk_...
+const GROQ_API_KEY = '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';
 
 const GroqAI = {
   /**
