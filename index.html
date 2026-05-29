@@ -19,8 +19,8 @@
 /* ── Variáveis de Tema ───────────────────────────────────── */
 :root {
   --sidebar-w: 248px;
-  --radius:    10px;
-  --radius-lg: 14px;
+  --radius:    6px;
+  --radius-lg: 8px;
   --transition: 0.16s ease;
 }
 
@@ -32,10 +32,10 @@
   --border:    #30363d;
   --text:      #e6edf3;
   --text-sec:  #8b949e;
-  --accent:    #2dd4bf;
-  --accent-bg: rgba(45,212,191,.10);
-  --accent-bd: rgba(45,212,191,.28);
-  --indigo:    #818cf8;
+  --accent:    #C4956A;
+  --accent-bg: rgba(196,149,106,.10);
+  --accent-bd: rgba(196,149,106,.28);
+  --indigo:    #b8a49a;
   --danger:    #f87171;
   --danger-bg: rgba(248,113,113,.10);
   --danger-bd: rgba(248,113,113,.28);
@@ -47,25 +47,25 @@
 }
 
 [data-theme="light"] {
-  --bg:        #f0f4f8;
-  --surface:   #ffffff;
-  --surface2:  #f8fafc;
-  --surface3:  #f1f5f9;
-  --border:    #e2e8f0;
-  --text:      #1e293b;
-  --text-sec:  #64748b;
-  --accent:    #0d9488;
-  --accent-bg: rgba(13,148,136,.08);
-  --accent-bd: rgba(13,148,136,.25);
-  --indigo:    #6366f1;
-  --danger:    #ef4444;
-  --danger-bg: rgba(239,68,68,.08);
-  --danger-bd: rgba(239,68,68,.25);
-  --success:   #10b981;
-  --success-bg:rgba(16,185,129,.08);
-  --warning:   #f59e0b;
-  --warning-bg:rgba(245,158,11,.08);
-  --shadow:    0 4px 24px rgba(0,0,0,.10);
+  --bg:        #F7F2ED;
+  --surface:   #FFFFFF;
+  --surface2:  #FAF7F4;
+  --surface3:  #F0EAE3;
+  --border:    #E5DDD6;
+  --text:      #2B1E16;
+  --text-sec:  #7A6458;
+  --accent:    #3D2B1F;
+  --accent-bg: rgba(61,43,31,.07);
+  --accent-bd: rgba(61,43,31,.22);
+  --indigo:    #5B4A3F;
+  --danger:    #DC2626;
+  --danger-bg: rgba(220,38,38,.07);
+  --danger-bd: rgba(220,38,38,.22);
+  --success:   #16A34A;
+  --success-bg:rgba(22,163,74,.07);
+  --warning:   #D97706;
+  --warning-bg:rgba(217,119,6,.08);
+  --shadow:    0 2px 12px rgba(43,30,22,.08);
 }
 
 /* ── Reset & Base ────────────────────────────────────────── */
@@ -702,14 +702,14 @@ body.is-master table .master-only { display: table-cell !important; }
 
 .box3d-face {
   position: absolute;
-  border: 2px solid rgba(45,212,191,.65);
-  background: rgba(45,212,191,.07);
+  border: 2px solid rgba(196,149,106,.65);
+  background: rgba(196,149,106,.07);
   backface-visibility: visible;
 }
 
-.box3d-top    { background: rgba(45,212,191,.14); }
-.box3d-right  { background: rgba(45,212,191,.05); }
-.box3d-back   { background: rgba(45,212,191,.03); }
+.box3d-top    { background: rgba(196,149,106,.14); }
+.box3d-right  { background: rgba(196,149,106,.05); }
+.box3d-back   { background: rgba(196,149,106,.03); }
 
 /* ── Mobile ≤ 768px ──────────────────────────────────────── */
 @media (max-width: 768px) {
@@ -839,7 +839,7 @@ body.is-master table .master-only { display: table-cell !important; }
 
   <!-- PWA -->
   <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#2dd4bf" />
+  <meta name="theme-color" content="#3D2B1F" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -933,7 +933,7 @@ body.is-master table .master-only { display: table-cell !important; }
       border: 1px solid transparent;
     }
     .m7-alert.danger  { background: #ef444420; color: #ef4444; border-color: #ef444440; }
-    .m7-alert.success { background: #2dd4bf20; color: #2dd4bf; border-color: #2dd4bf40; }
+    .m7-alert.success { background: rgba(61,43,31,.07); color: #3D2B1F; border-color: rgba(61,43,31,.22); }
 
     /* ── Módulo 7 — Botões de modo histórico ── */
     .m7-mode-btn {
@@ -976,7 +976,7 @@ body.is-master table .master-only { display: table-cell !important; }
 
     <!-- Logo -->
     <div class="login-logo">
-      <div class="login-logo-icon" style="width:120px;height:150px;border-radius:18px;background:#fff;box-shadow:0 6px 32px rgba(45,212,191,.22)">
+      <div class="login-logo-icon" style="width:120px;height:150px;border-radius:18px;background:#fff;box-shadow:0 6px 32px rgba(61,43,31,.15)">
         <svg viewBox="0 0 200 252" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%">
           <circle cx="100" cy="88" r="78" fill="none" stroke="#3a2010" stroke-width="3.5"/>
           <path d="M65,20 L56,40 C38,55 36,70 36,88 C36,118 65,132 100,134 C135,132 164,118 164,88 C164,70 162,55 144,40 L135,20 L124,38 C116,26 108,20 100,19 C92,20 84,26 76,38 Z" fill="#3a2010"/>
