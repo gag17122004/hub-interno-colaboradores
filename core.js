@@ -825,7 +825,8 @@ const App = {
 
     // Fallback: se Firebase não responder em 3s, inicia o app mesmo assim
     const authTimeout = setTimeout(fireReady, 3000);
-    const unsubAuth = onAuthStateChanged(auth, () => {
+    const unsubAuth = onAuthStateChanged(auth, user => {
+      if (!user) return; // aguarda login anônimo concluir
       clearTimeout(authTimeout);
       unsubAuth();
       fireReady();
