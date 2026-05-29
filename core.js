@@ -1,5 +1,5 @@
 import { doc, getDoc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
-import { signInWithPopup, GoogleAuthProvider, signInAnonymously, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
+import { signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, signInAnonymously, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
 import { db, auth, apiKey as fbApiKey } from "./firebase-config.js";
 
 const USAR_FIREBASE = true;
@@ -149,9 +149,10 @@ const Storage = {
 
       await setDoc(docRef, { value: value });
     } catch (e) {
-      // Silencia o toast — localStorage já foi salvo acima como backup confiável.
-      // Regras do Firestore ou conectividade serão resolvidas em fase futura.
-      console.warn(`[Storage.set] Firestore indisponível para "${key}". Dado mantido no localStorage.`, e.code || e.message);
+      console.warn(`[Storage.set] Firestore indisponível para "${key}".`, e.code || e.message);
+      if (e.code === 'permission-denied') {
+        Toast.error('Sem permissão no servidor. Dado salvo localmente apenas.');
+      }
     }
   },
 
@@ -266,18 +267,16 @@ const Storage = {
    1.1 LOGGER — Registro de Auditoria (M6)
    ============================================================ */
 const Logger = {
-  async log(action) {
-    const session = await Auth.getSession();
+  log(action) {
+    const session = Auth.getSession();
     if (!session) return;
-    const logs = await Storage.get(Storage.KEYS.LOGS, []);
+    const logs = Storage.getSync(Storage.KEYS.LOGS, []);
     logs.unshift({
       timestamp: new Date().toISOString(),
       user: session.name,
       action: action
     });
-    // Limite de 1000 logs para não estourar o Storage
-    await Storage.set(Storage.KEYS.LOGS, logs.slice(0, 1000));
-    // Dispara evento para atualizar M6 se estiver aberto
+    Storage.setSync(Storage.KEYS.LOGS, logs.slice(0, 1000));
     document.dispatchEvent(new CustomEvent('audit:new'));
   },
   async getLogs() {
@@ -344,29 +343,40 @@ const Auth = {
   /* ── Login com Google (opcional, requer Gmail em hub_employees) ─ */
   async loginWithGoogle() {
     try {
-      const result = await signInWithPopup(auth, new GoogleAuthProvider());
-      const user   = result.user;
-      let employees = Storage._getLocal(Storage.KEYS.EMPLOYEES, []);
-      if (!employees.length) {
-        try { employees = await Storage.get(Storage.KEYS.EMPLOYEES, []); } catch {}
+      const provider  = new GoogleAuthProvider();
+      const isMobile  = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
+                        (navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent));
+      if (isMobile) {
+        // iOS Safari bloqueia popup OAuth — usa redirect em vez disso
+        await signInWithRedirect(auth, provider);
+        return; // página recarrega após o redirect do Google
       }
-      // Busca por email ou nome do Google
-      let emp = employees.find(e => e.email?.toLowerCase() === user.email?.toLowerCase());
-      if (!emp && user.displayName) {
-        emp = employees.find(e => e.name.toLowerCase() === user.displayName.toLowerCase());
-      }
-      if (emp) {
-        this.login(emp.profile || 'colab', emp.name);
-      } else if (!employees.some(e => e.email)) {
-        // Nenhum colaborador tem Gmail → primeiro acesso, vira master
-        this.login('master', user.displayName || user.email.split('@')[0]);
-      } else {
-        await signOut(auth).catch(() => {});
-        Toast.error('Gmail não cadastrado. Peça ao administrador para adicioná-lo em Colaboradores.');
-      }
+      const result = await signInWithPopup(auth, provider);
+      await this._handleGoogleUser(result.user);
     } catch (e) {
       if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request')
         Toast.error('Erro ao entrar com Google.');
+    }
+  },
+
+  /* Processa usuário Google após popup ou redirect */
+  async _handleGoogleUser(user) {
+    if (!user) return;
+    let employees = Storage._getLocal(Storage.KEYS.EMPLOYEES, []);
+    if (!employees.length) {
+      try { employees = await Storage.get(Storage.KEYS.EMPLOYEES, []); } catch {}
+    }
+    let emp = employees.find(e => e.email?.toLowerCase() === user.email?.toLowerCase());
+    if (!emp && user.displayName) {
+      emp = employees.find(e => e.name.toLowerCase() === user.displayName.toLowerCase());
+    }
+    if (emp) {
+      this.login(emp.profile || 'colab', emp.name);
+    } else if (!employees.some(e => e.email)) {
+      this.login('master', user.displayName || user.email.split('@')[0]);
+    } else {
+      signOut(auth).catch(() => {});
+      Toast.error('Gmail não cadastrado. Peça ao administrador para adicioná-lo em Colaboradores.');
     }
   },
 
@@ -422,12 +432,19 @@ const Auth = {
   },
 
   resetColabPassword(name) {
-    const newPass = prompt('Nova senha para "' + name + '":');
-    if (!newPass || newPass.length < 4) { Toast.error('Senha muito curta (mínimo 4 caracteres).'); return; }
-    this.setPassword(name, newPass);
-    Logger.log('Master redefiniu senha de: ' + name);
-    Toast.success('Senha de "' + name + '" redefinida.');
-    if (typeof renderPasswordPanel === 'function') renderPasswordPanel();
+    Modal.input({
+      title: `Nova senha para "${name}"`,
+      placeholder: 'Mínimo 4 caracteres',
+      confirmText: 'Salvar Senha',
+      onConfirm: (val) => {
+        const newPass = (val || '').trim();
+        if (newPass.length < 4) { Toast.error('Senha muito curta (mínimo 4 caracteres).'); return; }
+        this.setPassword(name, newPass);
+        Logger.log('Master redefiniu senha de: ' + name);
+        Toast.success('Senha de "' + name + '" redefinida.');
+        if (typeof renderPasswordPanel === 'function') renderPasswordPanel();
+      }
+    });
   },
 
   /* Mantido para compatibilidade com módulo Colaboradores */
@@ -664,6 +681,27 @@ const Modal = {
     this._el.classList.add('open');
   },
 
+  /**
+   * Modal com campo de texto — substitui prompt() que é bloqueado em iOS PWA.
+   */
+  input({ title, placeholder = '', defaultValue = '', confirmText = 'Confirmar', onConfirm }) {
+    this._init();
+    this._title.textContent       = title;
+    this._confirmBtn.textContent  = confirmText;
+    this._confirmBtn.className    = 'btn btn-primary';
+    const inp = document.createElement('input');
+    inp.type        = 'text';
+    inp.placeholder = placeholder;
+    inp.value       = defaultValue;
+    inp.style.cssText = 'width:100%;margin-top:10px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:14px;outline:none';
+    this._body.innerHTML = '';
+    this._body.appendChild(inp);
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') this._confirmBtn.click(); });
+    this._onConfirm = () => onConfirm && onConfirm(inp.value);
+    this._el.classList.add('open');
+    setTimeout(() => inp.focus(), 80);
+  },
+
   close() {
     this._init();
     this._el.classList.remove('open');
@@ -770,13 +808,30 @@ const App = {
       Auth.showLogin();
     }
 
-    // hub:ready dispara imediatamente para módulos iniciarem
-    document.dispatchEvent(new CustomEvent('hub:ready'));
+    // Processa resultado de redirect Google (fluxo mobile)
+    getRedirectResult(auth)
+      .then(result => { if (result?.user) Auth._handleGoogleUser(result.user); })
+      .catch(() => {});
 
-    // Firebase anônimo em segundo plano (apenas para Firestore)
+    // hub:ready só dispara após Firebase auth estar pronto
+    // (garante que onSnapshot dos módulos funciona com regras auth != null)
+    let hubFired = false;
+    const fireReady = () => {
+      if (hubFired) return;
+      hubFired = true;
+      document.dispatchEvent(new CustomEvent('hub:ready'));
+      console.info('[Hub Interno] pronto.');
+    };
+
+    // Fallback: se Firebase não responder em 3s, inicia o app mesmo assim
+    const authTimeout = setTimeout(fireReady, 3000);
+    const unsubAuth = onAuthStateChanged(auth, () => {
+      clearTimeout(authTimeout);
+      unsubAuth();
+      fireReady();
+    });
+
     signInAnonymously(auth).catch(() => {});
-
-    console.info('[Hub Interno] pronto.');
   }
 };
 

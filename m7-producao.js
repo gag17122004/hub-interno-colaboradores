@@ -428,14 +428,19 @@ const M7 = (() => {
   function handleSelectOther(selectId, list, label) {
     const sel = $(selectId);
     if (!sel || sel.value !== '__other__') return;
-    const newVal = prompt(`Adicionar nova opção de ${label}:`);
-    if (newVal?.trim()) {
-      list.push(newVal.trim());
-      buildSelect(selectId, list);
-      sel.value = newVal.trim();
-    } else {
-      sel.value = list[0] || '';
-    }
+    sel.value = list[0] || ''; // reverte enquanto modal está aberto
+    Modal.input({
+      title: `Nova opção: ${label}`,
+      placeholder: label,
+      confirmText: 'Adicionar',
+      onConfirm: (val) => {
+        const newVal = (val || '').trim();
+        if (!newVal) return;
+        list.push(newVal);
+        buildSelect(selectId, list);
+        sel.value = newVal;
+      }
+    });
   }
 
   function populateModal() {

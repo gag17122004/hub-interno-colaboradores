@@ -270,8 +270,8 @@ const M8 = (() => {
     const q = quotes.find(x => x.id === id);
     if (!q) return;
     const client = clients.find(c => c.id === q.clientId);
-    const win = window.open('', '_blank');
-    win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head>
+
+    const html = `<!DOCTYPE html><html lang="pt-BR"><head>
       <meta charset="UTF-8"><title>Orçamento — ${Utils.esc(q.clientName)}</title>
       <style>
         *{box-sizing:border-box;margin:0;padding:0}
@@ -316,8 +316,24 @@ const M8 = (() => {
       ${q.notes ? `<div class="sec">Observações</div><p style="font-size:12px;color:#475569;margin-top:4px">${Utils.esc(q.notes)}</p>` : ''}
       <div class="footer">Documento gerado em ${new Date().toLocaleString('pt-BR')} &nbsp;·&nbsp; Pratik Embalagens</div>
       <script>window.onload=()=>{window.print()}<\/script>
-    </body></html>`);
-    win.document.close();
+    </body></html>`;
+
+    const win = window.open('', '_blank');
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+    } else {
+      // Fallback: download como HTML quando popup é bloqueado (iOS Safari, etc.)
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `orcamento-${(q.clientName || 'cliente').replace(/\s+/g, '-')}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
   }
 
   function removeQuote(id) {
