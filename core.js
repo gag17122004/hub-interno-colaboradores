@@ -713,10 +713,10 @@ const Modal = {
    5. TEMA — Alternância dark/light
    ============================================================ */
 const Theme = {
-  _current: 'dark',
+  _current: 'light',
 
   async init() {
-    this._current = await Storage.get(Storage.KEYS.THEME, 'dark');
+    this._current = await Storage.get(Storage.KEYS.THEME, 'light');
     this._apply();
     document.getElementById('theme-toggle').addEventListener('click', () => this.toggle());
   },
