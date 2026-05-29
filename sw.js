@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_VERSION = 'v8';
+const CACHE_VERSION = 'v9';
 const CACHE_NAME    = `hub-pratik-${CACHE_VERSION}`;
 
 /* Assets pré-cacheados na instalação (fallback offline) */
