@@ -376,6 +376,7 @@ const Auth = {
     this._applySession(session);
     Logger.log('Fez login no sistema');
     Toast.success('Bem-vindo, ' + name + '!');
+    document.dispatchEvent(new CustomEvent('auth:login'));
     // Sync em segundo plano — não bloqueia o app
     Storage.syncAll().catch(() => {});
   },

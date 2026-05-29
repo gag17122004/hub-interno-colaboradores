@@ -274,7 +274,7 @@ const M7 = (() => {
     const session  = Auth.getSession();
     const isMaster = Auth.isMaster();
     let display = isMaster ? [...records] : records.filter(r => r.operator === session?.name);
-    display.sort((a, b) => (b.date + (b.startTime || '')).localeCompare(a.date + (a.startTime || '')));
+    display.sort((a, b) => ((b.date || '') + (b.startTime || '')).localeCompare((a.date || '') + (a.startTime || '')));
 
     if (display.length === 0) {
       tbody.innerHTML = `<tr><td colspan="9" class="empty-state"><i class="fa-solid fa-industry"></i><p>Nenhum registro.</p></td></tr>`;

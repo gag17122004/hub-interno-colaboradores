@@ -81,7 +81,7 @@ const M1 = (() => {
       saldoEl.style.color   = saldo >= 0 ? 'var(--success)' : 'var(--danger)';
     }
 
-    const recs  = (timeRecords[activeEmployee] || []).sort((a, b) => b.date.localeCompare(a.date));
+    const recs  = (timeRecords[activeEmployee] || []).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     const tbody = $('m1-records-tbody');
     if (!tbody) return;
 

@@ -51,7 +51,7 @@ const M10 = (() => {
       const icon    = alert ? 'fa-triangle-exclamation' : 'fa-check';
       return `
         <div class="m1-emp-item ${selectedMachine === m ? 'active' : ''}"
-             onclick="M10.selectMachine('${Utils.esc(m).replace(/'/g, "\\'")}')">
+             data-machine="${Utils.esc(m)}" onclick="M10.selectMachine(this.dataset.machine)">
           <div class="m1-emp-avatar" style="background:${color}">
             <i class="fa-solid ${icon}" style="font-size:11px"></i>
           </div>

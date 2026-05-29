@@ -20,7 +20,7 @@ const M9 = (() => {
     if (!empName || !date || !text) { Toast.error('Preencha colaborador, data e ocorrência.'); return; }
 
     const notes = getNotes();
-    notes.push({ id: Date.now(), empName, date, text });
+    notes.push({ id: Utils.uid(), empName, date, text });
     Storage.setSync(NOTES_KEY, notes);
     if ($('m9-note-text'))  $('m9-note-text').value  = '';
     Toast.success('Anotação salva.');

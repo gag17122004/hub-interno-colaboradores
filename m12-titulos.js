@@ -105,7 +105,7 @@ const M12 = (() => {
         <div style="padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px;display:flex;justify-content:space-between;align-items:center;gap:12px">
           <span style="flex:1">${Utils.esc(clean)}</span>
           <button class="btn btn-xs btn-secondary" title="Copiar"
-            onclick="navigator.clipboard.writeText(${JSON.stringify(clean)}).then(()=>Toast.success('Copiado!'))">
+            onclick="navigator.clipboard.writeText(${JSON.stringify(clean).replace(/"/g,'&quot;')}).then(()=>Toast.success('Copiado!'))">
             <i class="fa-solid fa-copy"></i>
           </button>
         </div>`;

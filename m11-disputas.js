@@ -64,6 +64,8 @@ const M11 = (() => {
     ]
   };
 
+  let activeTab = 'generator';
+
   function loadData() {
     let data = Storage.getSync(KEY, null);
     if (!data) {
@@ -215,6 +217,7 @@ const M11 = (() => {
   }
 
   function setTab(tab) {
+    activeTab = tab;
     ['generator', 'manage'].forEach(t => {
       $(`m11-tab-${t}`)?.classList.toggle('active', t === tab);
       $(`m11-panel-${t}`)?.classList.toggle('hidden', t !== tab);
