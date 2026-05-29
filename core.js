@@ -97,7 +97,7 @@ const Storage = {
    * @param {*} fallback — valor padrão se a chave não existir
    */
   async get(key, fallback = null) {
-    if (!USAR_FIREBASE || key === 'hub_session') {
+    if (!USAR_FIREBASE || key === 'hub_session' || key === 'hub_theme') {
       return this._getLocal(key, fallback);
     }
 
@@ -139,7 +139,7 @@ const Storage = {
     // Sempre salva no localStorage também como backup/fallback
     this._setLocal(key, value);
 
-    if (!USAR_FIREBASE || key === 'hub_session') {
+    if (!USAR_FIREBASE || key === 'hub_session' || key === 'hub_theme') {
       return;
     }
 
@@ -151,7 +151,7 @@ const Storage = {
     } catch (e) {
       console.warn(`[Storage.set] Firestore indisponível para "${key}".`, e.code || e.message);
       if (e.code === 'permission-denied') {
-        Toast.error('Sem permissão no servidor. Dado salvo localmente apenas.');
+        Toast.error(`Sem permissão no servidor ("${key}"). Dado salvo localmente apenas.`);
       }
     }
   },
@@ -832,7 +832,9 @@ const App = {
       fireReady();
     });
 
-    signInAnonymously(auth).catch(() => {});
+    signInAnonymously(auth).catch(e => {
+      console.error('[Hub] signInAnonymously falhou:', e.code, e.message);
+    });
   }
 };
 
