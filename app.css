@@ -7,8 +7,8 @@
 /* ── Variáveis de Tema ───────────────────────────────────── */
 :root {
   --sidebar-w: 248px;
-  --radius:    10px;
-  --radius-lg: 14px;
+  --radius:    6px;
+  --radius-lg: 8px;
   --transition: 0.16s ease;
 }
 
@@ -20,10 +20,10 @@
   --border:    #30363d;
   --text:      #e6edf3;
   --text-sec:  #8b949e;
-  --accent:    #2dd4bf;
-  --accent-bg: rgba(45,212,191,.10);
-  --accent-bd: rgba(45,212,191,.28);
-  --indigo:    #818cf8;
+  --accent:    #C4956A;
+  --accent-bg: rgba(196,149,106,.10);
+  --accent-bd: rgba(196,149,106,.28);
+  --indigo:    #b8a49a;
   --danger:    #f87171;
   --danger-bg: rgba(248,113,113,.10);
   --danger-bd: rgba(248,113,113,.28);
@@ -35,25 +35,25 @@
 }
 
 [data-theme="light"] {
-  --bg:        #f0f4f8;
-  --surface:   #ffffff;
-  --surface2:  #f8fafc;
-  --surface3:  #f1f5f9;
-  --border:    #e2e8f0;
-  --text:      #1e293b;
-  --text-sec:  #64748b;
-  --accent:    #0d9488;
-  --accent-bg: rgba(13,148,136,.08);
-  --accent-bd: rgba(13,148,136,.25);
-  --indigo:    #6366f1;
-  --danger:    #ef4444;
-  --danger-bg: rgba(239,68,68,.08);
-  --danger-bd: rgba(239,68,68,.25);
-  --success:   #10b981;
-  --success-bg:rgba(16,185,129,.08);
-  --warning:   #f59e0b;
-  --warning-bg:rgba(245,158,11,.08);
-  --shadow:    0 4px 24px rgba(0,0,0,.10);
+  --bg:        #F7F2ED;
+  --surface:   #FFFFFF;
+  --surface2:  #FAF7F4;
+  --surface3:  #F0EAE3;
+  --border:    #E5DDD6;
+  --text:      #2B1E16;
+  --text-sec:  #7A6458;
+  --accent:    #3D2B1F;
+  --accent-bg: rgba(61,43,31,.07);
+  --accent-bd: rgba(61,43,31,.22);
+  --indigo:    #5B4A3F;
+  --danger:    #DC2626;
+  --danger-bg: rgba(220,38,38,.07);
+  --danger-bd: rgba(220,38,38,.22);
+  --success:   #16A34A;
+  --success-bg:rgba(22,163,74,.07);
+  --warning:   #D97706;
+  --warning-bg:rgba(217,119,6,.08);
+  --shadow:    0 2px 12px rgba(43,30,22,.08);
 }
 
 /* ── Reset & Base ────────────────────────────────────────── */
@@ -61,7 +61,7 @@
 
 html, body {
   height: 100%;
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   background: var(--bg);
   color: var(--text);
   font-size: 14px;
@@ -247,7 +247,7 @@ html, body {
   padding: 16px;
 }
 .stat-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing:.06em; color: var(--text-sec); margin-bottom: 6px; }
-.stat-value { font-size: 24px; font-weight: 700; color: var(--text); font-family: 'DM Mono', monospace; }
+.stat-value { font-size: 24px; font-weight: 700; color: var(--text); font-family: 'Roboto Mono', monospace; }
 .stat-sub   { font-size: 11px; color: var(--text-sec); margin-top: 3px; }
 .stat-card.accent  { border-color: var(--accent-bd); background: var(--accent-bg); }
 .stat-card.danger  { border-color: var(--danger-bd); background: var(--danger-bg); }
@@ -284,7 +284,7 @@ textarea {
   border-radius: 8px;
   padding: 8px 12px;
   font-size: 13px;
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   outline: none;
   transition: var(--transition);
   width: 100%;
@@ -310,7 +310,7 @@ textarea { resize: vertical; min-height: 80px; }
   font-size: 13px; font-weight: 600;
   cursor: pointer; border: none;
   transition: var(--transition);
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   white-space: nowrap;
   user-select: none;
 }
@@ -383,7 +383,7 @@ tbody td { padding: 10px 14px; vertical-align: middle; }
   border: 1px solid transparent;
   border-bottom: none;
   border-radius: 8px 8px 0 0;
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   transition: var(--transition);
   margin-bottom: -1px;
   white-space: nowrap;
@@ -477,7 +477,7 @@ tbody td { padding: 10px 14px; vertical-align: middle; }
 .profit-card.ml     .profit-name { color: #ca8a04; }
 .profit-value {
   font-size: 30px; font-weight: 700;
-  font-family: 'DM Mono', monospace;
+  font-family: 'Roboto Mono', monospace;
   color: var(--text);
 }
 .profit-value.positive { color: var(--success); }
@@ -486,7 +486,7 @@ tbody td { padding: 10px 14px; vertical-align: middle; }
 .profit-pct.positive { color: var(--success); }
 .profit-pct.negative { color: var(--danger); }
 .profit-breakdown { font-size: 11px; color: var(--text-sec); margin-top: 10px; line-height: 1.9; }
-.profit-breakdown span { font-family: 'DM Mono', monospace; color: var(--text); }
+.profit-breakdown span { font-family: 'Roboto Mono', monospace; color: var(--text); }
 
 /* ── Weight Cards (Módulo 4) ─────────────────────────────── */
 .weight-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 16px; }
@@ -500,7 +500,7 @@ tbody td { padding: 10px 14px; vertical-align: middle; }
   background: var(--accent-bg);
 }
 .wlabel { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing:.06em; color: var(--text-sec); margin-bottom: 8px; }
-.wvalue { font-size: 36px; font-weight: 700; font-family: 'DM Mono', monospace; color: var(--text); }
+.wvalue { font-size: 36px; font-weight: 700; font-family: 'Roboto Mono', monospace; color: var(--text); }
 .wtag   { font-size: 11px; font-weight: 700; margin-top: 6px; text-transform: uppercase; letter-spacing:.05em; }
 .weight-card.winner .wtag { color: var(--accent); }
 
@@ -527,7 +527,7 @@ tbody td { padding: 10px 14px; vertical-align: middle; }
 .text-success   { color: var(--success); }
 .text-danger    { color: var(--danger); }
 .text-warning   { color: var(--warning); }
-.font-mono      { font-family: 'DM Mono', monospace; }
+.font-mono      { font-family: 'Roboto Mono', monospace; }
 .font-bold      { font-weight: 700; }
 .hidden         { display: none !important; }
 .empty-state {
@@ -631,7 +631,7 @@ body.is-master table .master-only { display: table-cell !important; }
 .m2-var-details.open { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 
 /* ── Auditoria & Logs ────────────────────────────────────── */
-#m6-logs-tbody tr td:first-child { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text-sec); }
+#m6-logs-tbody tr td:first-child { font-family: 'Roboto Mono', monospace; font-size: 11px; color: var(--text-sec); }
 #m6-logs-tbody tr td:last-child { font-weight: 500; }
 
 /* ── Grid Utility ────────────────────────────────────────── */
@@ -687,14 +687,14 @@ body.is-master table .master-only { display: table-cell !important; }
 
 .box3d-face {
   position: absolute;
-  border: 2px solid rgba(45,212,191,.65);
-  background: rgba(45,212,191,.07);
+  border: 2px solid rgba(196,149,106,.65);
+  background: rgba(196,149,106,.07);
   backface-visibility: visible;
 }
 
-.box3d-top    { background: rgba(45,212,191,.14); }
-.box3d-right  { background: rgba(45,212,191,.05); }
-.box3d-back   { background: rgba(45,212,191,.03); }
+.box3d-top    { background: rgba(196,149,106,.14); }
+.box3d-right  { background: rgba(196,149,106,.05); }
+.box3d-back   { background: rgba(196,149,106,.03); }
 
 /* ── Mobile / PWA ────────────────────────────────────────── */
 @media (max-width: 640px) {
