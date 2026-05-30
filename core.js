@@ -145,6 +145,18 @@ const Storage = {
     }
   },
 
+  _sanitize(value) {
+    try {
+      return JSON.parse(JSON.stringify(value, (k, v) => {
+        if (typeof v === 'function') { console.warn(`[Storage] Campo "${k}" é função — ignorado`); return undefined; }
+        return v;
+      }));
+    } catch (e) {
+      console.error('[Storage._sanitize] Payload não serializável:', e.message);
+      return null;
+    }
+  },
+
   /**
    * Serializa e salva um item.
    * @param {string} key
@@ -158,15 +170,33 @@ const Storage = {
       return;
     }
 
+    const safe = this._sanitize(value);
+    if (safe === null) return; // payload corrompido — não envia ao Firestore
+
     try {
       const docRef = this._getDocRef(key);
       if (!docRef) return;
 
-      await setDoc(docRef, { value: value });
+      await setDoc(docRef, { value: safe });
     } catch (e) {
-      console.warn(`[Storage.set] Firestore indisponível para "${key}".`, e.code || e.message);
-      if (e.code === 'permission-denied') {
-        Toast.error(`Sem permissão no servidor ("${key}"). Dado salvo localmente apenas.`);
+      const code = e.code || 'unknown';
+      this._logSyncError(key, code, e.message);
+      console.warn(`[Storage.set] Falha em "${key}": ${code}`);
+      switch (code) {
+        case 'permission-denied':
+          Toast.error(`Sem permissão no servidor ("${key}"). Dado salvo localmente apenas.`);
+          break;
+        case 'resource-exhausted':
+          Toast.error('Cota do servidor atingida. Tente novamente mais tarde.');
+          break;
+        case 'invalid-argument':
+          console.error(`[Storage.set] Payload inválido para "${key}":`, safe);
+          break;
+        case 'unavailable':
+        case 'deadline-exceeded':
+          break; // rede instável — silencioso, dado está no localStorage
+        default:
+          if (code !== 'unknown') console.error(`[Storage.set] Erro inesperado (${code}):`, e.message);
       }
     }
   },
@@ -198,9 +228,17 @@ const Storage = {
   getSync(key, fallback = null) {
     return this._getLocal(key, fallback);
   },
+  _writeTimers: {},
+  _syncErrors:  [],
+  _logSyncError(key, code, msg) {
+    this._syncErrors.unshift({ ts: new Date().toISOString(), key, code, msg });
+    if (this._syncErrors.length > 50) this._syncErrors.pop();
+  },
   setSync(key, value) {
     this._setLocal(key, value);
-    this.set(key, value).catch(() => {});
+    // Debounce por chave: evita rajada de escritas no Firestore em saves rápidos
+    clearTimeout(this._writeTimers[key]);
+    this._writeTimers[key] = setTimeout(() => this.set(key, value).catch(() => {}), 400);
   },
   removeSync(key) {
     this._removeLocal(key);
@@ -615,6 +653,11 @@ const Utils = {
   currentMonth() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  },
+
+  debounce(fn, ms = 400) {
+    let t;
+    return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
   },
 
   /**
