@@ -7,7 +7,10 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node tests/user.test.mjs",
+    "test:smoke": "node tests/smoke.test.mjs",
+    "test:smoke:prod": "node tests/smoke.test.mjs https://hub-interno-colaboradores.web.app",
+    "serve": "python -m http.server 8765"
   },
   "repository": {
     "type": "git",

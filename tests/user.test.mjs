@@ -220,7 +220,56 @@ async function navTo(page, route) {
     await page.waitForTimeout(600);
   });
 
-  // ── 7. Ausência de erros JS críticos ─────────────────────────────
+  // ── 7. M18 — Validação de PDF ────────────────────────────────────
+  console.log('\n📦 M18 — Máquinas (PDF size)');
+
+  await step('PDF > 700KB rejeitado com toast de erro', async () => {
+    await navTo(page, 'm18');
+    await page.waitForTimeout(600);
+    const addBtn = page.locator('#m18-add-btn');
+    if (await addBtn.count() === 0) { console.log('     ⚠️ M18 não acessível neste perfil — pulando'); return; }
+    await addBtn.click();
+    await page.waitForSelector('#m18-modal.open', { timeout: 4000 });
+    // Cria arquivo falso > 700KB via FileChooser
+    await page.fill('#m18-name', 'Máquina Teste');
+    const [fc] = await Promise.all([
+      page.waitForEvent('filechooser'),
+      page.click('#m18-pdf')
+    ]);
+    const bigBuf = Buffer.alloc(750000, 'A');
+    await fc.setFiles([{ name: 'grande.pdf', mimeType: 'application/pdf', buffer: bigBuf }]);
+    await page.click('#m18-save');
+    await page.waitForTimeout(400);
+    const toasts = await page.$$eval('.toast.error', ts => ts.map(t => t.textContent));
+    const hasToast = toasts.some(t => t.includes('700') || t.includes('grande') || t.includes('PDF'));
+    if (!hasToast) throw new Error(`Toast de tamanho não apareceu. Toasts: ${toasts.join(' | ')}`);
+    await page.click('#m18-cancel');
+  });
+
+  // ── 8. Offline — Service Worker ─────────────────────────────────
+  console.log('\n📦 Offline / Service Worker');
+
+  await step('Service Worker registrado após carga', async () => {
+    const sw = await page.evaluate(async () => {
+      const reg = await navigator.serviceWorker.getRegistration();
+      return !!reg;
+    });
+    if (!sw) throw new Error('SW não registrado');
+  });
+
+  await step('app permanece funcional offline (cache SW)', async () => {
+    await ctx.setOffline(true);
+    await page.reload({ waitUntil: 'domcontentloaded', timeout: 15000 });
+    // Deve carregar do cache do SW — tela de login ou app logado
+    const loaded = await page.waitForSelector('#login-screen, #app-layout, .app-layout', { timeout: 8000 });
+    if (!loaded) throw new Error('App não carregou offline');
+    await ctx.setOffline(false);
+    // Reloga para os próximos testes
+    await page.goto(BASE, { waitUntil: 'domcontentloaded', timeout: 20000 });
+    await page.waitForSelector('#login-name-select', { timeout: 10000 }).catch(() => {});
+  });
+
+  // ── 9. Ausência de erros JS críticos ─────────────────────────────
   console.log('\n📦 Saúde JS global');
 
   await step('nenhum ReferenceError ou TypeError em toda a sessão', async () => {

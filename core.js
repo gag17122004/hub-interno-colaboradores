@@ -82,8 +82,23 @@ const Storage = {
     try {
       localStorage.setItem(key, JSON.stringify(value));
     } catch (e) {
-      console.error(`[Storage._setLocal] Erro ao salvar "${key}":`, e);
-      Toast.error('Erro ao salvar dados. LocalStorage pode estar cheio.');
+      if (e.name === 'QuotaExceededError' || e.code === 22) {
+        // Auto-cleanup: trunca logs de auditoria (maior consumidor de espaço)
+        try {
+          const logs = JSON.parse(localStorage.getItem(Storage.KEYS.LOGS) || '[]');
+          if (logs.length > 50) {
+            localStorage.setItem(Storage.KEYS.LOGS, JSON.stringify(logs.slice(0, 50)));
+            localStorage.setItem(key, JSON.stringify(value));
+            console.warn('[Storage] QuotaExceeded — logs antigos removidos automaticamente.');
+            return;
+          }
+        } catch {}
+        console.error(`[Storage._setLocal] QuotaExceededError ao salvar "${key}".`);
+        Toast.error('Armazenamento local cheio. Libere espaço no dispositivo.');
+      } else {
+        console.error(`[Storage._setLocal] Erro ao salvar "${key}":`, e);
+        Toast.error('Erro ao salvar dados localmente.');
+      }
     }
   },
 
@@ -318,9 +333,21 @@ const Auth = {
       ? (pw[this.MASTER_NAME] || this.DEFAULT_MASTER_PASS)
       : (pw[name] || null);
   },
-  setPassword(name, pass) {
-    const pw = this.getPasswords();
-    pw[name] = pass;
+  async hashPass(name, pass) {
+    const data = new TextEncoder().encode(`hub-pratik|${name.toLowerCase()}|${pass}`);
+    const buf  = await crypto.subtle.digest('SHA-256', data);
+    return 'h1:' + [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+  },
+  async _checkPass(name, input, stored) {
+    if (stored.startsWith('h1:')) return (await this.hashPass(name, input)) === stored;
+    // Legado plain-text: migra para hash de forma transparente
+    if (input === stored) { this.setPassword(name, input).catch(() => {}); return true; }
+    return false;
+  },
+  async setPassword(name, pass) {
+    const hash = await this.hashPass(name, pass);
+    const pw   = this.getPasswords();
+    pw[name]   = hash;
     this.savePasswords(pw);
   },
   hasPassword(name) {
@@ -328,12 +355,13 @@ const Auth = {
   },
 
   /* ── Login com nome + senha (sistema local) ─────────────── */
-  loginWithPassword(name, pass) {
+  async loginWithPassword(name, pass) {
     if (!name) { Toast.error('Selecione seu nome.'); return; }
     if (!pass)  { Toast.error('Digite sua senha.'); return; }
-    const expected = this.getPassword(name);
-    if (!expected) { Toast.error('Usuário não encontrado na lista de colaboradores.'); return; }
-    if (pass !== expected) { Toast.error('Senha incorreta.'); return; }
+    const stored = this.getPassword(name);
+    if (!stored) { Toast.error('Usuário não encontrado na lista de colaboradores.'); return; }
+    const ok = await this._checkPass(name, pass, stored);
+    if (!ok) { Toast.error('Senha incorreta.'); return; }
     const employees = Storage._getLocal(Storage.KEYS.EMPLOYEES, []);
     const emp = employees.find(e => e.name === name);
     const profile = name === this.MASTER_NAME ? 'master' : (emp?.profile || 'colab');
@@ -415,10 +443,11 @@ const Auth = {
     document.getElementById('punch-pass-name').textContent = session.name;
     document.getElementById('punch-pass-input').value = '';
     modal.classList.add('open');
-    const confirm = () => {
+    const confirm = async () => {
       const val      = document.getElementById('punch-pass-input').value;
-      const expected = this.getPassword(session.name);
-      if (!expected || val === expected) {
+      const stored   = this.getPassword(session.name);
+      const ok       = !stored || await this._checkPass(session.name, val, stored);
+      if (ok) {
         modal.classList.remove('open'); cb();
       } else {
         Toast.error('Senha incorreta. Não é possível bater ponto.');
@@ -436,10 +465,10 @@ const Auth = {
       title: `Nova senha para "${name}"`,
       placeholder: 'Mínimo 4 caracteres',
       confirmText: 'Salvar Senha',
-      onConfirm: (val) => {
+      onConfirm: async (val) => {
         const newPass = (val || '').trim();
         if (newPass.length < 4) { Toast.error('Senha muito curta (mínimo 4 caracteres).'); return; }
-        this.setPassword(name, newPass);
+        await this.setPassword(name, newPass);
         Logger.log('Master redefiniu senha de: ' + name);
         Toast.success('Senha de "' + name + '" redefinida.');
         if (typeof renderPasswordPanel === 'function') renderPasswordPanel();

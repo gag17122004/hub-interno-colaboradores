@@ -3172,5 +3172,34 @@ const GroqAI = {
   }
 </script>
 
+<script>
+/* ── Error Monitoring ── */
+(function () {
+  const _seen = new Set();
+
+  window.onerror = function (msg, src, line, col, err) {
+    const key = String(msg) + String(src);
+    if (_seen.has(key)) return false;
+    _seen.add(key);
+    console.error('[Hub] Erro não tratado:', msg, src ? `(${src}:${line})` : '');
+    // Só exibe toast para erros originados no próprio app (não extensões de browser)
+    try {
+      if (src && src.includes(location.hostname) && typeof Toast !== 'undefined') {
+        Toast.error('Erro interno inesperado. Recarregue a página se o problema persistir.');
+      }
+    } catch (_) {}
+    return false;
+  };
+
+  window.onunhandledrejection = function (e) {
+    const msg = e.reason?.message || String(e.reason);
+    const key = 'promise:' + msg;
+    if (_seen.has(key)) return;
+    _seen.add(key);
+    console.error('[Hub] Promise rejeitada não tratada:', msg);
+  };
+})();
+</script>
+
 </body>
 </html>
