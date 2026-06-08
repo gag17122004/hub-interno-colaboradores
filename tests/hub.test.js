@@ -235,15 +235,11 @@ const Store = {
 // Auth (lógica pura de senha/sessão)
 const Auth = {
   MASTER_NAME: 'Administrador',
-  DEFAULT_MASTER_PASS: 'master123',
   getPasswords()      { return Storage._getLocal(Storage.KEYS.PASSWORDS, {}); },
   savePasswords(pw)   { Storage._setLocal(Storage.KEYS.PASSWORDS, pw); },
-  getPassword(name)   {
-    const pw = this.getPasswords();
-    return name===this.MASTER_NAME ? (pw[name]||this.DEFAULT_MASTER_PASS) : (pw[name]||null);
-  },
+  getPassword(name)   { return this.getPasswords()[name] || null; },
   setPassword(name, pass) { const pw=this.getPasswords(); pw[name]=pass; this.savePasswords(pw); },
-  hasPassword(name)  { return name===this.MASTER_NAME ? true : !!this.getPasswords()[name]; },
+  hasPassword(name)  { return !!this.getPasswords()[name]; },
   getSession()        { return Storage._getLocal(Storage.KEYS.SESSION); },
   isMaster()          { const s=this.getSession(); return !!(s&&s.profile==='master'); },
 };
@@ -672,8 +668,8 @@ describe('Store.createModule', () => {
 describe('Auth passwords', () => {
   beforeEachReset(() => Storage._reset());
 
-  it('happy path: master sem senha usa DEFAULT_MASTER_PASS', () => {
-    expect(Auth.getPassword('Administrador')).toBe('master123');
+  it('sad path: master sem senha retorna null', () => {
+    expect(Auth.getPassword('Administrador')).toBeNull();
   });
 
   it('happy path: setPassword e getPassword roundtrip', () => {
@@ -681,7 +677,12 @@ describe('Auth passwords', () => {
     expect(Auth.getPassword('João')).toBe('senha123');
   });
 
-  it('happy path: hasPassword master sempre true', () => {
+  it('sad path: hasPassword master sem senha = false', () => {
+    expect(Auth.hasPassword('Administrador')).toBeFalsy();
+  });
+
+  it('happy path: hasPassword master com senha = true', () => {
+    Auth.setPassword('Administrador', 'nova123');
     expect(Auth.hasPassword('Administrador')).toBeTruthy();
   });
 

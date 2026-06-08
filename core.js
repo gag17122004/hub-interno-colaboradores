@@ -333,10 +333,7 @@ const Auth = {
     if (!name) { Toast.error('Selecione seu nome.'); return; }
     if (!pass)  { Toast.error('Digite sua senha.'); return; }
     const expected = this.getPassword(name);
-    if (!expected) {
-      if (name === this.MASTER_NAME) { await this._promptFirstMasterPassword(); return; }
-      Toast.error('Usuário não encontrado na lista de colaboradores.'); return;
-    }
+    if (!expected) { Toast.error('Nenhuma senha definida. Contacte o administrador.'); return; }
     if (await this.hashPassword(pass) !== expected) { Toast.error('Senha incorreta.'); return; }
     const employees = Storage._getLocal(Storage.KEYS.EMPLOYEES, []);
     const emp = employees.find(e => e.name === name);
