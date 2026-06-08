@@ -1,5 +1,5 @@
 import { doc, getDoc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
-import { signInWithPopup, GoogleAuthProvider, signInAnonymously, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
+import { signInWithPopup, GoogleAuthProvider, signInAnonymously, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
 import { db, auth, apiKey as fbApiKey } from "./firebase-config.js";
 
 const USAR_FIREBASE = true;
@@ -303,8 +303,7 @@ const Logger = {
    - Google Sign-In opcional: se Gmail cadastrado em hub_employees, faz login
    ============================================================ */
 const Auth = {
-  MASTER_NAME:        'Administrador',
-  DEFAULT_MASTER_PASS:'master123',
+  MASTER_NAME:   'Administrador',
   COLAB_BLOCKED: ['m3', 'm4', 'm6', 'm8', 'm9', 'm11', 'm12'],
 
   /* ── Senhas (hub_passwords) ─────────────────────────────── */
@@ -314,31 +313,44 @@ const Auth = {
     Storage.set(Storage.KEYS.PASSWORDS, pw).catch(() => {});
   },
   getPassword(name) {
-    const pw = this.getPasswords();
-    return name === this.MASTER_NAME
-      ? (pw[this.MASTER_NAME] || this.DEFAULT_MASTER_PASS)
-      : (pw[name] || null);
+    return this.getPasswords()[name] || null;
   },
-  setPassword(name, pass) {
+  async hashPassword(pass) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pass));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  },
+  async setPassword(name, pass) {
     const pw = this.getPasswords();
-    pw[name] = pass;
+    pw[name] = await this.hashPassword(pass);
     this.savePasswords(pw);
   },
   hasPassword(name) {
-    return name === this.MASTER_NAME ? true : !!this.getPasswords()[name];
+    return !!this.getPasswords()[name];
   },
 
   /* ── Login com nome + senha (sistema local) ─────────────── */
-  loginWithPassword(name, pass) {
+  async loginWithPassword(name, pass) {
     if (!name) { Toast.error('Selecione seu nome.'); return; }
     if (!pass)  { Toast.error('Digite sua senha.'); return; }
     const expected = this.getPassword(name);
-    if (!expected) { Toast.error('Usuário não encontrado na lista de colaboradores.'); return; }
-    if (pass !== expected) { Toast.error('Senha incorreta.'); return; }
+    if (!expected) {
+      if (name === this.MASTER_NAME) { await this._promptFirstMasterPassword(); return; }
+      Toast.error('Usuário não encontrado na lista de colaboradores.'); return;
+    }
+    if (await this.hashPassword(pass) !== expected) { Toast.error('Senha incorreta.'); return; }
     const employees = Storage._getLocal(Storage.KEYS.EMPLOYEES, []);
     const emp = employees.find(e => e.name === name);
     const profile = name === this.MASTER_NAME ? 'master' : (emp?.profile || 'colab');
     this.login(profile, name);
+  },
+
+  async _promptFirstMasterPassword() {
+    const p1 = prompt('Primeira entrada do Administrador.\nDefina uma senha (mínimo 4 caracteres):');
+    if (!p1 || p1.length < 4) { Toast.error('Senha inválida. Mínimo 4 caracteres.'); return; }
+    const p2 = prompt('Confirme a senha:');
+    if (p1 !== p2) { Toast.error('As senhas não coincidem.'); return; }
+    await this.setPassword(this.MASTER_NAME, p1);
+    Toast.success('Senha definida. Faça login novamente.');
   },
 
   /* ── Login com Google (opcional, requer Gmail em hub_employees) ─ */
@@ -370,14 +382,38 @@ const Auth = {
     }
   },
 
-  login(profile, name) {
+  async login(profile, name) {
     const session = { profile, name };
     Storage._setLocal(Storage.KEYS.SESSION, session);
     this._applySession(session);
     Logger.log('Fez login no sistema');
     Toast.success('Bem-vindo, ' + name + '!');
+    // Grava perfil no Firestore como verdade server-side (proteção contra edição de localStorage)
+    try {
+      if (auth.currentUser) {
+        await updateProfile(auth.currentUser, { displayName: name });
+        await auth.currentUser.getIdToken(true); // força refresh para o claim `name` estar disponível
+        await setDoc(doc(db, 'usuarios', name, 'session', 'profile'),
+          { profile, name, createdAt: new Date().toISOString() });
+      }
+    } catch (_) {}
     // Sync em segundo plano — não bloqueia o app
     Storage.syncAll().catch(() => {});
+  },
+
+  async verifySession() {
+    const session = Storage._getLocal(Storage.KEYS.SESSION);
+    if (!session) return;
+    try {
+      const snap = await getDoc(doc(db, 'usuarios', session.name, 'session', 'profile'));
+      if (!snap.exists()) return; // doc ainda não existe (pré-deploy) — não forçar logout
+      if (snap.data().profile !== session.profile) {
+        // Divergência detectada: forçar logout imediato sem modal (contexto de segurança)
+        Storage._removeLocal(Storage.KEYS.SESSION);
+        signOut(auth).catch(() => {});
+        window.location.reload();
+      }
+    } catch (_) {}
   },
 
   logout() {
@@ -404,10 +440,11 @@ const Auth = {
     document.getElementById('punch-pass-name').textContent = session.name;
     document.getElementById('punch-pass-input').value = '';
     modal.classList.add('open');
-    const confirm = () => {
+    const confirm = async () => {
       const val      = document.getElementById('punch-pass-input').value;
       const expected = this.getPassword(session.name);
-      if (!expected || val === expected) {
+      const hashed   = expected ? await this.hashPassword(val) : null;
+      if (!expected || hashed === expected) {
         modal.classList.remove('open'); cb();
       } else {
         Toast.error('Senha incorreta. Não é possível bater ponto.');
@@ -420,10 +457,10 @@ const Auth = {
     setTimeout(() => document.getElementById('punch-pass-input')?.focus(), 100);
   },
 
-  resetColabPassword(name) {
+  async resetColabPassword(name) {
     const newPass = prompt('Nova senha para "' + name + '":');
     if (!newPass || newPass.length < 4) { Toast.error('Senha muito curta (mínimo 4 caracteres).'); return; }
-    this.setPassword(name, newPass);
+    await this.setPassword(name, newPass);
     Logger.log('Master redefiniu senha de: ' + name);
     Toast.success('Senha de "' + name + '" redefinida.');
     if (typeof renderPasswordPanel === 'function') renderPasswordPanel();
@@ -615,6 +652,13 @@ const Toast = {
   info(msg, duration)    { this._show(msg, 'info',    duration); },
 };
 
+function sanitizeHTML(str) {
+  if (typeof DOMPurify !== 'undefined') return DOMPurify.sanitize(str);
+  const p = document.createElement('div');
+  p.textContent = str;
+  return p.innerHTML;
+}
+
 /* ============================================================
    4. MODAL — Diálogo de confirmação/formulário genérico
    ============================================================ */
@@ -656,7 +700,7 @@ const Modal = {
   confirm({ title, body, confirmText = 'Confirmar', confirmClass = 'btn-danger', onConfirm }) {
     this._init();
     this._title.textContent       = title;
-    this._body.innerHTML          = body;
+    this._body.innerHTML          = sanitizeHTML(body);
     this._confirmBtn.textContent  = confirmText;
     this._confirmBtn.className    = `btn ${confirmClass}`;
     this._onConfirm               = onConfirm;
@@ -772,8 +816,10 @@ const App = {
     // hub:ready dispara imediatamente para módulos iniciarem
     document.dispatchEvent(new CustomEvent('hub:ready'));
 
-    // Firebase anônimo em segundo plano (apenas para Firestore)
-    signInAnonymously(auth).catch(() => {});
+    // Firebase anônimo em segundo plano; verifySession encadeado após auth pronta
+    signInAnonymously(auth)
+      .then(() => session && Auth.verifySession())
+      .catch(() => {});
 
     console.info('[Hub Interno] pronto.');
   }

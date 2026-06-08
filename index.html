@@ -3093,23 +3093,11 @@ body.is-master table .master-only { display: table-cell !important; }
   </div>
 </div>
 
-<!-- Groq AI -->
-<script>
-const GROQ_API_KEY = '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';
-const GroqAI = {
-  async call(messages, { model = 'llama-3.3-70b-versatile', max_tokens = 2048 } = {}) {
-    if (!GROQ_API_KEY || GROQ_API_KEY === 'COLE_SUA_CHAVE_AQUI') throw new Error('Chave da API do Groq nao configurada.');
-    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_API_KEY}` },
-      body: JSON.stringify({ model, max_completion_tokens: max_tokens, messages })
-    });
-    const json = await resp.json();
-    if (json.error) throw new Error(json.error.message);
-    return json.choices?.[0]?.message?.content || '';
-  }
-};
-</script>
+<!-- Groq AI — chave via Firebase Remote Config -->
+<script type="module" src="groq.js"></script>
+
+<!-- Sanitização HTML (deve carregar antes de core.js) -->
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
 
 <!-- Core (Firebase) -->
 <script type="module" src="core.js"></script>

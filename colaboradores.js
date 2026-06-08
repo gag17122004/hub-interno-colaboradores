@@ -59,7 +59,7 @@ const Colaboradores = (() => {
               ${hBank !== 0 ? `<span class="badge ${hBank > 0 ? 'badge-info' : 'badge-danger'}" title="Banco de horas">${hBank > 0 ? '+' : ''}${hBank}h</span>` : ''}
             </div>
             <div style="display:flex;gap:6px">
-              <button class="btn btn-xs btn-secondary" style="flex:1" onclick="Colaboradores.openDetail('${e.id}')"><i class="fa-solid fa-id-card"></i> Perfil</button>
+              <button class="btn btn-xs btn-secondary" style="flex:1" data-action="open-detail" data-id="${Utils.esc(e.id)}"><i class="fa-solid fa-id-card"></i> Perfil</button>
               ${waUrl ? `<a href="${waUrl}" target="_blank" rel="noopener" class="btn btn-xs" style="background:rgba(37,211,102,.12);color:#25d366;border:1px solid rgba(37,211,102,.3);padding:6px 10px" title="WhatsApp"><i class="fa-brands fa-whatsapp"></i></a>` : ''}
               <button class="btn btn-xs btn-secondary" onclick="Colaboradores.edit('${e.id}')"><i class="fa-solid fa-pen"></i></button>
               ${isActive
@@ -69,7 +69,15 @@ const Colaboradores = (() => {
           </div>`;
       }).join('')}
     </div>`;
+
+  if (!el._delegated) {
+    el._delegated = true;
+    el.addEventListener('click', ev => {
+      const btn = ev.target.closest('[data-action="open-detail"]');
+      if (btn) Colaboradores.openDetail(btn.dataset.id);
+    });
   }
+}
 
   /* ── Painel de detalhes ── */
   function openDetail(id) {
