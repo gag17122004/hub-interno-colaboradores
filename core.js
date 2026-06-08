@@ -40,6 +40,33 @@ const Storage = {
     if (loader) loader.style.display = 'none';
   },
 
+  _showSyncStatus(state) {
+    if (!document.getElementById('hub-sync-style')) {
+      const style = document.createElement('style');
+      style.id = 'hub-sync-style';
+      style.innerHTML = '#hub-sync-indicator{position:fixed;bottom:16px;left:16px;display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:8px;background:rgba(30,30,40,0.88);color:#fff;font-family:sans-serif;font-size:.82rem;box-shadow:0 2px 8px rgba(0,0,0,.3);z-index:9990;transition:opacity .3s ease;} @keyframes hub-cloud-spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}} #hub-sync-indicator.saving i{animation:hub-cloud-spin 1s linear infinite;display:inline-block;}';
+      document.head.appendChild(style);
+    }
+    let el = document.getElementById('hub-sync-indicator');
+    if (!el) { el = document.createElement('div'); el.id = 'hub-sync-indicator'; document.body.appendChild(el); }
+    clearTimeout(el._hideTimer);
+    el.style.opacity = '1';
+    el.className = state;
+    const cfg = {
+      saving: { icon: 'fa-cloud-arrow-up', label: 'Salvando...',    hide: 0    },
+      saved:  { icon: 'fa-circle-check',   label: 'Salvo',          hide: 2000 },
+      error:  { icon: 'fa-circle-xmark',   label: 'Erro ao salvar', hide: 4000 },
+    };
+    const { icon, label, hide } = cfg[state] || cfg.error;
+    el.innerHTML = `<i class="fa-solid ${icon}"></i><span>${label}</span>`;
+    if (hide > 0) {
+      el._hideTimer = setTimeout(() => {
+        el.style.opacity = '0';
+        setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 320);
+      }, hide);
+    }
+  },
+
   _getDocRef(key) {
     const sharedKeys = [
       'hub_employees', 'hub_hours', 'hub_products', 'hub_clients', 'hub_quotes',
@@ -126,6 +153,7 @@ const Storage = {
     } catch (e) {
       this._hideLoading();
       console.warn(`[Storage.get] Erro ao ler "${key}" do Firestore:`, e);
+      _warnOfflineOnce();
       return this._getLocal(key, fallback); // Fallback para localStorage em caso de erro
     }
   },
@@ -147,11 +175,13 @@ const Storage = {
       const docRef = this._getDocRef(key);
       if (!docRef) return;
 
+      Storage._showSyncStatus('saving');
       await setDoc(docRef, { value: value });
+      Storage._showSyncStatus('saved');
     } catch (e) {
-      // Silencia o toast — localStorage já foi salvo acima como backup confiável.
-      // Regras do Firestore ou conectividade serão resolvidas em fase futura.
       console.warn(`[Storage.set] Firestore indisponível para "${key}". Dado mantido no localStorage.`, e.code || e.message);
+      _warnOfflineOnce();
+      Storage._showSyncStatus('error');
     }
   },
 
@@ -631,7 +661,7 @@ const Toast = {
 
   _show(message, type = 'info', duration = 3200) {
     this._init();
-    const icons = { success: 'fa-circle-check', error: 'fa-circle-xmark', info: 'fa-circle-info' };
+    const icons = { success: 'fa-circle-check', error: 'fa-circle-xmark', info: 'fa-circle-info', warning: 'fa-triangle-exclamation' };
     const el = document.createElement('div');
     el.className = `toast ${type}`;
     el.innerHTML = `<i class="fa-solid ${icons[type] || icons.info}"></i> ${Utils.esc(message)}`;
@@ -647,7 +677,14 @@ const Toast = {
   success(msg, duration) { this._show(msg, 'success', duration); },
   error(msg, duration)   { this._show(msg, 'error',   duration); },
   info(msg, duration)    { this._show(msg, 'info',    duration); },
+  warning(msg, duration) { this._show(msg, 'warning', duration); },
 };
+
+function _warnOfflineOnce() {
+  if (sessionStorage.getItem('hub_offline_warned')) return;
+  sessionStorage.setItem('hub_offline_warned', '1');
+  Toast.warning('Modo offline — dados locais', 4000);
+}
 
 function sanitizeHTML(str) {
   if (typeof DOMPurify !== 'undefined') return DOMPurify.sanitize(str);
@@ -799,6 +836,27 @@ const Router = {
    ============================================================ */
 const App = {
   init() {
+    // Splash screen
+    let splashRemoved = false;
+    const removeSplash = () => {
+      if (splashRemoved) return;
+      splashRemoved = true;
+      const s = document.getElementById('hub-splash');
+      if (s) { s.style.transition = 'opacity .3s ease'; s.style.opacity = '0'; setTimeout(() => s.remove(), 320); }
+    };
+    const splash = document.createElement('div');
+    splash.id = 'hub-splash';
+    splash.innerHTML = '<div class="hub-spin-el"></div><div style="font-size:1.3rem;font-weight:600;letter-spacing:.05em;">Hub Interno</div>';
+    splash.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#1a1a2e;z-index:99999;display:flex;flex-direction:column;gap:18px;align-items:center;justify-content:center;color:#fff;font-family:sans-serif;';
+    if (!document.getElementById('hub-splash-style')) {
+      const style = document.createElement('style');
+      style.id = 'hub-splash-style';
+      style.innerHTML = '.hub-spin-el{width:44px;height:44px;border:4px solid rgba(255,255,255,0.25);border-top:4px solid #fff;border-radius:50%;animation:hub-spin 1s linear infinite;} @keyframes hub-spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}';
+      document.head.appendChild(style);
+    }
+    document.body.appendChild(splash);
+    const splashTimeout = setTimeout(removeSplash, 8000);
+
     Theme.init();
     Auth.init();
 
@@ -816,7 +874,9 @@ const App = {
     // Firebase anônimo em segundo plano; verifySession encadeado após auth pronta
     signInAnonymously(auth)
       .then(() => session && Auth.verifySession())
-      .catch(() => {});
+      .then(() => Storage.syncAll())
+      .catch(() => {})
+      .finally(() => { clearTimeout(splashTimeout); removeSplash(); });
 
     console.info('[Hub Interno] pronto.');
   }
