@@ -757,6 +757,12 @@ body.is-master table .master-only { display: table-cell !important; }
 
   /* Tabelas: scroll horizontal */
   .table-wrap          { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* M2 — Custos e Produtos */
+  .m2-var-item         { grid-template-columns: 1fr 1fr; font-size: 12px; }
+  .m2-var-item .m2-var-actions { justify-self: end; }
+  .m2-var-details.open { grid-template-columns: 1fr 1fr; }
+  .m2-prod-header      { flex-wrap: wrap; gap: 8px; }
 }
 
 /* Botão hambúrguer (só mobile) */

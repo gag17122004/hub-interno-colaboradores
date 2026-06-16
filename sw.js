@@ -3,10 +3,12 @@
 const CACHE_VERSION = 'v11';
 const CACHE_NAME    = `hub-pratik-${CACHE_VERSION}`;
 
+/* Arquivos que nunca devem ser cacheados */
+const NEVER_CACHE = ['groq.js', 'firebase-config.js'];
+
 /* Assets pré-cacheados na instalação (fallback offline) */
 const STATIC_ASSETS = [
   './core.js',
-  './firebase-config.js',
   './meu-espaco.js',
   './m1-horas.js',
   './m2-custos.js',
@@ -53,6 +55,9 @@ self.addEventListener('fetch', event => {
 
   const url = new URL(request.url);
   if (url.protocol === 'chrome-extension:') return;
+
+  /* Nunca cachear esses arquivos */
+  if (NEVER_CACHE.some(f => url.pathname.endsWith(f))) return;
 
   /* Ignora requests externos que não devem ser cacheados */
   const isCacheable = url.origin === self.location.origin ||

@@ -40,6 +40,33 @@ const Storage = {
     if (loader) loader.style.display = 'none';
   },
 
+  _showSyncStatus(state) {
+    if (!document.getElementById('hub-sync-style')) {
+      const style = document.createElement('style');
+      style.id = 'hub-sync-style';
+      style.innerHTML = '#hub-sync-indicator{position:fixed;bottom:16px;left:16px;display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:8px;background:rgba(30,30,40,0.88);color:#fff;font-family:sans-serif;font-size:.82rem;box-shadow:0 2px 8px rgba(0,0,0,.3);z-index:9990;transition:opacity .3s ease;} @keyframes hub-cloud-spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}} #hub-sync-indicator.saving i{animation:hub-cloud-spin 1s linear infinite;display:inline-block;}';
+      document.head.appendChild(style);
+    }
+    let el = document.getElementById('hub-sync-indicator');
+    if (!el) { el = document.createElement('div'); el.id = 'hub-sync-indicator'; document.body.appendChild(el); }
+    clearTimeout(el._hideTimer);
+    el.style.opacity = '1';
+    el.className = state;
+    const cfg = {
+      saving: { icon: 'fa-cloud-arrow-up', label: 'Salvando...',    hide: 0    },
+      saved:  { icon: 'fa-circle-check',   label: 'Salvo',          hide: 2000 },
+      error:  { icon: 'fa-circle-xmark',   label: 'Erro ao salvar', hide: 4000 },
+    };
+    const { icon, label, hide } = cfg[state] || cfg.error;
+    el.innerHTML = `<i class="fa-solid ${icon}"></i><span>${label}</span>`;
+    if (hide > 0) {
+      el._hideTimer = setTimeout(() => {
+        el.style.opacity = '0';
+        setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 320);
+      }, hide);
+    }
+  },
+
   _getDocRef(key) {
     const sharedKeys = [
       'hub_employees', 'hub_hours', 'hub_products', 'hub_clients', 'hub_quotes',
@@ -141,6 +168,7 @@ const Storage = {
     } catch (e) {
       this._hideLoading();
       console.warn(`[Storage.get] Erro ao ler "${key}" do Firestore:`, e);
+      _warnOfflineOnce();
       return this._getLocal(key, fallback); // Fallback para localStorage em caso de erro
     }
   },
@@ -355,8 +383,7 @@ const Logger = {
    - Google Sign-In opcional: se Gmail cadastrado em hub_employees, faz login
    ============================================================ */
 const Auth = {
-  MASTER_NAME:        'Administrador',
-  DEFAULT_MASTER_PASS:'master123',
+  MASTER_NAME:   'Administrador',
   COLAB_BLOCKED: ['m3', 'm4', 'm6', 'm8', 'm9', 'm11', 'm12'],
 
   /* ── Senhas (hub_passwords) ─────────────────────────────── */
@@ -366,10 +393,7 @@ const Auth = {
     Storage.set(Storage.KEYS.PASSWORDS, pw).catch(() => {});
   },
   getPassword(name) {
-    const pw = this.getPasswords();
-    return name === this.MASTER_NAME
-      ? (pw[this.MASTER_NAME] || this.DEFAULT_MASTER_PASS)
-      : (pw[name] || null);
+    return this.getPasswords()[name] || null;
   },
   async hashPass(name, pass) {
     const data = new TextEncoder().encode(`hub-pratik|${name.toLowerCase()}|${pass}`);
@@ -389,7 +413,7 @@ const Auth = {
     this.savePasswords(pw);
   },
   hasPassword(name) {
-    return name === this.MASTER_NAME ? true : !!this.getPasswords()[name];
+    return !!this.getPasswords()[name];
   },
 
   /* ── Login com nome + senha (sistema local) ─────────────── */
@@ -404,6 +428,15 @@ const Auth = {
     const emp = employees.find(e => e.name === name);
     const profile = name === this.MASTER_NAME ? 'master' : (emp?.profile || 'colab');
     this.login(profile, name);
+  },
+
+  async _promptFirstMasterPassword() {
+    const p1 = prompt('Primeira entrada do Administrador.\nDefina uma senha (mínimo 4 caracteres):');
+    if (!p1 || p1.length < 4) { Toast.error('Senha inválida. Mínimo 4 caracteres.'); return; }
+    const p2 = prompt('Confirme a senha:');
+    if (p1 !== p2) { Toast.error('As senhas não coincidem.'); return; }
+    await this.setPassword(this.MASTER_NAME, p1);
+    Toast.success('Senha definida. Faça login novamente.');
   },
 
   /* ── Login com Google (opcional, requer Gmail em hub_employees) ─ */
@@ -455,6 +488,21 @@ const Auth = {
     document.dispatchEvent(new CustomEvent('auth:login'));
     // Sync em segundo plano — não bloqueia o app
     Storage.syncAll().catch(() => {});
+  },
+
+  async verifySession() {
+    const session = Storage._getLocal(Storage.KEYS.SESSION);
+    if (!session) return;
+    try {
+      const snap = await getDoc(doc(db, 'usuarios', session.name, 'session', 'profile'));
+      if (!snap.exists()) return; // doc ainda não existe (pré-deploy) — não forçar logout
+      if (snap.data().profile !== session.profile) {
+        // Divergência detectada: forçar logout imediato sem modal (contexto de segurança)
+        Storage._removeLocal(Storage.KEYS.SESSION);
+        signOut(auth).catch(() => {});
+        window.location.reload();
+      }
+    } catch (_) {}
   },
 
   logout() {
@@ -687,7 +735,7 @@ const Toast = {
 
   _show(message, type = 'info', duration = 3200) {
     this._init();
-    const icons = { success: 'fa-circle-check', error: 'fa-circle-xmark', info: 'fa-circle-info' };
+    const icons = { success: 'fa-circle-check', error: 'fa-circle-xmark', info: 'fa-circle-info', warning: 'fa-triangle-exclamation' };
     const el = document.createElement('div');
     el.className = `toast ${type}`;
     el.innerHTML = `<i class="fa-solid ${icons[type] || icons.info}"></i> ${Utils.esc(message)}`;
@@ -703,7 +751,21 @@ const Toast = {
   success(msg, duration) { this._show(msg, 'success', duration); },
   error(msg, duration)   { this._show(msg, 'error',   duration); },
   info(msg, duration)    { this._show(msg, 'info',    duration); },
+  warning(msg, duration) { this._show(msg, 'warning', duration); },
 };
+
+function _warnOfflineOnce() {
+  if (sessionStorage.getItem('hub_offline_warned')) return;
+  sessionStorage.setItem('hub_offline_warned', '1');
+  Toast.warning('Modo offline — dados locais', 4000);
+}
+
+function sanitizeHTML(str) {
+  if (typeof DOMPurify !== 'undefined') return DOMPurify.sanitize(str);
+  const p = document.createElement('div');
+  p.textContent = str;
+  return p.innerHTML;
+}
 
 /* ============================================================
    4. MODAL — Diálogo de confirmação/formulário genérico
@@ -746,7 +808,7 @@ const Modal = {
   confirm({ title, body, confirmText = 'Confirmar', confirmClass = 'btn-danger', onConfirm }) {
     this._init();
     this._title.textContent       = title;
-    this._body.innerHTML          = body;
+    this._body.innerHTML          = sanitizeHTML(body);
     this._confirmBtn.textContent  = confirmText;
     this._confirmBtn.className    = `btn ${confirmClass}`;
     this._onConfirm               = onConfirm;
@@ -869,6 +931,27 @@ const Router = {
    ============================================================ */
 const App = {
   init() {
+    // Splash screen
+    let splashRemoved = false;
+    const removeSplash = () => {
+      if (splashRemoved) return;
+      splashRemoved = true;
+      const s = document.getElementById('hub-splash');
+      if (s) { s.style.transition = 'opacity .3s ease'; s.style.opacity = '0'; setTimeout(() => s.remove(), 320); }
+    };
+    const splash = document.createElement('div');
+    splash.id = 'hub-splash';
+    splash.innerHTML = '<div class="hub-spin-el"></div><div style="font-size:1.3rem;font-weight:600;letter-spacing:.05em;">Hub Interno</div>';
+    splash.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#1a1a2e;z-index:99999;display:flex;flex-direction:column;gap:18px;align-items:center;justify-content:center;color:#fff;font-family:sans-serif;';
+    if (!document.getElementById('hub-splash-style')) {
+      const style = document.createElement('style');
+      style.id = 'hub-splash-style';
+      style.innerHTML = '.hub-spin-el{width:44px;height:44px;border:4px solid rgba(255,255,255,0.25);border-top:4px solid #fff;border-radius:50%;animation:hub-spin 1s linear infinite;} @keyframes hub-spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}';
+      document.head.appendChild(style);
+    }
+    document.body.appendChild(splash);
+    const splashTimeout = setTimeout(removeSplash, 8000);
+
     Theme.init();
     Auth.init();
 
