@@ -2914,12 +2914,32 @@ body.is-master table .master-only { display: table-cell !important; }
     </section>
 
     <section id="panel-settings" class="module-panel">
-      <div class="card p5-pending-card master-only">
-        <div class="card-header"><div><div class="card-title-lg">Pendencias Tecnicas</div><div class="text-xs text-muted mt-1">Pontos fixos para avaliacao futura do Hub.</div></div></div>
-        <div style="display:flex;flex-direction:column;gap:12px">
-          <div class="p5-mini-card"><strong>&#9888;&#65039; Ponto 1 - Sincronizacao de dados:</strong><div class="text-sm text-muted mt-1">Os dados estao armazenados localmente (LocalStorage). Colaboradores acessando de dispositivos diferentes nao sincronizam automaticamente. Solucao futura: migrar para Supabase.</div></div>
-          <div class="p5-mini-card"><strong>&#9888;&#65039; Ponto 2 - API de IA:</strong><div class="text-sm text-muted mt-1">Atualmente usando Groq (llama-3.3-70b-versatile) para M9 e M12. Avaliar futuramente a migracao para API da OpenAI com conta propria da empresa dependendo de custo e volume de uso.</div></div>
-          <div class="p5-mini-card"><strong>&#9888;&#65039; Ponto 3 - Refatoracao DRY:</strong><div class="text-sm text-muted mt-1">Ao final do desenvolvimento completo, rodar o seguinte prompt no Claude Code: "Identifique padroes de codigo duplicados no projeto. Procure por funcoes, componentes ou blocos de codigo que aparecem em varios lugares com pouca ou nenhuma alteracao. Sugira refatoracoes para criar componentes reutilizaveis, hooks personalizados que possam substituir essa duplicacao, seguindo o principio DRY (Don't Repeat Yourself)."</div></div>
+      <div class="card p5-pending-card">
+        <div class="card-header">
+          <div>
+            <div class="card-title-lg">Pendências Técnicas</div>
+            <div class="text-xs text-muted mt-1">Pontos pendentes e futuros do Hub.</div>
+          </div>
+          <button class="btn btn-primary btn-sm master-only" onclick="MPendencias.openAdd()">
+            <i class="fa-solid fa-plus"></i> Nova
+          </button>
+        </div>
+        <div id="pendencias-list" style="display:flex;flex-direction:column;gap:12px"></div>
+        <div id="pendencias-add-form" style="display:none;border-top:1px solid var(--border);padding-top:14px;margin-top:4px">
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div class="field" style="margin:0">
+              <label>Título *</label>
+              <input type="text" id="pend-titulo" placeholder="Ex: Migrar para Firebase Storage" />
+            </div>
+            <div class="field" style="margin:0">
+              <label>Descrição</label>
+              <textarea id="pend-descricao" rows="3" style="font-size:13px" placeholder="Detalhes sobre a pendência..."></textarea>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-primary btn-sm" onclick="MPendencias.saveNew()"><i class="fa-solid fa-check"></i> Salvar</button>
+              <button class="btn btn-secondary btn-sm" onclick="MPendencias.cancelAdd()">Cancelar</button>
+            </div>
+          </div>
         </div>
       </div>
     </section>

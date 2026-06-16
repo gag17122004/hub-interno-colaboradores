@@ -823,6 +823,91 @@
     };
   })();
 
+  // ── Módulo Pendências (painel Configurações) ─────────────────
+  window.MPendencias = (() => {
+    const KEY = 'hub_pendencias';
+    const DEFAULTS = [
+      { id: 1, titulo: 'Ponto 1 - Sincronização de dados', descricao: 'Os dados estão armazenados localmente (LocalStorage). Colaboradores acessando de dispositivos diferentes não sincronizam automaticamente. Solução futura: migrar para Supabase.' },
+      { id: 2, titulo: 'Ponto 2 - API de IA', descricao: 'Atualmente usando Groq (llama-3.3-70b-versatile) para M9 e M12. Avaliar futuramente a migração para API da OpenAI com conta própria da empresa dependendo de custo e volume de uso.' },
+      { id: 3, titulo: 'Ponto 3 - Refatoração DRY', descricao: 'Ao final do desenvolvimento completo, rodar o seguinte prompt no Claude Code: "Identifique padrões de código duplicados no projeto. Procure por funções, componentes ou blocos de código que aparecem em vários lugares com pouca ou nenhuma alteração. Sugira refatorações para criar componentes reutilizáveis, hooks personalizados que possam substituir essa duplicação, seguindo o princípio DRY (Don\'t Repeat Yourself)."' },
+    ];
+
+    function getAll() {
+      const stored = getSync(KEY, null);
+      if (stored === null) { setSync(KEY, DEFAULTS); return DEFAULTS; }
+      return stored;
+    }
+
+    function render() {
+      const el = $('pendencias-list'); if (!el) return;
+      const items = getAll();
+      const isMaster = Auth.isMaster();
+
+      if (!items.length) {
+        el.innerHTML = '<div class="text-sm text-muted" style="text-align:center;padding:20px">Nenhuma pendência registrada.</div>';
+        return;
+      }
+
+      el.innerHTML = items.map(item => `
+        <div class="p5-mini-card" style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+          <div style="flex:1">
+            <strong>⚠️ ${esc(item.titulo)}</strong>
+            <div class="text-sm text-muted mt-1">${esc(item.descricao)}</div>
+          </div>
+          ${isMaster ? `<button class="btn btn-xs btn-danger" style="flex-shrink:0;margin-top:2px" onclick="MPendencias.remove(${item.id})" title="Remover"><i class="fa-solid fa-trash"></i></button>` : ''}
+        </div>
+      `).join('');
+    }
+
+    function remove(id) {
+      Modal.confirm({
+        title: 'Remover Pendência',
+        body: 'Confirma a remoção desta pendência?',
+        confirmText: 'Remover',
+        onConfirm() {
+          const items = getAll().filter(i => i.id !== id);
+          setSync(KEY, items);
+          render();
+          Toast.success('Pendência removida.');
+        }
+      });
+    }
+
+    function openAdd() {
+      const form = $('pendencias-add-form'); if (!form) return;
+      $('pend-titulo').value = '';
+      $('pend-descricao').value = '';
+      form.style.display = '';
+      setTimeout(() => $('pend-titulo')?.focus(), 50);
+    }
+
+    function cancelAdd() {
+      const form = $('pendencias-add-form'); if (!form) return;
+      form.style.display = 'none';
+    }
+
+    function saveNew() {
+      const titulo = $('pend-titulo')?.value.trim();
+      const descricao = $('pend-descricao')?.value.trim();
+      if (!titulo) { Toast.error('Informe o título da pendência.'); return; }
+      const items = getAll();
+      items.push({ id: Date.now(), titulo, descricao: descricao || '' });
+      setSync(KEY, items);
+      cancelAdd();
+      render();
+      Toast.success('Pendência adicionada.');
+    }
+
+    return {
+      init() {
+        Storage.subscribe(KEY, () => render());
+        document.addEventListener('route:change', e => { if (e.detail.route === 'settings') render(); });
+        render();
+      },
+      render, remove, openAdd, cancelAdd, saveNew
+    };
+  })();
+
   // Listeners dos botoes do modal — DOM ja parsed (script defer)
   document.getElementById('p5-manual-save')?.addEventListener('click', () => {
     const route = document.getElementById('p5-manual-save')?.dataset?.route;
@@ -844,5 +929,6 @@
     }
     window.M13?.init(); window.M14?.init(); window.M15?.init(); window.M16?.init();
     window.M17?.init(); window.M18?.init(); window.M19?.init(); window.M20?.init();
+    window.MPendencias?.init();
   });
 })();
