@@ -420,7 +420,12 @@ const Auth = {
   async loginWithPassword(name, pass) {
     if (!name) { Toast.error('Selecione seu nome.'); return; }
     if (!pass)  { Toast.error('Digite sua senha.'); return; }
-    const stored = this.getPassword(name);
+    let stored = this.getPassword(name);
+    if (!stored) {
+      // Sem senha local — tenta sincronizar do Firestore (primeiro acesso / novo dispositivo)
+      await Storage.syncBatch([Storage.KEYS.PASSWORDS, Storage.KEYS.EMPLOYEES]).catch(() => {});
+      stored = this.getPassword(name);
+    }
     if (!stored) { Toast.error('Usuário não encontrado na lista de colaboradores.'); return; }
     const ok = await this._checkPass(name, pass, stored);
     if (!ok) { Toast.error('Senha incorreta.'); return; }
