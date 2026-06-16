@@ -1,15 +1,9 @@
-/**
- * groq.js — Cliente centralizado para a API do Groq
- * Coloque sua chave abaixo antes de usar.
- */
-
-const GROQ_API_KEY = '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';
+const GROQ_API_KEY = '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';
 
 const GroqAI = {
   async call(messages, { model = 'llama-3.3-70b-versatile', max_tokens = 2048 } = {}) {
-    const GROQ_API_KEY = await getGroqKey();
-    if (!GROQ_API_KEY) {
-      throw new Error('GROQ_API_KEY não configurada no Firebase Remote Config.');
+    if (!GROQ_API_KEY || GROQ_API_KEY === 'COLE_SUA_CHAVE_AQUI') {
+      throw new Error('Chave da API do Groq não configurada em groq.js.');
     }
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 20000);
