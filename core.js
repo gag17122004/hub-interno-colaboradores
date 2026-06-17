@@ -419,7 +419,14 @@ const Auth = {
   /* ── Login com nome + senha (sistema local) ─────────────── */
   async loginWithPassword(name, pass) {
     if (!name) { Toast.error('Selecione seu nome.'); return; }
-    if (!pass)  { Toast.error('Digite sua senha.'); return; }
+    // Colabs entram direto sem senha
+    if (name !== this.MASTER_NAME) {
+      const employees = Storage._getLocal(Storage.KEYS.EMPLOYEES, []);
+      const emp = employees.find(e => e.name === name);
+      this.login(emp?.profile || 'colab', name);
+      return;
+    }
+    if (!pass) { Toast.error('Digite sua senha.'); return; }
     let stored = this.getPassword(name);
     if (!stored) {
       // Sem senha local — tenta sincronizar do Firestore (primeiro acesso / novo dispositivo)
@@ -429,10 +436,7 @@ const Auth = {
     if (!stored) { Toast.error('Usuário não encontrado na lista de colaboradores.'); return; }
     const ok = await this._checkPass(name, pass, stored);
     if (!ok) { Toast.error('Senha incorreta.'); return; }
-    const employees = Storage._getLocal(Storage.KEYS.EMPLOYEES, []);
-    const emp = employees.find(e => e.name === name);
-    const profile = name === this.MASTER_NAME ? 'master' : (emp?.profile || 'colab');
-    this.login(profile, name);
+    this.login('master', name);
   },
 
   async _promptFirstMasterPassword() {
@@ -587,6 +591,12 @@ const Auth = {
   init() {
     // Popula select imediatamente — sem esperar Firebase
     this._populateNameSelect();
+
+    // Mostra campo de senha apenas para Administrador
+    document.getElementById('login-name-select')?.addEventListener('change', e => {
+      const passField = document.getElementById('login-pass-field');
+      if (passField) passField.style.display = e.target.value === this.MASTER_NAME ? '' : 'none';
+    });
 
     document.getElementById('btn-google-signin')?.addEventListener('click', () => this.loginWithGoogle());
     document.getElementById('btn-login-finish')?.addEventListener('click', () => {
