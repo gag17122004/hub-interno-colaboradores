@@ -598,7 +598,6 @@ const Auth = {
       if (passField) passField.style.display = e.target.value === this.MASTER_NAME ? '' : 'none';
     });
 
-    document.getElementById('btn-google-signin')?.addEventListener('click', () => this.loginWithGoogle());
     document.getElementById('btn-login-finish')?.addEventListener('click', () => {
       this.loginWithPassword(
         document.getElementById('login-name-select')?.value?.trim(),
