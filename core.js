@@ -1,5 +1,5 @@
 import { doc, getDoc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
-import { signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, signInAnonymously, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
+import { signInAnonymously, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
 import { db, auth, apiKey as fbApiKey } from "./firebase-config.js";
 
 const USAR_FIREBASE = true;
@@ -446,46 +446,6 @@ const Auth = {
     if (p1 !== p2) { Toast.error('As senhas não coincidem.'); return; }
     await this.setPassword(this.MASTER_NAME, p1);
     Toast.success('Senha definida. Faça login novamente.');
-  },
-
-  /* ── Login com Google (opcional, requer Gmail em hub_employees) ─ */
-  async loginWithGoogle() {
-    try {
-      const provider  = new GoogleAuthProvider();
-      const isMobile  = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
-                        (navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent));
-      if (isMobile) {
-        // iOS Safari bloqueia popup OAuth — usa redirect em vez disso
-        await signInWithRedirect(auth, provider);
-        return; // página recarrega após o redirect do Google
-      }
-      const result = await signInWithPopup(auth, provider);
-      await this._handleGoogleUser(result.user);
-    } catch (e) {
-      if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request')
-        Toast.error('Erro ao entrar com Google.');
-    }
-  },
-
-  /* Processa usuário Google após popup ou redirect */
-  async _handleGoogleUser(user) {
-    if (!user) return;
-    let employees = Storage._getLocal(Storage.KEYS.EMPLOYEES, []);
-    if (!employees.length) {
-      try { employees = await Storage.get(Storage.KEYS.EMPLOYEES, []); } catch {}
-    }
-    let emp = employees.find(e => e.email?.toLowerCase() === user.email?.toLowerCase());
-    if (!emp && user.displayName) {
-      emp = employees.find(e => e.name.toLowerCase() === user.displayName.toLowerCase());
-    }
-    if (emp) {
-      this.login(emp.profile || 'colab', emp.name);
-    } else if (!employees.some(e => e.email)) {
-      this.login('master', user.displayName || user.email.split('@')[0]);
-    } else {
-      signOut(auth).catch(() => {});
-      Toast.error('Gmail não cadastrado. Peça ao administrador para adicioná-lo em Colaboradores.');
-    }
   },
 
   login(profile, name) {
@@ -976,11 +936,6 @@ const App = {
     } else {
       Auth.showLogin();
     }
-
-    // Processa resultado de redirect Google (fluxo mobile)
-    getRedirectResult(auth)
-      .then(result => { if (result?.user) Auth._handleGoogleUser(result.user); })
-      .catch(() => {});
 
     // hub:ready só dispara após Firebase auth estar pronto
     // (garante que onSnapshot dos módulos funciona com regras auth != null)
