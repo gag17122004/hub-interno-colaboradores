@@ -1,0 +1,131 @@
+{
+  "project": "hub-interno-colaboradores",
+  "generated_at": "2026-11-15",
+  "generated_by": "Claude (análise estática do código em main @ 509308b)",
+  "purpose": "Mapa de arquitetura auto-descritivo para orientar o próximo agente/dev que for implementar uma nova funcionalidade neste repositório. Leia isto ANTES de editar qualquer módulo.",
+  "summary": "PWA de gestão interna da Pratik Distribuidora. Sem build step: HTML/CSS/JS puro (ES Modules para core/firebase, scripts clássicos para módulos), todos os módulos anexados a `window`. Dados em Firebase Firestore com fallback/cache em localStorage. IA via Groq API direto do navegador.",
+  "stack": {
+    "frontend": "HTML + CSS + JavaScript vanilla (sem framework, sem bundler)",
+    "database": "Firebase Firestore (realtime sync via onSnapshot)",
+    "auth": "Firebase Auth anônima (signInAnonymously) + sistema de login próprio por nome+senha guardado em Firestore/localStorage",
+    "ai": "Groq API (llama-3.3-70b-versatile), chamada direto do cliente em groq.js",
+    "deploy": "Firebase Hosting, deploy automático via GitHub Actions (.github/workflows/deploy.yml) a cada push em main",
+    "pwa": "manifest.json + sw.js (Service Worker, cache versionado, atualmente v12)",
+    "libs_externas": ["Firebase JS SDK 12.13.0 (via CDN gstatic)", "SheetJS (xlsx) via CDN", "Font Awesome (ícones)", "DOMPurify (sanitização opcional, ver core.js:sanitizeHTML)"]
+  },
+  "entry_point": {
+    "file": "index.html",
+    "description": "Arquivo único com CSS embutido + todos os templates HTML dos módulos (painéis escondidos/mostrados via Router). Carrega core.js como module e os demais arquivos de módulo como scripts clássicos com defer.",
+    "script_load_order": [
+      "core.js (type=module)",
+      "meu-espaco.js", "m1-horas.js", "m2-custos.js", "m3-precificacao.js", "m4-m5.js",
+      "m6-auditoria.js", "m7-producao.js", "m8-orcamentos.js", "m9-rendimento.js",
+      "m10-manutencao.js", "m11-disputas.js", "m12-titulos.js", "m13-m20.js", "colaboradores.js"
+    ]
+  },
+  "global_singletons": {
+    "defined_in": "core.js",
+    "exposed_on_window": [
+      {"name": "Storage", "role": "Abstração de persistência. get/set/remove assíncronos (Firestore + write-back localStorage); getSync/setSync síncronos (localStorage imediato + Firestore debounced 400ms). Resolve a chave Firestore certa via _getDocRef: chaves em `sharedKeys[]` vão para compartilhado/{key}/dados/value; o resto vai para usuarios/{nomeDoUsuárioLogado}/dados/{key}."},
+      {"name": "Auth", "role": "Login local por nome+senha (hash SHA-256 sem salt, prefixo 'h1:'), perfis 'master'|'colab'. Lista Auth.COLAB_BLOCKED define rotas vetadas a colaboradores NO CLIENTE (não há enforcement no backend/Firestore)."},
+      {"name": "Logger", "role": "Grava Logger.log(action) em hub_audit (lido pelo módulo M6)."},
+      {"name": "Utils", "role": "Helpers puros: uid, brl, num, fmtDate, dayType, calcPeriod, esc (escape XSS via textContent), currentMonth, debounce, fmtMonth."},
+      {"name": "Toast", "role": "Notificações não-intrusivas (success/error/info/warning)."},
+      {"name": "Modal", "role": "Modal de confirmação/input genérico, usa sanitizeHTML() internamente para o body."},
+      {"name": "Theme", "role": "Dark/light, persistido em hub_theme (sempre localStorage, nunca Firestore)."},
+      {"name": "Router", "role": "Navegação client-side por hash (#m1, #me, etc). Dispara CustomEvent 'route:change' que cada módulo escuta para re-renderizar."},
+      {"name": "App", "role": "Bootstrap: splash screen, signInAnonymously, dispara 'hub:ready' quando auth está pronto (ou após timeout de 3s)."}
+    ],
+    "not_wired_up": [
+      {"name": "UI/Store/Arr/Validators/Fmt", "file": "shared.js", "issue": "Módulo de helpers DRY existe e está documentado no topo do arquivo, mas NÃO é carregado em nenhum <script> de index.html nem é importado por nenhum módulo. É código morto hoje — a 'Refatoração DRY' listada como pendência no README ainda não foi de fato integrada."}
+    ]
+  },
+  "data_model": {
+    "description": "Cada chave em Storage.KEYS mapeia para um doc Firestore. Chaves listadas em _getDocRef.sharedKeys vão para o caminho compartilhado (visível/editável por qualquer usuário autenticado); as demais vão para um caminho por usuário (usuarios/{nome}/dados/{key}), mas o 'nome' vem da sessão local, não de um UID verificado — ver security_findings.",
+    "shared_keys": [
+      {"key": "hub_employees", "shape": "[{id,name,phone,email,endereco,rg,cpf,profile,dataContratacao,status}]", "used_by": ["colaboradores.js"]},
+      {"key": "hub_time_records", "shape": "{[employeeId]: [{id,date,type:'extra'|'devida',hours,note,createdBy}]}", "used_by": ["m1-horas.js"]},
+      {"key": "hub_debts", "shape": "{[employeeId]: number}", "used_by": ["m1-horas.js", "colaboradores.js"]},
+      {"key": "hub_products", "shape": "[{id,name,variations:[{id,sku,qty,lotWeight,width,height,length,micron}]}]", "used_by": ["m2-custos.js", "m3-precificacao.js", "m8-orcamentos.js"]},
+      {"key": "hub_raw_prices", "shape": "{coex:number, pebd:number}", "used_by": ["m2-custos.js"]},
+      {"key": "hub_mkt_fees", "shape": "{shein:{commission},ml:{commission},shopee:{commission},tiktok:{commission}}", "used_by": ["m3-precificacao.js"]},
+      {"key": "hub_pricing", "shape": "{[productId]: {shopee_price, ml_price, sell_qty}}", "used_by": ["m3-precificacao.js"]},
+      {"key": "hub_clients", "shape": "[{id,name,phone,email,whatsapp,notes}]", "used_by": ["m8-orcamentos.js"]},
+      {"key": "hub_quotes", "shape": "[{id,clientId,date,items,grandTotal}]", "used_by": ["m8-orcamentos.js"]},
+      {"key": "hub_maintenance", "shape": "[{id,type:'operator'|'technical',machine,date,...}]", "used_by": ["m10-manutencao.js"]},
+      {"key": "hub_production", "shape": "[{id,date,operator,machine,prodType,micron,color,weight,size,startTime,endTime,packages,cuts,notes}]", "used_by": ["m7-producao.js", "m9-rendimento.js", "meu-espaco.js"]},
+      {"key": "hub_prod_goals", "shape": "[{id,prodType,size,kgPerDay}]", "used_by": ["m7-producao.js"]},
+      {"key": "hub_audit", "shape": "[{timestamp,user,action}] (máx 1000, auto-trim)", "used_by": ["m6-auditoria.js", "Logger"]},
+      {"key": "hub_dispute_scripts", "shape": "{reasons:[...], justifications:[...], variants:{...}} (seed customizável)", "used_by": ["m11-disputas.js"]},
+      {"key": "hub_passwords", "shape": "{[name]: 'h1:<sha256hex>' | plaintext legado}", "used_by": ["Auth"], "sensitive": true},
+      {"key": "hub_size_changes", "used_by": ["m13-m20.js (M19)"]},
+      {"key": "hub_inventory", "used_by": ["m13-m20.js (M20)"]},
+      {"key": "hub_m13_platform_manuals", "used_by": ["m13-m20.js (M13)"]},
+      {"key": "hub_m14_resolution_manuals", "used_by": ["m13-m20.js (M14)"]},
+      {"key": "hub_m15_periodic_todos", "used_by": ["m13-m20.js (M15)"]},
+      {"key": "hub_m16_calendar_events", "used_by": ["m13-m20.js (M16)"]},
+      {"key": "hub_m17_announcements", "used_by": ["m13-m20.js (M17)"]},
+      {"key": "hub_m18_machines", "used_by": ["m13-m20.js (M18)"]},
+      {"key": "hub_contacts", "used_by": ["m13-m20.js (M21 — Contatos Rápidos)"]},
+      {"key": "hub_m9_notes", "used_by": ["m9-rendimento.js"]},
+      {"key": "hub_prod_goal", "shape": "number (meta global legada, ver também hub_prod_goals)", "used_by": ["m7-producao.js legado"]}
+    ],
+    "per_user_keys": [
+      {"key": "hub_session", "shape": "{profile:'master'|'colab', name:string}", "storage": "localStorage apenas, nunca Firestore"},
+      {"key": "hub_theme", "shape": "'dark'|'light'", "storage": "localStorage apenas, nunca Firestore"}
+    ],
+    "firestore_paths": {
+      "shared": "compartilhado/{key}/dados/value",
+      "per_user": "usuarios/{session.name}/dados/{key}",
+      "session_profile_check": "usuarios/{session.name}/session/profile (usado por Auth.verifySession para detectar divergência de perfil)"
+    }
+  },
+  "modules": [
+    {"id": "me", "file": "meu-espaco.js", "nome": "Meu Espaço", "acesso": "Colaborador", "descricao": "Dashboard pessoal: horas do mês, tarefas próprias, produção da semana, comunicados e to-dos.", "depende_de": ["hub_time_records", "hub_tasks", "hub_production", "hub_m17_announcements", "hub_m15_periodic_todos"]},
+    {"id": "colaboradores", "file": "colaboradores.js", "nome": "Banco de Colaboradores", "acesso": "Master", "descricao": "CRUD de RH: dados cadastrais, perfil (master/colab), status ativo/inativo. Base para login (Auth._populateNameSelect) e para M1/M7/M9.", "depende_de": ["hub_employees", "hub_debts", "hub_absences"]},
+    {"id": "m1", "file": "m1-horas.js", "nome": "Horas Extras + Ponto", "acesso": "Todos", "descricao": "Lançamento manual de horas extras/devedoras por colaborador (sem ponto real/GPS).", "depende_de": ["hub_time_records", "hub_employees"]},
+    {"id": "m2", "file": "m2-custos.js", "nome": "Custos & Produtos", "acesso": "Todos (preços restritos a master)", "descricao": "Cadastro de produtos/variações e preço da matéria-prima; calcula custo unitário/lote/peso estimado.", "depende_de": ["hub_products", "hub_raw_prices"]},
+    {"id": "m3", "file": "m3-precificacao.js", "nome": "Precificação e Lucro Líquido", "acesso": "Master", "descricao": "Aplica comissões por marketplace (Shein 18%, ML 26%, Shopee 23%, TikTok 12%) + 5% operacional + frete sobre o custo do M2.", "depende_de": ["hub_pricing", "hub_mkt_fees", "hub_products"]},
+    {"id": "m4", "file": "m4-m5.js", "nome": "Calculadora de Frete", "acesso": "Master", "descricao": "Simulador de frete com visualização de caixa 3D.", "depende_de": []},
+    {"id": "m5", "file": "m4-m5.js", "nome": "Tarefas & Anotações", "acesso": "Todos (colab só vê as próprias)", "descricao": "To-do simples ligado ao colaborador logado.", "depende_de": ["hub_tasks"]},
+    {"id": "m6", "file": "m6-auditoria.js", "nome": "Auditoria", "acesso": "Master", "descricao": "Lê e exibe hub_audit (trilha de ações logadas por Logger.log em todo o app).", "depende_de": ["hub_audit"]},
+    {"id": "m7", "file": "m7-producao.js", "nome": "Controle de Produção", "acesso": "Todos", "descricao": "Registros de produção por máquina/operador e metas de produção (kg/dia) por tipo+tamanho.", "depende_de": ["hub_production", "hub_prod_goals"]},
+    {"id": "m8", "file": "m8-orcamentos.js", "nome": "Orçamentos", "acesso": "Master", "descricao": "Clientes + catálogo do M2 + margem (R$/%) + geração de PDF + histórico de orçamentos.", "depende_de": ["hub_clients", "hub_quotes", "hub_products"]},
+    {"id": "m9", "file": "m9-rendimento.js", "nome": "Informe de Rendimento", "acesso": "Master", "descricao": "Consolida M1+M7+M5+M10 por colaborador e gera relatório analítico via Groq.", "depende_de": ["hub_m9_notes", "hub_production", "hub_time_records", "hub_maintenance", "GroqAI"]},
+    {"id": "m10", "file": "m10-manutencao.js", "nome": "Manutenção de Máquinas", "acesso": "Todos", "descricao": "Ocorrências de parada (operador) e assistência técnica HECE (master); ficha por máquina com alerta de padrão anormal.", "depende_de": ["hub_maintenance"]},
+    {"id": "m11", "file": "m11-disputas.js", "nome": "Disputas Shopee", "acesso": "Master", "descricao": "Gerador de scripts de disputa combinando motivo+justificativa com variação aleatória (evita detecção algorítmica da Shopee); scripts editáveis via seed.", "depende_de": ["hub_dispute_scripts"]},
+    {"id": "m12", "file": "m12-titulos.js", "nome": "Gerador de Títulos", "acesso": "Master", "descricao": "Otimizador de título via Groq (IA) + multiplicador local de variações sem API.", "depende_de": ["GroqAI"]},
+    {"id": "m13", "file": "m13-m20.js", "nome": "Manuais de Plataformas", "acesso": "Master", "depende_de": ["hub_m13_platform_manuals"]},
+    {"id": "m14", "file": "m13-m20.js", "nome": "Manuais de Resolução", "acesso": "Todos (edita só master)", "depende_de": ["hub_m14_resolution_manuals"]},
+    {"id": "m15", "file": "m13-m20.js", "nome": "To-do List Periódica", "acesso": "Todos", "depende_de": ["hub_m15_periodic_todos"]},
+    {"id": "m16", "file": "m13-m20.js", "nome": "Calendário", "acesso": "Todos", "depende_de": ["hub_m16_calendar_events"]},
+    {"id": "m17", "file": "m13-m20.js", "nome": "Comunicados", "acesso": "Master cria, colaborador recebe", "depende_de": ["hub_m17_announcements"]},
+    {"id": "m18", "file": "m13-m20.js", "nome": "Maquinário", "acesso": "Todos (edita só master)", "descricao": "Ficha de máquina com manual + PDF + botão WhatsApp direto para HECE.", "depende_de": ["hub_m18_machines"]},
+    {"id": "m19", "file": "m13-m20.js", "nome": "Checkup de Trocas", "acesso": "Todos", "depende_de": ["hub_size_changes"]},
+    {"id": "m20", "file": "m13-m20.js", "nome": "Inventário", "acesso": "Master", "depende_de": ["hub_inventory"]},
+    {"id": "m21", "file": "m13-m20.js", "nome": "Contatos Rápidos", "acesso": "Todos", "depende_de": ["hub_contacts"]},
+    {"id": "ajuda", "file": "index.html (inline)", "nome": "Ajuda / Suporte", "acesso": "Todos"},
+    {"id": "settings", "file": "index.html (inline) + core.js (Auth.resetColabPassword etc.)", "nome": "Configurações", "acesso": "Master"}
+  ],
+  "ci_cd": {
+    "deploy": ".github/workflows/deploy.yml — push em main → FirebaseExtended/action-hosting-deploy, projectId hub-interno-colaboradores, usa secret FIREBASE_SERVICE_ACCOUNT_HUB_INTERNO_COLABORADORES (bem configurado, não exposto).",
+    "qa": ".github/workflows/smoke-and-lighthouse.yml + tests/smoke.test.mjs (Playwright, contra a URL de produção) + tests/user.test.mjs."
+  },
+  "known_pendencies_from_readme": [
+    "Mover chave Groq para configurações do master (não hardcoded no código)",
+    "Migração API IA → conta OpenAI da empresa",
+    "Refatoração DRY ao final do desenvolvimento completo (shared.js existe mas não está integrado — ver global_singletons.not_wired_up)"
+  ],
+  "security_findings_summary": "Ver review completo na conversa / seção de review. Resumo para quem for codar: (1) firestore.rules libera read/write para QUALQUER usuário autenticado, incluindo anônimo — e o app loga todo visitante como anônimo automaticamente; não há verificação de uid dono do documento em usuarios/{userName}/dados/{key}. (2) GROQ_API_KEY está hardcoded em groq.js e o repo agora é público. (3) tests/smoke.test.mjs tem MASTER_PASS hardcoded — confirmar se é só senha de teste ou se bate com a senha real de produção.",
+  "how_to_extend": {
+    "add_new_module": [
+      "1. Criar mNN-nome.js seguindo o padrão IIFE `const MNN = (() => {...})(); window.MNN = MNN;`",
+      "2. Adicionar <script src='mNN-nome.js' defer> em index.html, na mesma ordem relativa dos outros módulos (antes de colaboradores.js por convenção).",
+      "3. Adicionar o painel HTML (div#panel-mNN) e o item de sidebar (data-route='mNN') em index.html.",
+      "4. Se precisar de nova chave de dado: adicionar em Storage.KEYS (core.js) e decidir se é 'shared' (vai para sharedKeys[] em _getDocRef) ou por usuário.",
+      "5. Se o módulo for master-only, adicionar o route id em Auth.COLAB_BLOCKED (core.js) — e ATENÇÃO: isso só esconde no cliente, não protege o dado no Firestore (ver security_findings_summary).",
+      "6. Adicionar o módulo em STATIC_ASSETS de sw.js para funcionar offline/PWA, e bump de CACHE_VERSION.",
+      "7. Atualizar a tabela de módulos no README.md."
+    ]
+  }
+}
